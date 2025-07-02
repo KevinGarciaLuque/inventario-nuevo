@@ -1,0 +1,3 @@
+Administrador	admin@motorepuestos.com	admin	admin123	
+Kevin	           kg@gmail.com	        admin	123456789
+aluque	       aluque@gmail.com	        usuario	123456789

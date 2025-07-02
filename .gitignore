@@ -1,0 +1,33 @@
+# Ignora node_modules y dist en cualquier parte del proyecto
+node_modules/
+dist/
+dist-ssr/
+out/
+release/
+build/
+*.asar
+
+# Ignora archivos de entorno
+.env
+.env.*.local
+
+# Otros (logs, temp, editores, binarios, etc)
+logs
+*.log
+npm-debug.log*
+.vscode/
+.idea/
+*.zip
+*.exe
+*.dmg
+.DS_Store
+Thumbs.db
+
+*.msi
+*.AppImage
+*.snap
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

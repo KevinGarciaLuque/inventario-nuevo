@@ -1,0 +1,78 @@
+/* Sidebar ancho normal y colapsado */
+.sidebar-responsive {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s;
+    width: 250px;
+    min-width: 60px;
+    z-index: 20;
+    position: relative;
+  }
+  
+  .sidebar-collapsed {
+    width: 60px !important;
+  }
+  
+  .sidebar-expanded {
+    width: 250px;
+  }
+  
+  /* Sidebar en móvil: tipo overlay */
+  @media (max-width: 991.98px) {
+    .sidebar-responsive {
+      position: fixed;
+      left: -250px;
+      top: 0;
+      height: 100vh;
+      width: 250px !important;
+      min-width: 0;
+      background: #23272b !important;
+      z-index: 1002;
+      box-shadow: 2px 0 20px rgba(0,0,0,0.23);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar-expanded.sidebar-mobile {
+      left: 0;
+    }
+    .sidebar-collapsed.sidebar-mobile {
+      left: -250px;
+    }
+  }
+  
+  /* Bloquear scroll del main cuando sidebar móvil está abierto */
+  body.sidebar-mobile-open {
+    overflow: hidden !important;
+  }
+  
+  .main-content-responsive {
+    min-width: 0;
+    width: 100%;
+  }
+  
+  /* Ajustar padding del main en pantallas pequeñas */
+  @media (max-width: 767.98px) {
+    .main-content-inner {
+      padding: 0.5rem !important;
+    }
+    .main-card-responsive {
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+  }
+  
+  /* Ajuste de card en móvil */
+  .main-card-responsive {
+    border-radius: 18px;
+    background: #fff;
+    margin-bottom: 2rem;
+  }
+  
+  /* Quitar el margen lateral del main en móvil */
+  @media (max-width: 575.98px) {
+    .main-content-inner {
+      padding: 0.2rem !important;
+    }
+    .main-card-responsive {
+      padding: 0 !important;
+      margin-bottom: 1rem !important;
+    }
+  }
+  

@@ -1,0 +1,65 @@
+.login-bg {
+  min-height: 100vh;
+  background: linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)), 
+              url('../assets/images/fondo-login.png') no-repeat center center;
+  background-size: cover;
+  overflow-x: hidden;
+  width: 100vw;
+}
+
+.login-row {
+  min-height: 100vh;
+}
+
+/* Título grande y elegante */
+.inicio-titulo {
+  font-size: 4vw;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 2px 6px 14px rgba(0,0,0,0.55);
+  margin-bottom: 0;
+  line-height: 1.1;
+}
+
+/* Responsivo para móvil */
+@media (max-width: 991.98px) {
+  .inicio-titulo {
+    font-size: 7vw;
+    margin-bottom: 2rem;
+  }
+  .login-bg {
+    padding-top: 40px;
+  }
+  .login-row {
+    min-height: 100vh;
+    flex-direction: column;
+  }
+}
+
+/* En móvil: muestra el título encima del login */
+@media (max-width: 991.98px) {
+  .col-lg-6.d-none.d-lg-flex {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 30px;
+    padding: 0 0 20px 0;
+  }
+}
+
+/* En desktop solo el login-card, en móvil ocupa casi todo */
+.login-card {
+  border-radius: 18px;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #f3f3f3;
+  box-shadow: 0 2px 20px 6px rgba(40,40,40,0.14);
+}
+
+/* Ajusta padding en mobile */
+@media (max-width: 575.98px) {
+  .login-card .card-body {
+    padding: 1.3rem 0.6rem;
+  }
+}

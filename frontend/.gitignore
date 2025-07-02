@@ -1,0 +1,54 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencias node_modules (no deben ir al repo)
+node_modules/
+
+# Builds de React Vite
+dist/
+dist-ssr/
+
+# Builds de Electron
+out/
+release/
+build/
+*.asar
+
+# Binarios de Electron (aplicaciones generadas)
+*.exe
+*.dmg
+*.AppImage
+*.snap
+*.msi
+
+# Archivos temporales de empaquetado
+*.zip
+*.tar.gz
+*.7z
+
+# Archivos locales de entorno
+.env
+.env.*.local
+
+# Configuración local de editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de caché y temporales de npm/yarn/pnpm
+.pnpm-store/
+.cache/
