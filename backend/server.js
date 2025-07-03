@@ -33,7 +33,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permite llamadas directas del server, Postman o sin origin
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -58,8 +57,8 @@ app.use("/api/bitacora", require("./routes/bitacora"));
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/cai", require("./routes/cai"));
 app.use("/api/ventas", require("./routes/ventas"));
-app.use("/api/facturas", require("./routes/facturas")); // <--- La nueva ruta con detalle de facturas
-app.use("/api/clientes", require("./routes/clientes")); // <--- Nueva ruta para buscar clientes
+app.use("/api/facturas", require("./routes/facturas"));
+app.use("/api/clientes", require("./routes/clientes"));
 
 // === Carpeta pública para archivos subidos ===
 const uploadsPath = path.join(process.cwd(), "uploads");

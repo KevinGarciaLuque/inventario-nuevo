@@ -36,9 +36,14 @@ router.post("/", upload.single("imagen"), (req, res) => {
     return res.status(400).json({ message: "No se subió ninguna imagen" });
   }
 
+  // Obtén el dominio BASE desde la variable de entorno (usa localhost por defecto)
+  const urlBase = process.env.BACKEND_URL || "http://localhost:3000";
+  // Crea la URL completa para el archivo subido
+  const imageUrl = `${urlBase}/uploads/${req.file.filename}`;
+
   res.json({
-    path: "/uploads/" + req.file.filename,
-    filename: req.file.filename,
+    path: imageUrl, // ✅ URL absoluta para usar en el frontend
+    filename: req.file.filename, // solo si lo necesitas para otra cosa
   });
 });
 
