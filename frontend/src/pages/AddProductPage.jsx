@@ -23,7 +23,16 @@ export default function AddProductPage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   // Obtén usuario_id del usuario logueado
-  const usuario_id = JSON.parse(localStorage.getItem("usuario"))?.id;
+  // Obtén usuario_id del usuario logueado (versión segura)
+  const usuario_id = (() => {
+    try {
+      const u = localStorage.getItem("usuario");
+      return u ? JSON.parse(u)?.id : null;
+    } catch {
+      return null;
+    }
+  })();
+  
 
   useEffect(() => {
     api.get("/categorias").then((res) => setCategorias(res.data));

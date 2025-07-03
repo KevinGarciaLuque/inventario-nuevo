@@ -11,11 +11,17 @@ export function UserProvider({ children }) {
   useEffect(() => {
     const storedUser = localStorage.getItem("usuario");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        // Si hay error, limpiamos el usuario corrupto
+        setUser(null);
+        localStorage.removeItem("usuario");
+      }
     }
     setLoading(false); // <-- Listo para renderizar
   }, []);
-
+  
   const login = (usuario, token) => {
     setUser(usuario);
     localStorage.setItem("usuario", JSON.stringify(usuario));
