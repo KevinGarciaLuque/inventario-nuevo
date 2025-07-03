@@ -1,5 +1,37 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: { "Content-Type": "application/json" },
+  // withCredentials: true, // solo si usas cookies/sesiones
+});
+
+// Interceptor para manejo de errores globales
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      console.error(
+        "API Error:",
+        error.response.data?.message || error.message
+      );
+    } else {
+      console.error("Error de conexión con el backend.");
+    }
+    return Promise.reject(
+      new Error(
+        error.response?.data?.message || error.message || "Unknown error"
+      )
+    );
+  }
+);
+
+export default api;
+
+/*import axios from "axios";
+
 // Utiliza la variable del entorno VITE_API_URL del archivo .env
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -30,7 +62,7 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default api;*/
 
 /*import axios from "axios";
 
