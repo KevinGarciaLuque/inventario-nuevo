@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Button } from "react-bootstrap";
 import api from "../../api/axios";
-import { useUser } from "../context/UserContext"; // Ajusta si usas otro contexto
+import { useUser } from "../context/UserContext";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
 export default function UsersPage() {
-  const { user } = useUser(); // Aquí obtienes el usuario logueado y su rol
+  const { user } = useUser();
   const [usuarios, setUsuarios] = useState([]);
   const [form, setForm] = useState({
     nombre: "",
@@ -13,13 +14,19 @@ export default function UsersPage() {
     rol: "usuario",
   });
   const [editUser, setEditUser] = useState(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [idToDelete, setIdToDelete] = useState(null);
+
+  // Modal de confirmación eliminar
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    show: false,
+    userId: null,
+    nombre: "",
+    email: ""
+  });
 
   // Modal feedback
   const [modal, setModal] = useState({
     show: false,
-    type: "success", // "success" | "error"
+    type: "success",
     title: "",
     message: "",
   });
@@ -39,7 +46,7 @@ export default function UsersPage() {
     cargarUsuarios();
   }, []);
 
-  // Manejadores
+  // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
@@ -70,48 +77,47 @@ export default function UsersPage() {
       showModal({
         type: "error",
         title: "Error al guardar",
-        message:
-          err.response?.data?.message || "No se pudo guardar el usuario.",
+        message: err.response?.data?.message || "No se pudo guardar el usuario.",
       });
     }
   };
 
-  // Editar usuario (llena el form)
-  const handleEdit = (user) => {
-    setEditUser(user);
+  // Editar usuario
+  const handleEdit = (u) => {
+    setEditUser(u);
     setForm({
-      nombre: user.nombre,
-      email: user.email,
+      nombre: u.nombre,
+      email: u.email,
       password: "",
-      rol: user.rol,
+      rol: u.rol,
     });
   };
 
-  // Eliminar usuario (abre confirmación)
-  const handleDeleteClick = (id) => {
-    setIdToDelete(id);
-    setShowConfirm(true);
+  // Abrir modal confirmación eliminar con nombre/email
+  const askDelete = (id, nombre, email) => {
+    setDeleteConfirm({ show: true, userId: id, nombre, email });
   };
 
   // Confirmar eliminación
-  const handleConfirmDelete = async () => {
+  const handleDelete = async () => {
+    const id = deleteConfirm.userId;
+    setDeleteConfirm({ show: false, userId: null, nombre: "", email: "" });
+    if (!id) return;
     try {
-      await api.delete(`/usuarios/${idToDelete}`);
+      await api.delete(`/usuarios/${id}`);
       cargarUsuarios();
       showModal({
         type: "success",
         title: "¡Usuario eliminado!",
         message: "El usuario fue eliminado correctamente.",
       });
-    } catch {
+    } catch (e) {
       showModal({
         type: "error",
         title: "No se pudo eliminar",
-        message: "El usuario no pudo ser eliminado.",
+        message: e?.response?.data?.message || "El usuario no pudo ser eliminado.",
       });
     }
-    setShowConfirm(false);
-    setIdToDelete(null);
   };
 
   // Cambiar contraseña
@@ -153,7 +159,6 @@ export default function UsersPage() {
   return (
     <div className="container py-4 userspage-responsive-root">
       <h3 className="mb-4">Usuarios</h3>
-      {/* Solo los admins pueden agregar/editar usuarios */}
       {user?.rol === "admin" && (
         <form
           onSubmit={handleSubmit}
@@ -193,7 +198,7 @@ export default function UsersPage() {
               />
             </div>
           )}
-          <div className="col-md-2 col-6">
+          <div className="col-md-2 col-6 mx-14">
             <select
               className="form-select"
               name="rol"
@@ -204,7 +209,7 @@ export default function UsersPage() {
               <option value="usuario">Usuario</option>
             </select>
           </div>
-          <div className="col-md-1 col-6">
+          <div className="col-md-1 col-6 mx-1">
             <button type="submit" className="btn btn-success w-150">
               {editUser ? "Actualizar" : "Agregar"}
             </button>
@@ -224,13 +229,13 @@ export default function UsersPage() {
                   });
                 }}
               >
-                Cancelar edición
+                Cancelar 
               </button>
             </div>
           )}
         </form>
       )}
-     
+
       <div
         className="table-responsive"
         style={{ maxHeight: "400px", overflowY: "auto" }}
@@ -273,7 +278,7 @@ export default function UsersPage() {
                       <button
                         className="btn btn-danger btn-sm me-1"
                         style={{ borderRadius: 8 }}
-                        onClick={() => handleDeleteClick(u.id)}
+                        onClick={() => askDelete(u.id, u.nombre, u.email)}
                       >
                         <i className="bi bi-trash"></i>
                       </button>
@@ -302,29 +307,28 @@ export default function UsersPage() {
       <style>{`
   .sticky-top { position: sticky; top: 0; z-index: 2; background: #f8f9fa; }
 `}</style>
+
       {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
-      <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered>
-        <Modal.Body className="text-center py-4">
-          <i
-            className="bi bi-exclamation-triangle-fill text-danger"
-            style={{ fontSize: 54 }}
-          ></i>
-          <h5 className="mb-2 mt-2 fw-bold text-danger">
-            ¿Seguro que deseas eliminar este usuario?
-          </h5>
-          <div className="mb-3 text-muted">
-            Esta acción no se puede deshacer.
-          </div>
-          <div className="d-flex gap-2 justify-content-center">
-            <Button variant="secondary" onClick={() => setShowConfirm(false)}>
-              Cancelar
-            </Button>
-            <Button variant="danger" onClick={handleConfirmDelete}>
-              Eliminar
-            </Button>
-          </div>
-        </Modal.Body>
-      </Modal>
+      <ConfirmDeleteModal
+        show={deleteConfirm.show}
+        onHide={() => setDeleteConfirm({ show: false, userId: null, nombre: "", email: "" })}
+        onConfirm={handleDelete}
+        mensaje={
+          <>
+            ¿Seguro que deseas eliminar el usuario{" "}
+            <span className="fw-bold">{deleteConfirm.nombre}</span>
+            {deleteConfirm.email && (
+              <>
+                <br />
+                <span className="text-muted">{deleteConfirm.email}</span>
+              </>
+            )}
+            ?
+          </>
+        }
+        subtitulo="Esta acción no se puede deshacer."
+      />
+
       {/* MODAL CAMBIAR CONTRASEÑA */}
       <Modal
         show={showPassModal}
@@ -359,6 +363,7 @@ export default function UsersPage() {
           </form>
         </Modal.Body>
       </Modal>
+
       {/* MODAL FEEDBACK (ÉXITO/ERROR) */}
       <Modal show={modal.show} onHide={closeModal} centered>
         <Modal.Body className="text-center py-4">
@@ -389,7 +394,7 @@ export default function UsersPage() {
           </Button>
         </Modal.Body>
       </Modal>
-      {/* Estilos responsivos en línea */}
+      {/* Estilos responsivos */}
       <style>{`
         .userspage-responsive-root .users-form-row > .col-12, 
         .userspage-responsive-root .users-form-row > .col-6 {

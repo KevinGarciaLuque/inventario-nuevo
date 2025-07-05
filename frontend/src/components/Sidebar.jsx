@@ -97,7 +97,7 @@ export default function Sidebar({
         }`}
       >
         <span
-          className="fw-bold fs-4 text-warning-emphasis text-center"
+          className="fw-bold fs-4 text-wathi text-center"
           style={{
             letterSpacing: 2,
             transition: "all .3s",

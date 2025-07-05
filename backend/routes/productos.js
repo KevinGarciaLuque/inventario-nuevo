@@ -162,37 +162,66 @@ router.put("/:id", async (req, res) => {
 // ========================
 // Eliminar producto (con bitácora)
 // ========================
+
 router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { usuario_id } = req.query;
+  console.log(
+    "API: Intentando eliminar producto",
+    id,
+    "por usuario:",
+    usuario_id
+  );
+
   try {
-    const { id } = req.params;
-    const { usuario_id } = req.query;
+    // Busca el producto antes de eliminar
+    const [prods] = await db.query(
+      "SELECT nombre, codigo FROM productos WHERE id=?",
+      [id]
+    );
+    const producto = prods[0];
 
-    let producto = null;
-    try {
-      const [prods] = await db.query(
-        "SELECT nombre, codigo FROM productos WHERE id=?",
-        [id]
-      );
-      producto = prods[0];
-    } catch {}
+    if (!producto) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
 
-    await db.query("DELETE FROM productos WHERE id=?", [id]);
+    // Intenta eliminar el producto
+    const [deleteResult] = await db.query("DELETE FROM productos WHERE id=?", [
+      id,
+    ]);
 
+    if (deleteResult.affectedRows === 0) {
+      // No se eliminó ningún producto (posible relación foránea)
+      return res.status(409).json({
+        message:
+          "No se pudo eliminar el producto. Es posible que esté relacionado con ventas, movimientos u otra tabla.",
+      });
+    }
+
+    // Registra en la bitácora
     if (usuario_id) {
       await db.query(
-        "INSERT INTO bitácora (usuario_id, accion, descripcion) VALUES (?, ?, ?)",
+        "INSERT INTO bitacora (usuario_id, accion, descripcion) VALUES (?, ?, ?)",
         [
           usuario_id,
           "Eliminar producto",
-          `Producto "${producto?.nombre || ""}" (ID: ${id}) eliminado.`,
+          `Producto "${producto.nombre}" (ID: ${id}) eliminado.`,
         ]
       );
     }
 
     res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al eliminar producto", error });
+    console.error("Error al eliminar producto:", error);
+    let msg = "Error al eliminar producto";
+    if (error && error.code === "ER_ROW_IS_REFERENCED_2") {
+      msg =
+        "No se pudo eliminar el producto porque tiene registros relacionados (ventas, movimientos, etc.)";
+    }
+    res.status(500).json({ message: msg, error });
   }
 });
+
+
 
 module.exports = router;

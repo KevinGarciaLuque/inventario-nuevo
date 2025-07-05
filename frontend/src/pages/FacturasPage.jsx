@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Table, Form, InputGroup, Button } from "react-bootstrap";
-import { FaBroom, FaPrint } from "react-icons/fa";
+import { Table, Form, InputGroup, Button, Modal } from "react-bootstrap";
+import { FaBroom, FaPrint, FaEye } from "react-icons/fa";
 import api from "../../api/axios";
 import generarReciboPDF from "../utils/generarReciboPDF"; // Ajusta el path según tu proyecto
 
 export default function FacturasPage() {
   const [facturas, setFacturas] = useState([]);
   const [busqueda, setBusqueda] = useState("");
+
+  // Estados para la vista previa de la factura
+  const [showVista, setShowVista] = useState(false);
+  const [facturaVista, setFacturaVista] = useState(null);
 
   useEffect(() => {
     cargarFacturas();
@@ -27,6 +31,7 @@ export default function FacturasPage() {
       f.cai_codigo.toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  // Botón imprimir
   const manejarImpresion = async (factura) => {
     try {
       const res = await api.get(`/facturas/${factura.id}`);
@@ -44,9 +49,21 @@ export default function FacturasPage() {
         cliente_rtn: datosFactura.cliente_rtn,
         cliente_direccion: datosFactura.cliente_direccion,
       });
-      
     } catch (error) {
       console.error("Error al generar el PDF:", error);
+    }
+  };
+
+  // Botón vista previa
+  const verFactura = async (factura) => {
+    try {
+      const res = await api.get(`/facturas/${factura.id}`);
+      setFacturaVista(res.data);
+      setShowVista(true);
+    } catch (err) {
+      setFacturaVista(null);
+      setShowVista(false);
+      alert("Error al cargar la factura para vista previa.");
     }
   };
 
@@ -95,6 +112,15 @@ export default function FacturasPage() {
                 <td>{parseFloat(f.total_factura).toFixed(2)} Lps</td>
                 <td>
                   <Button
+                    variant="info"
+                    size="sm"
+                    className="me-2"
+                    title="Vista previa"
+                    onClick={() => verFactura(f)}
+                  >
+                    <FaEye />
+                  </Button>
+                  <Button
                     variant="primary"
                     size="sm"
                     onClick={() => manejarImpresion(f)}
@@ -107,6 +133,66 @@ export default function FacturasPage() {
           </tbody>
         </Table>
       </div>
+
+      {/* Modal de Vista Previa */}
+      <Modal
+        show={showVista}
+        onHide={() => setShowVista(false)}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Vista previa de factura</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {facturaVista ? (
+            <div>
+              <h5>
+                Factura #{facturaVista.numero_factura} |{" "}
+                {facturaVista.cliente_nombre}
+              </h5>
+              <div className="mb-2">
+                <b>Fecha:</b>{" "}
+                {new Date(facturaVista.fecha_emision).toLocaleString()}
+              </div>
+              <div>
+                <b>RTN:</b> {facturaVista.cliente_rtn || "N/A"} <br />
+                <b>Dirección:</b> {facturaVista.cliente_direccion || "N/A"}
+              </div>
+              <hr />
+              <div>
+                <b>Detalle:</b>
+                <ul>
+                  {facturaVista.carrito &&
+                    facturaVista.carrito.map((item, idx) => (
+                      <li key={idx}>
+                        {item.nombre} x {item.cantidad} &mdash; Lps{" "}
+                        {parseFloat(item.precio).toFixed(2)}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+              <div className="mt-2">
+                <b>Subtotal:</b> Lps{" "}
+                {parseFloat(facturaVista.subtotal).toFixed(2)} <br />
+                <b>Impuesto:</b> Lps{" "}
+                {parseFloat(facturaVista.impuesto).toFixed(2)} <br />
+                <b>Total:</b>{" "}
+                <span className="fw-bold">
+                  Lps {parseFloat(facturaVista.total).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div>No se pudo cargar la factura.</div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowVista(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

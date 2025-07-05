@@ -1,4 +1,4 @@
-import axios from "axios";
+/*import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -28,7 +28,7 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default api;*/
 
 /*import axios from "axios";
 
@@ -64,7 +64,7 @@ api.interceptors.response.use(
 
 export default api;*/
 
-/*import axios from "axios";
+import axios from "axios";
 
 // Si decides cambiar el puerto, solo ajusta aquí:
 const API_BASE_URL = "http://127.0.0.1:3000/api";
@@ -95,4 +95,4 @@ api.interceptors.response.use(
   }
 );
 
-export default api;*/
+export default api;

@@ -9,7 +9,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -18,5 +17,6 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.0",
     "mysql2": "^3.14.1"
-  }
+  },
+  "description": ""
 }

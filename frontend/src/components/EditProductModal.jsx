@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/axios";
 import { Modal, Button, Form } from "react-bootstrap";
-import { CheckCircleFill, XCircleFill, TrashFill } from "react-bootstrap-icons";
+import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:3000"; // Cambia si usas .env
 
 export default function EditProductModal({
   show,
@@ -32,7 +32,6 @@ export default function EditProductModal({
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [successType, setSuccessType] = useState("success"); // o "danger"
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -108,23 +107,6 @@ export default function EditProductModal({
     } catch (error) {
       setSuccessType("danger");
       setSuccessMsg("Error al actualizar el producto.");
-      setShowSuccess(true);
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async () => {
-    setLoading(true);
-    try {
-      await api.delete(`/productos/${product.id}`);
-      setSuccessType("success");
-      setSuccessMsg("Producto eliminado correctamente.");
-      setShowSuccess(true);
-      setShowDeleteConfirm(false);
-      onUpdated();
-    } catch {
-      setSuccessType("danger");
-      setSuccessMsg("Error al eliminar el producto.");
       setShowSuccess(true);
     }
     setLoading(false);
@@ -263,51 +245,21 @@ export default function EditProductModal({
               variant="outline-secondary"
               onClick={onClose}
               disabled={loading}
-              className="w-100 w-sm-auto"
+              className="w-40 w-sm-auto"
             >
               Cancelar
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={loading}
-              className="w-100 w-sm-auto"
-            >
-              <TrashFill className="me-1" /> Eliminar
             </Button>
             <Button
               variant="primary"
               type="submit"
               disabled={loading}
-              className="w-100 w-sm-auto"
+              className="w-40 w-sm-auto"
             >
               {loading ? "Guardando..." : "Guardar Cambios"}
+             
             </Button>
           </Modal.Footer>
         </Form>
-      </Modal>
-
-      {/* Modal de confirmación para eliminar */}
-      <Modal
-        show={showDeleteConfirm}
-        onHide={() => setShowDeleteConfirm(false)}
-        centered
-      >
-        <Modal.Body className="text-center py-4">
-          <TrashFill size={56} color="#dc3545" className="mb-3" />
-          <h5 className="mb-3 text-danger">¿Deseas eliminar este producto?</h5>
-          <div className="d-flex justify-content-center gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              Cancelar
-            </Button>
-            <Button variant="danger" onClick={handleDelete} disabled={loading}>
-              Sí, Eliminar
-            </Button>
-          </div>
-        </Modal.Body>
       </Modal>
 
       {/* Modal de éxito/error */}

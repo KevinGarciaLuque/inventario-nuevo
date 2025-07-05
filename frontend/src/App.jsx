@@ -2,6 +2,8 @@ import React from "react";
 import Login from "./components/Login";
 import Layout from "./components/Layout";
 import { useUser } from "./context/UserContext"; // <--- usa tu hook
+import "bootstrap/dist/css/bootstrap.min.css";
+import "./styles/App.css"; // Asegúrate de tener tus estilos personalizados
 
 export default function App() {
   const { user, loading, login, logout } = useUser();

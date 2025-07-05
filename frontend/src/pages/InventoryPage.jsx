@@ -5,7 +5,7 @@ import api from "../../api/axios";
 import EditProductModal from "../components/EditProductModal";
 import { useUser } from "../context/UserContext";
 import { FaBroom } from "react-icons/fa";
-
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
 const API_URL = "http://localhost:3000";
 
@@ -30,8 +30,8 @@ export default function InventoryPage({ onView }) {
   const [deleteConfirm, setDeleteConfirm] = useState({
     show: false,
     productId: null,
+    nombre: "",
   });
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -44,13 +44,7 @@ export default function InventoryPage({ onView }) {
   const scannerTimeout = useRef(null);
   const flashRef = useRef(null);
 
-  const beep = () => {
-    const audio = new Audio(
-      "https://assets.mixkit.co/sfx/download/mixkit-positive-interface-beep-221.mp3"
-    );
-    audio.play();
-  };
-
+  // Cargar datos
   const cargarDatos = async () => {
     setLoading(true);
     try {
@@ -76,7 +70,7 @@ export default function InventoryPage({ onView }) {
     cargarDatos();
   }, []);
 
-  // Escaneo de código de barras
+  // Escaneo de código de barras (para lector externo)
   useEffect(() => {
     const handleKeyPress = (e) => {
       const char = e.key;
@@ -94,6 +88,7 @@ export default function InventoryPage({ onView }) {
       window.removeEventListener("keypress", handleKeyPress);
       if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
     };
+    // eslint-disable-next-line
   }, [codigoBuffer]);
 
   const procesarCodigoEscaneado = async (codigo) => {
@@ -116,6 +111,13 @@ export default function InventoryPage({ onView }) {
     }
   };
 
+  const beep = () => {
+    const audio = new Audio(
+      "https://assets.mixkit.co/sfx/download/mixkit-positive-interface-beep-221.mp3"
+    );
+    audio.play();
+  };
+
   const flashAnimation = () => {
     if (flashRef.current) {
       flashRef.current.classList.add("flash-success");
@@ -132,22 +134,37 @@ export default function InventoryPage({ onView }) {
     setStockFilter("");
   };
 
-  const askDelete = (id) => setDeleteConfirm({ show: true, productId: id });
+  // Eliminar producto (mostrar modal)
+  const askDelete = (id, nombre) =>
+    setDeleteConfirm({ show: true, productId: id, nombre: nombre });
 
+  // Confirmar eliminación
   const handleDelete = async () => {
     const id = deleteConfirm.productId;
-    setDeleteConfirm({ show: false, productId: null });
+    setDeleteConfirm({ show: false, productId: null, nombre: "" });
     if (!id) return;
     try {
-      await api.delete(`/productos/${id}?usuario_id=${usuario_id}`);
-      setItems((prev) => prev.filter((prod) => prod.id !== id));
-      setDeleteSuccess(true);
-    } catch {
+      const response = await api.delete(
+        `/productos/${id}?usuario_id=${usuario_id}`
+      );
+      if (response.data?.message) {
+        setToast({
+          show: true,
+          message: response.data.message,
+          variant: "success",
+        });
+      }
+      cargarDatos();
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        "No se pudo eliminar. Es posible que el producto tenga registros relacionados.";
       setToast({
         show: true,
-        message: "No se pudo eliminar",
+        message: msg,
         variant: "danger",
       });
+      console.error("Error al eliminar:", e);
     }
   };
 
@@ -155,12 +172,13 @@ export default function InventoryPage({ onView }) {
     if (toast.show) {
       const timer = setTimeout(
         () => setToast((t) => ({ ...t, show: false })),
-        2500
+        3000
       );
       return () => clearTimeout(timer);
     }
   }, [toast.show]);
 
+  // Filtrado de productos
   const filtered = items.filter(
     (item) =>
       (item.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -174,12 +192,53 @@ export default function InventoryPage({ onView }) {
         : item.stock > (item.stock_minimo || 1))
   );
 
+  // Render
   return (
     <section className="container py-4">
       <div ref={flashRef}></div>
-
       <h2 className="mb-4 text-center">Inventario de Repuestos</h2>
 
+      {/* Toast de mensajes */}
+      <Modal
+        show={toast.show}
+        onHide={() => setToast((t) => ({ ...t, show: false }))}
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          {toast.variant === "success" ? (
+            <CheckCircleFill size={50} color="#198754" className="mb-3" />
+          ) : (
+            <XCircleFill size={50} color="#dc3545" className="mb-3" />
+          )}
+          <h5
+            className={`fw-bold ${
+              toast.variant === "success" ? "text-success" : "text-danger"
+            }`}
+          >
+            {toast.message}
+          </h5>
+          <Button
+            variant={toast.variant === "success" ? "success" : "danger"}
+            className="mt-2 px-4"
+            onClick={() => setToast((t) => ({ ...t, show: false }))}
+          >
+            Cerrar
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Modal confirmación de eliminación reutilizable */}
+      <ConfirmDeleteModal
+        show={deleteConfirm.show}
+        onHide={() =>
+          setDeleteConfirm({ show: false, productId: null, nombre: "" })
+        }
+        onConfirm={handleDelete}
+        mensaje={`¿Seguro que deseas eliminar el producto "${deleteConfirm.nombre}"?`}
+        subtitulo="Esta acción no se puede deshacer."
+      />
+
+      {/* Filtros */}
       <div className="row g-2 mb-3 align-items-center">
         <div className="col-sm-4">
           <input
@@ -230,11 +289,12 @@ export default function InventoryPage({ onView }) {
         </div>
       </div>
 
+      {/* Tabla de productos */}
       <div
         className="bg-white shadow rounded table-responsive"
         style={{ maxHeight: "500px", overflowY: "auto" }}
       >
-        <table className="table table-bordered align-middle   sticky-header">
+        <table className="table table-bordered align-middle sticky-header">
           <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
@@ -318,7 +378,7 @@ export default function InventoryPage({ onView }) {
                         </button>
                         <button
                           className="btn btn-outline-danger btn-sm"
-                          onClick={() => askDelete(item.id)}
+                          onClick={() => askDelete(item.id, item.nombre)}
                         >
                           <Trash className="mb-1" />
                         </button>
@@ -341,10 +401,16 @@ export default function InventoryPage({ onView }) {
         onUpdated={cargarDatos}
       />
 
+      {/* Estilo para encabezado sticky corregido */}
       <style>{`
         .flash-success { animation: flash 0.6s ease-in-out; }
         @keyframes flash { 0% { background-color: #d4edda; } 50% { background-color: #28a745; } 100% { background-color: transparent; } }
-        .sticky-header thead th { position: sticky; top: 0; z-index: 2; }
+        .sticky-header thead th {
+          position: sticky;
+          top: 0;
+          z-index: 900; /* Menor que el sidebar (z-index: 1051), pero suficientemente alto */
+          background: #f8f9fa;
+        }
       `}</style>
     </section>
   );

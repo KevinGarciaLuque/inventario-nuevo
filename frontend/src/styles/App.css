@@ -1,0 +1,18 @@
+@media (max-width: 991.98px) {
+    /* Ajusta el top para sticky-header en móvil */
+    .sticky-header thead th,
+    .table-responsive thead th,
+    .table thead th {
+      position: sticky;
+      top: 64px; /* AJUSTA este valor igual que el padding-top del contenido y el alto del navbar */
+      z-index: 102;
+      background: #fff; /* Asegura que el fondo tape el contenido detrás */
+    }
+  }
+  
+  @media (max-width: 991.98px) {
+    .sticky-header thead th {
+      top: 64px; /* Ajusta según navbar */
+    }
+  }
+  

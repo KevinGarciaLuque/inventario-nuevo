@@ -8,7 +8,9 @@ import {
   InputGroup,
 } from "react-bootstrap";
 import { FaEdit, FaTrash, FaSyncAlt } from "react-icons/fa";
+import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
+import ConfirmDeleteModal from "..//components/ConfirmDeleteModal"; // <-- Usa tu modal reutilizable
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
@@ -23,12 +25,30 @@ export default function ClientesPage() {
     direccion: "",
   });
 
+  // --- Estado para confirmación de eliminación ---
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    show: false,
+    clienteId: null,
+    nombre: "",
+  });
+  // --- Estado para toast de feedback ---
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    variant: "success",
+  });
+
   const obtenerClientes = async () => {
     setLoading(true);
     try {
       const res = await api.get("/clientes");
       setClientes(res.data);
     } catch (err) {
+      setToast({
+        show: true,
+        message: "Error al obtener clientes.",
+        variant: "danger",
+      });
       console.error("Error al obtener clientes", err);
     } finally {
       setLoading(false);
@@ -50,7 +70,17 @@ export default function ClientesPage() {
       setFormulario({ id: null, nombre: "", rtn: "", direccion: "" });
       setEditando(false);
       obtenerClientes();
+      setToast({
+        show: true,
+        message: "Cliente guardado correctamente.",
+        variant: "success",
+      });
     } catch (err) {
+      setToast({
+        show: true,
+        message: "Error guardando cliente.",
+        variant: "danger",
+      });
       console.error("Error guardando cliente", err);
     }
   };
@@ -61,10 +91,31 @@ export default function ClientesPage() {
     setModal(true);
   };
 
-  const handleEliminar = async (id) => {
-    if (window.confirm("¿Eliminar este cliente?")) {
+  // --- Confirmación de eliminar ---
+  const askDelete = (clienteId, nombre) =>
+    setDeleteConfirm({ show: true, clienteId, nombre });
+
+  const handleDelete = async () => {
+    const id = deleteConfirm.clienteId;
+    setDeleteConfirm({ show: false, clienteId: null, nombre: "" });
+    if (!id) return;
+    try {
       await api.delete(`/clientes/${id}`);
+      setToast({
+        show: true,
+        message: "Cliente eliminado correctamente.",
+        variant: "success",
+      });
       obtenerClientes();
+    } catch (err) {
+      setToast({
+        show: true,
+        message:
+          err?.response?.data?.message ||
+          "No se pudo eliminar. Puede tener relaciones activas.",
+        variant: "danger",
+      });
+      console.error("Error al eliminar cliente:", err);
     }
   };
 
@@ -83,6 +134,16 @@ export default function ClientesPage() {
     `${c.nombre} ${c.rtn}`.toLowerCase().includes(filtro.toLowerCase())
   );
 
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(
+        () => setToast((t) => ({ ...t, show: false })),
+        3000
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
   return (
     <div>
       <h3>Gestión de Clientes</h3>
@@ -100,6 +161,51 @@ export default function ClientesPage() {
           <FaSyncAlt />
         </Button>
       </InputGroup>
+
+      {/* Toast de feedback */}
+      <Modal
+        show={toast.show}
+        onHide={() => setToast((t) => ({ ...t, show: false }))}
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          {toast.variant === "success" ? (
+            <CheckCircleFill size={50} color="#198754" className="mb-3" />
+          ) : (
+            <XCircleFill size={50} color="#dc3545" className="mb-3" />
+          )}
+          <h5
+            className={`fw-bold ${
+              toast.variant === "success" ? "text-success" : "text-danger"
+            }`}
+          >
+            {toast.message}
+          </h5>
+          <Button
+            variant={toast.variant === "success" ? "success" : "danger"}
+            className="mt-2 px-4"
+            onClick={() => setToast((t) => ({ ...t, show: false }))}
+          >
+            Cerrar
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      {/* Modal confirmación eliminar (reutilizable) */}
+      <ConfirmDeleteModal
+        show={deleteConfirm.show}
+        onHide={() =>
+          setDeleteConfirm({ show: false, clienteId: null, nombre: "" })
+        }
+        onConfirm={handleDelete}
+        mensaje={
+          <>
+            ¿Seguro que deseas eliminar al cliente{" "}
+            <span className="fw-bold">{deleteConfirm.nombre}</span>?
+          </>
+        }
+        subtitulo="Esta acción no se puede deshacer."
+      />
 
       {loading ? (
         <div
@@ -156,7 +262,7 @@ export default function ClientesPage() {
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => handleEliminar(cliente.id)}
+                      onClick={() => askDelete(cliente.id, cliente.nombre)}
                     >
                       <FaTrash />
                     </Button>
@@ -168,6 +274,7 @@ export default function ClientesPage() {
         </div>
       )}
 
+      {/* Modal para crear/editar cliente */}
       <Modal show={modal} onHide={handleCerrarModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>

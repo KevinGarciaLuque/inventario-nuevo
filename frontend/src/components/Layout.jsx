@@ -14,9 +14,8 @@ import RegistrarMovimientoPage from "../pages/RegistrarMovimientoPage";
 import RegistrarVentaPage from "../pages/RegistrarVentaPage";
 import CaiPage from "../pages/CaiPage";
 import FacturasPage from "../pages/FacturasPage";
-import Soporte from "../components/Soporte"; // 👉 Aquí importamos el nuevo componente
-import ClientesPage from "../pages/ClientesPage"; // Asegúrate de que esta ruta sea correcta
-
+import Soporte from "../components/Soporte";
+import ClientesPage from "../pages/ClientesPage";
 
 import "../styles/Layout.css";
 
@@ -42,9 +41,10 @@ export default function Layout({ onLogout }) {
   };
 
   return (
-    <div className="layout-root d-flex min-vh-100 bg-light">
+    <div className="layout-root d-flex min-vh-100 bg-light ">
+      {/* Sidebar */}
       <div
-        className={`sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
+        className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
           ${sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
           ${isMobile ? "sidebar-mobile" : ""}`}
       >
@@ -56,6 +56,7 @@ export default function Layout({ onLogout }) {
         />
       </div>
 
+      {/* Main content */}
       <div className="d-flex flex-column flex-grow-1 overflow-hidden main-content-responsive">
         <Navbar
           onLogout={onLogout}
@@ -76,7 +77,6 @@ export default function Layout({ onLogout }) {
                 {currentPage === "reports" && <ReportsPage />}
                 {currentPage === "users" && <UsersPage />}
                 {currentPage === "clientes" && <ClientesPage />}
-
                 {currentPage === "bitacora" && <BitacoraPage />}
                 {currentPage === "movimientos" && <MovimientosPage />}
                 {currentPage === "registrar-movimiento" && (
@@ -87,7 +87,7 @@ export default function Layout({ onLogout }) {
                 {currentPage === "facturas" && <FacturasPage />}
               </div>
             </div>
-            {/* Aquí colocamos el botón de Soporte fijo abajo */}
+            {/* Botón de Soporte fijo abajo */}
             <div className="position-fixed bottom-0 end-0 m-4">
               <Soporte />
             </div>
@@ -101,6 +101,29 @@ export default function Layout({ onLogout }) {
           onClose={() => setSelectedProduct(null)}
         />
       )}
+
+      {/* CSS específico para el Layout */}
+      <style>{`
+        /* Ajuste sidebar para móvil */
+        @media (max-width: 768px) {
+          .sidebar {
+            max-width: 70vw !important;
+            min-width: 70vw !important;
+            z-index: 2000;
+          }
+          .main-content-responsive {
+            /* Asegura que el contenido principal se vea bien */
+            min-width: 0 !important;
+          }
+          .table-responsive {
+            max-height: none !important;
+            overflow-y: visible !important;
+          }
+          .sticky-header thead th {
+            position: static !important; /* quita el sticky en móvil si molesta */
+          }
+        }
+      `}</style>
     </div>
   );
 }

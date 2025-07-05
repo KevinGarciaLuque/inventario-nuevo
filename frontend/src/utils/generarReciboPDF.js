@@ -23,6 +23,9 @@ const generarReciboPDF = ({
   });
 
   let posY = 10;
+  const anchoRecibo = 80;
+  const margenIzq = 10;
+  const margenDer = anchoRecibo - 10;
 
   const img = new Image();
   img.src = logoImage;
@@ -82,17 +85,21 @@ const generarReciboPDF = ({
     doc.line(10, posY, 70, posY);
     posY += 5;
 
+    // Tabla con Código de Producto
     autoTable(doc, {
       startY: posY,
-      head: [["Cant", "Descripción", "P/U", "Total"]],
+      head: [["Cant", "Código", "Descripción", "P/U", "Total"]],
       body: carrito.map((item) => [
         item.cantidad,
-        item.nombre.substring(0, 10),
-        Number(item.precio).toFixed(2),
-        (item.cantidad * Number(item.precio)).toFixed(2),
+        item.codigo ? String(item.codigo) : "-",
+        item.nombre ? item.nombre.substring(0, 12) : "",
+        item.precio ? Number(item.precio).toFixed(2) : "0.00",
+        item.cantidad && item.precio
+          ? (item.cantidad * Number(item.precio)).toFixed(2)
+          : "0.00",
       ]),
-      margin: { left: 10, right: 10 },
-      styles: { fontSize: 8, halign: "center" },
+      margin: { left: 3, right: 3 }, // Tus márgenes personalizados
+      styles: { fontSize: 7, halign: "center" },
       headStyles: { fillColor: [50, 50, 50], textColor: 255 },
     });
 
@@ -100,34 +107,57 @@ const generarReciboPDF = ({
     doc.line(10, posY, 70, posY);
     posY += 5;
 
-    doc.setFontSize(8);
-    doc.text(`Sub Total Exonerado: L 0.00`, 10, posY);
+    // Alinea valores a la derecha
+    doc.setFont("helvetica", "normal").setFontSize(8);
+
+    doc.text("Sub Total Exonerado:", margenIzq, posY);
+    doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
-    doc.text(`Sub Total Exento: L 0.00`, 10, posY);
+
+    doc.text("Sub Total Exento:", margenIzq, posY);
+    doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
-    doc.text(
-      `Sub Total Gravado 15%: L ${Number(subtotal).toFixed(2)}`,
-      10,
-      posY
-    );
+
+    doc.text("Sub Total Gravado 15%:", margenIzq, posY);
+    doc.text(`L ${Number(subtotal).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
-    doc.text(`Sub Total Gravado 18%: L 0.00`, 10, posY);
+
+    doc.text("Sub Total Gravado 18%:", margenIzq, posY);
+    doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
-    doc.text(`Descuentos/Rebajas: L 0.00`, 10, posY);
+
+    doc.text("Descuentos/Rebajas:", margenIzq, posY);
+    doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
-    doc.text(`Sub Total: L ${Number(subtotal).toFixed(2)}`, 10, posY);
+
+    doc.text("Sub Total:", margenIzq, posY);
+    doc.text(`L ${Number(subtotal).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
-    doc.text(`15% ISV: L ${Number(impuesto).toFixed(2)}`, 10, posY);
+
+    doc.text("15% ISV:", margenIzq, posY);
+    doc.text(`L ${Number(impuesto).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
-    doc.text(`18% ISV: L 0.00`, 10, posY);
+
+    doc.text("18% ISV:", margenIzq, posY);
+    doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 6;
 
     doc.setFont("helvetica", "bold").setFontSize(10);
-    doc.text(`TOTAL A PAGAR: L ${Number(total).toFixed(2)}`, 10, posY);
+    doc.text(`TOTAL A PAGAR:`, margenIzq, posY);
+    doc.text(`L ${Number(total).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
+    doc.setFont("helvetica", "normal");
     posY += 8;
 
-    doc.setFont("helvetica", "normal").setFontSize(8);
-    doc.text("SU PAGO EFECTIVO: L", 10, posY);
+    doc.setFontSize(8);
+    doc.text("SU PAGO EFECTIVO: L", 10, posY, );
     posY += 4;
     doc.text("SU CAMBIO: L", 10, posY);
     posY += 6;
@@ -138,13 +168,7 @@ const generarReciboPDF = ({
     doc.text(`"${convertirNumeroALetras(total)} Lempiras Exactos"`, 10, posY);
     posY += 8;
 
-    doc.setFont("helvetica", "normal");
-    doc.text("Registro SAG:", 10, posY);
-    posY += 4;
-    doc.text("Registro Exonerado:", 10, posY);
-    posY += 4;
-    doc.text("N° Orden Exoneración:", 10, posY);
-    posY += 8;
+  
 
     doc.setFont("helvetica", "bold");
     doc.text("*** GRACIAS POR SU COMPRA ***", 40, posY, { align: "center" });
