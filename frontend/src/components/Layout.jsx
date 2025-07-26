@@ -87,10 +87,10 @@ export default function Layout({ onLogout }) {
                 {currentPage === "facturas" && <FacturasPage />}
               </div>
             </div>
-            {/* Botón de Soporte fijo abajo */}
+            {/* Botón de Soporte fijo abajo 
             <div className="position-fixed bottom-0 end-0 m-4">
               <Soporte />
-            </div>
+            </div> */}
           </div>
         </main>
       </div>

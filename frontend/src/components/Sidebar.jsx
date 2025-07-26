@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useRef } from "react";
 import {
   FaBoxes,
   FaPlus,
@@ -14,16 +14,19 @@ import {
   FaCashRegister,
   FaFileInvoiceDollar,
   FaKey,
-  FaUser, // 👈 Nuevo ícono para Clientes
+  FaUser,
+  FaQuestionCircle,
 } from "react-icons/fa";
 import { useUser } from "../context/UserContext";
+import { MdSupportAgent } from "react-icons/md"; // <== Agrega esto
 
-// === Menú para Administrador ===
+import Soporte from "../components/Soporte";
+
 const allMenuItems = [
   { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
   { key: "reports", label: "Reportes", icon: <FaChartBar /> },
   { key: "users", label: "Usuarios", icon: <FaUserFriends /> },
-  { key: "clientes", label: "Clientes", icon: <FaUser /> }, // ✅ Agregado Clientes
+  { key: "clientes", label: "Clientes", icon: <FaUser /> },
   { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
   { key: "categories", label: "Categorías", icon: <FaTags /> },
   { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
@@ -43,7 +46,6 @@ const allMenuItems = [
   { key: "bitacora", label: "Bitácora", icon: <FaFilter /> },
 ];
 
-// === Menú para Usuario común ===
 const usuarioMenuItems = [
   { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
   { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
@@ -65,10 +67,10 @@ export default function Sidebar({
   onToggle,
 }) {
   const { user } = useUser();
+  const soporteRef = useRef();
 
-  const menuItems = React.useMemo(() => {
-    if (!user || user.rol === "admin") return allMenuItems;
-    return usuarioMenuItems;
+  const menuItems = useMemo(() => {
+    return !user || user.rol === "admin" ? allMenuItems : usuarioMenuItems;
   }, [user]);
 
   const handleMenuClick = (key) => {
@@ -80,103 +82,130 @@ export default function Sidebar({
 
   return (
     <div
-      className={`d-flex flex-column h-100 bg-dark shadow-lg position-relative ${
-        isCollapsed ? "align-items-center" : ""
+      className={`d-flex flex-column bg-dark shadow-lg sidebar-container ${
+        isCollapsed ? "collapsed" : ""
       }`}
-      style={{
-        minWidth: isCollapsed ? 72 : 250,
-        maxWidth: isCollapsed ? 72 : 250,
-        transition: "all 0.3s cubic-bezier(.5,2,.5,1)",
-        zIndex: 1051,
-      }}
     >
-      {/* === Encabezado del Sidebar === */}
+      {/* Header */}
       <div
-        className={`d-flex align-items-center justify-content-between px-3 py-3 border-bottom ${
-          isCollapsed ? "justify-content-center px-2" : ""
+        className={`d-flex align-items-center justify-content-between border-bottom sidebar-header ${
+          isCollapsed ? "justify-content-center px-2" : "px-3"
         }`}
       >
-        <span
-          className="fw-bold fs-4 text-wathi text-center"
-          style={{
-            letterSpacing: 2,
-            transition: "all .3s",
-            fontFamily: "'Montserrat', sans-serif",
-          }}
-        >
+        <span className="fw-bold fs-4 text-wathi text-center sidebar-title">
           {isCollapsed ? (
-            <span title="Inventario" style={{ fontSize: 30 }}>
-              <FaBoxes />
-            </span>
+            <FaBoxes size={28} title="Inventario" />
           ) : (
             "INVENTARIO"
           )}
         </span>
-
         <button
-          className={`btn btn-link text-secondary p-0 ms-auto ${
-            isCollapsed ? "mt-1" : ""
-          }`}
-          style={{ fontSize: 20, transition: "all .25s" }}
+          className="btn btn-link text-secondary p-0 ms-auto sidebar-toggle-btn"
           onClick={onToggle}
-          tabIndex={-1}
           aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
         >
           {isCollapsed ? <FaAngleDoubleRight /> : <FaAngleDoubleLeft />}
         </button>
       </div>
 
-      {/* === Navegación de Menú === */}
+      {/* Menú */}
       <nav className="flex-grow-1 py-2">
         {menuItems.map((item) => (
           <button
             key={item.key}
             onClick={() => handleMenuClick(item.key)}
-            className={`d-flex align-items-center w-100 border-0 bg-transparent px-3 py-2 sidebar-link fs-6 fw-medium text-start position-relative ${
+            className={`d-flex align-items-center w-100 border-0 bg-transparent px-3 py-2 sidebar-link ${
               currentPage === item.key
-                ? "text-warning bg-gradient bg-warning bg-opacity-10 shadow-sm"
+                ? "text-warning bg-warning bg-opacity-10 shadow-sm"
                 : "text-light"
             } ${isCollapsed ? "justify-content-center px-2" : ""}`}
-            style={{
-              outline: "none",
-              borderLeft:
-                currentPage === item.key
-                  ? "4px solid #ffc107"
-                  : "4px solid transparent",
-              transition: "all .22s cubic-bezier(.65,1.6,.5,1)",
-              minHeight: 44,
-            }}
             title={isCollapsed ? item.label : undefined}
           >
-            <span
-              className="me-3 d-flex align-items-center fs-5"
-              style={{ minWidth: 24, justifyContent: "center" }}
-            >
+            <span className="me-3 d-flex align-items-center fs-5">
               {item.icon}
             </span>
             {!isCollapsed && (
-              <span className="sidebar-label flex-grow-1">{item.label}</span>
+              <span className="sidebar-label">{item.label}</span>
             )}
           </button>
         ))}
       </nav>
 
-      {/* === Footer fijo === */}
+      {/* Soporte */}
+      <div className="px-3 py-2 border-top small text-muted text-center">
+        <button
+          className={`btn btn-outline-info btn-sm w-100 d-flex align-items-center justify-content-center ${
+            isCollapsed ? "flex-column" : ""
+          }`}
+          onClick={() => {
+            if (window.innerWidth < 992 && !isCollapsed) {
+              onToggle(); // Ocultar Sidebar en móviles
+            }
+            soporteRef.current?.abrirModal(); // Mostrar modal
+          }}
+          title={isCollapsed ? "Soporte" : undefined}
+        >
+          <MdSupportAgent size={20} className="me-2" />
+          {!isCollapsed && (
+            <>
+              Ayuda <br />/ Soporte
+            </>
+          )}
+        </button>
+        <Soporte ref={soporteRef} />
+      </div>
+
+      {/* Footer */}
       {!isCollapsed && (
-        <div className="mt-auto px-3 py-2 border-top small text-muted text-center">
-          <i className="bi bi-info-circle me-1"></i> Pixel Digital
+        <div className="px-3 py-2 border-top small text-center text-light">
+          <i className="bi bi-info-circle me-1"></i> Pixel Digital <br />
+          Desarrollado por: Kevin Garcia
         </div>
       )}
 
-      {/* === Estilos personalizados === */}
+      {/* Estilos */}
       <style>{`
-        .sidebar-link:focus {
-          box-shadow: 0 0 0 .15rem #ffc10766 !important;
+        .sidebar-container {
+          width: 100%;
+          max-width: 250px;
+          min-width: 72px;
+          height: 100vh;
+          position: fixed;
+          z-index: 1051;
+          transition: all 0.3s ease;
+          overflow-y: auto;
         }
-        .sidebar-link:hover,
-        .sidebar-link:active {
-          background: #292929 !important;
-          color: #ffc107 !important;
+        .sidebar-container.collapsed {
+          max-width: 72px !important;
+        }
+        .sidebar-header {
+          height: 60px;
+          padding: 0.75rem 1rem;
+        }
+        .sidebar-title {
+          font-family: 'Montserrat', sans-serif;
+          letter-spacing: 1px;
+        }
+        .sidebar-link {
+          min-height: 44px;
+          transition: all 0.2s ease;
+          text-align: left;
+        }
+        .sidebar-link:focus {
+          box-shadow: 0 0 0 .15rem #ffc10766;
+        }
+        .sidebar-link:hover {
+          background-color: #292929;
+          color: #ffc107;
+        }
+
+
+        @media (max-width: 768px) {
+          .sidebar-container {
+            top: 0;
+            left: 0;
+            max-width: 100%;
+          }
         }
       `}</style>
     </div>

@@ -60,12 +60,13 @@ router.get("/:id", async (req, res) => {
 
     // 2. Obtener productos de la factura
     const [items] = await db.query(
-      `SELECT p.nombre, dv.cantidad, dv.precio_unitario AS precio
-       FROM detalle_ventas dv
-       JOIN productos p ON dv.producto_id = p.id
-       WHERE dv.venta_id = ?`,
+      `SELECT p.codigo, p.nombre, dv.cantidad, dv.precio_unitario AS precio
+      FROM detalle_ventas dv
+      JOIN productos p ON dv.producto_id = p.id
+      WHERE dv.venta_id = ?`,
       [factura.venta_id]
     );
+
 
     // 3. Calcular totales
     const subtotal = items.reduce(
