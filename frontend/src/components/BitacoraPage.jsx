@@ -4,7 +4,6 @@ import { FaSearch, FaFilter, FaRedo } from "react-icons/fa";
 
 
 
-
 export default function BitacoraPage() {
   const [registros, setRegistros] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
