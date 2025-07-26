@@ -87,12 +87,9 @@ export default function FacturasPage() {
         </Button>
       </InputGroup>
 
-      <div
-        className="table-responsive"
-        style={{ maxHeight: "400px", overflowY: "auto" }}
-      >
-        <Table striped bordered hover className="mb-0">
-          <thead className="table-primary sticky-top">
+      <div className="bg-white shadow-sm rounded scroll-container">
+        <Table striped bordered hover className="mb-0 sticky-header">
+          <thead className="table-primary">
             <tr>
               <th>#</th>
               <th>Número Factura</th>
@@ -108,7 +105,7 @@ export default function FacturasPage() {
                 <td>{index + 1}</td>
                 <td>{f.numero_factura}</td>
                 <td>{f.cai_codigo}</td>
-                <td>{new Date(f.fecha_emision).toLocaleString()}</td>
+                <td>{new Date(f.fecha_emision).toLocaleString("es-HN")}</td>
                 <td>{parseFloat(f.total_factura).toFixed(2)} Lps</td>
                 <td>
                   <Button

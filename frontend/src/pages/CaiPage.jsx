@@ -180,8 +180,8 @@ export default function CaiPage() {
         </div>
       </Form>
 
-      <div className="table-responsive">
-        <Table bordered hover>
+      <div className="bg-white shadow-sm rounded scroll-container">
+        <Table bordered hover className="mb-0 sticky-header">
           <thead className="table-light">
             <tr>
               <th>ID</th>

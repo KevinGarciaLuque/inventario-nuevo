@@ -207,11 +207,17 @@ export default function RegistrarMovimientoPage() {
       </div>
 
       <div
-        className="table-responsive mb-4"
-        style={{ maxHeight: "300px", overflowY: "auto" }}
+        className="scroll-container mb-4"
+        style={{ maxHeight: "300px", overflowY: "auto", overflowX: "auto" }}
       >
-        <Table striped bordered hover>
-          <thead className="table-light sticky-top">
+        <Table
+          striped
+          bordered
+          hover
+          className="sticky-header w-100"
+          style={{ minWidth: "700px" }}
+        >
+          <thead className="table-light">
             <tr>
               <th>ID</th>
               <th>Nombre</th>

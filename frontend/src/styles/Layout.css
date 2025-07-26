@@ -133,3 +133,21 @@
   opacity: 0;
   pointer-events: none;
 }
+
+
+/* Encabezado sticky como InventoryPage */
+.sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  background: #f8f9fa;
+}
+
+/* Scroll personalizado opcional */
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+}

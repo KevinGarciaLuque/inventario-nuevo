@@ -442,21 +442,18 @@ return (
       </form>
       {/* Tabla de movimientos */}
       <div
-        className="table-responsive"
-        style={{ maxHeight: "220px", overflowY: "auto", overflowX: "auto" }}
+        className="scroll-container bg-white shadow-sm rounded"
+        style={{ maxHeight: "220px" }}
       >
-        <table className="table table-bordered align-middle mb-0 movimientos-table">
-          <thead
-            className="table-light"
-            style={{ position: "sticky", top: 0, zIndex: 2 }}
-          >
+        <table className="table table-bordered align-middle mb-0 sticky-header movimientos-table w-100">
+          <thead className="table-light">
             <tr>
-              <th style={{ background: "#fff" }}>Fecha</th>
-              <th style={{ background: "#fff" }}>Producto</th>
-              <th style={{ background: "#fff" }}>Tipo</th>
-              <th style={{ background: "#fff" }}>Cantidad</th>
-              <th style={{ background: "#fff" }}>Usuario</th>
-              <th style={{ background: "#fff" }}>Descripción</th>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Usuario</th>
+              <th>Descripción</th>
             </tr>
           </thead>
           <tbody>

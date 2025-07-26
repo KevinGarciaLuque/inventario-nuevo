@@ -291,11 +291,14 @@ export default function InventoryPage({ onView }) {
 
       {/* Tabla de productos */}
       <div
-        className="bg-white shadow rounded table-responsive"
-        style={{ maxHeight: "500px", overflowY: "auto" }}
+        className="scroll-container bg-white shadow rounded"
+        style={{ overflowX: "auto", overflowY: "auto", maxHeight: "500px" }}
       >
-        <table className="table table-bordered align-middle sticky-header">
-          <thead className="table-light sticky-top">
+        <table
+          className="table table-bordered align-middle sticky-header w-100"
+          style={{ minWidth: "800px" }}
+        >
+          <thead className="table-light">
             <tr>
               <th>Imagen</th>
               <th>Código</th>
@@ -402,16 +405,7 @@ export default function InventoryPage({ onView }) {
       />
 
       {/* Estilo para encabezado sticky corregido */}
-      <style>{`
-        .flash-success { animation: flash 0.6s ease-in-out; }
-        @keyframes flash { 0% { background-color: #d4edda; } 50% { background-color: #28a745; } 100% { background-color: transparent; } }
-        .sticky-header thead th {
-          position: sticky;
-          top: 0;
-          z-index: 900; /* Menor que el sidebar (z-index: 1051), pero suficientemente alto */
-          background: #f8f9fa;
-        }
-      `}</style>
+
     </section>
   );
 }

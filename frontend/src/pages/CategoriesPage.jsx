@@ -185,12 +185,9 @@ export default function CategoriesPage() {
       )}
 
       {/* TABLA RESPONSIVA */}
-      <div
-        className="table-responsive"
-        style={{ maxHeight: "400px", overflowY: "auto" }}
-      >
+      <div className="scroll-container">
         <table className="table table-bordered align-middle categories-table sticky-header">
-          <thead className="table-light sticky-top">
+          <thead className="table-light">
             <tr>
               <th>Nombre</th>
               <th>Descripción</th>
@@ -198,35 +195,36 @@ export default function CategoriesPage() {
             </tr>
           </thead>
           <tbody>
-            {categorias.map((cat) => (
-              <tr key={cat.id}>
-                <td>{cat.nombre}</td>
-                <td style={{ wordBreak: "break-word" }}>{cat.descripcion}</td>
-                <td>
-                  {user?.rol === "admin" && (
-                    <>
-                      <button
-                        className="btn btn-warning btn-sm me-1"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => openEdit(cat)}
-                        title="Editar"
-                      >
-                        <BsPencilSquare />
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm me-1"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => handleDeleteClick(cat.id)}
-                        title="Eliminar"
-                      >
-                        <BsTrash />
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {categorias.length === 0 && (
+            {categorias.length > 0 ? (
+              categorias.map((cat) => (
+                <tr key={cat.id}>
+                  <td>{cat.nombre}</td>
+                  <td style={{ wordBreak: "break-word" }}>{cat.descripcion}</td>
+                  <td>
+                    {user?.rol === "admin" && (
+                      <>
+                        <button
+                          className="btn btn-warning btn-sm me-1"
+                          style={{ borderRadius: 8 }}
+                          onClick={() => openEdit(cat)}
+                          title="Editar"
+                        >
+                          <BsPencilSquare />
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm me-1"
+                          style={{ borderRadius: 8 }}
+                          onClick={() => handleDeleteClick(cat.id)}
+                          title="Eliminar"
+                        >
+                          <BsTrash />
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
               <tr>
                 <td colSpan={3} className="text-center text-muted">
                   {loading ? "Cargando..." : "No hay categorías"}

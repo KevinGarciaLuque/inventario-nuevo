@@ -329,15 +329,18 @@ export default function RegistrarVentaPage() {
               <FaUserPlus className="mb-1" /> Agregar Cliente
             </Button>
           </InputGroup>
-          <div style={{ maxHeight: "150px", overflowY: "auto" }}>
+          <div className="scroll-container" style={{ maxHeight: "150px" }}>
             {clientesLoading ? (
               <Spinner animation="border" size="sm" />
             ) : (
-              <Table bordered hover size="sm" responsive>
-                <thead
-                  className="bg-light"
-                  style={{ position: "sticky", top: 0 }}
-                >
+              <Table
+                bordered
+                hover
+                size="sm"
+                responsive
+                className="sticky-header w-100"
+              >
+                <thead className="table-light">
                   <tr>
                     <th>Nombre</th>
                     <th>RTN</th>

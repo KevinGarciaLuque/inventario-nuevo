@@ -229,19 +229,16 @@ export default function UsersPage() {
                   });
                 }}
               >
-                Cancelar 
+                Cancelar
               </button>
             </div>
           )}
         </form>
       )}
 
-      <div
-        className="table-responsive"
-        style={{ maxHeight: "400px", overflowY: "auto" }}
-      >
+      <div className="scroll-container">
         <table className="table table-bordered align-middle mb-0 sticky-header">
-          <thead className="table-light sticky-top">
+          <thead className="table-light">
             <tr>
               <th>Nombre</th>
               <th>Email</th>
@@ -251,50 +248,51 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
-              <tr key={u.id}>
-                <td>{u.nombre}</td>
-                <td>{u.email}</td>
-                <td>
-                  <span
-                    className={`badge bg-${
-                      u.rol === "admin" ? "primary" : "secondary"
-                    }`}
-                  >
-                    {u.rol}
-                  </span>
-                </td>
-                <td>{u.creado_en && u.creado_en.split("T")[0]}</td>
-                <td>
-                  {user?.rol === "admin" && (
-                    <>
-                      <button
-                        className="btn btn-warning btn-sm me-1"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => handleEdit(u)}
-                      >
-                        <i className="bi bi-pencil-square"></i>
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm me-1"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => askDelete(u.id, u.nombre, u.email)}
-                      >
-                        <i className="bi bi-trash"></i>
-                      </button>
-                      <button
-                        className="btn btn-outline-secondary btn-sm"
-                        style={{ borderRadius: 8 }}
-                        onClick={() => handleChangePasswordClick(u.id)}
-                      >
-                        <i className="bi bi-key"></i>
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {usuarios.length === 0 && (
+            {usuarios.length > 0 ? (
+              usuarios.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.nombre}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    <span
+                      className={`badge bg-${
+                        u.rol === "admin" ? "primary" : "secondary"
+                      }`}
+                    >
+                      {u.rol}
+                    </span>
+                  </td>
+                  <td>{u.creado_en?.split("T")[0]}</td>
+                  <td>
+                    {user?.rol === "admin" && (
+                      <>
+                        <button
+                          className="btn btn-warning btn-sm me-1"
+                          style={{ borderRadius: 8 }}
+                          onClick={() => handleEdit(u)}
+                        >
+                          <i className="bi bi-pencil-square"></i>
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm me-1"
+                          style={{ borderRadius: 8 }}
+                          onClick={() => askDelete(u.id, u.nombre, u.email)}
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                        <button
+                          className="btn btn-outline-secondary btn-sm"
+                          style={{ borderRadius: 8 }}
+                          onClick={() => handleChangePasswordClick(u.id)}
+                        >
+                          <i className="bi bi-key"></i>
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
               <tr>
                 <td colSpan={5} className="text-center text-muted">
                   No hay usuarios
@@ -304,6 +302,7 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
       <style>{`
   .sticky-top { position: sticky; top: 0; z-index: 2; background: #f8f9fa; }
 `}</style>
@@ -311,7 +310,9 @@ export default function UsersPage() {
       {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
       <ConfirmDeleteModal
         show={deleteConfirm.show}
-        onHide={() => setDeleteConfirm({ show: false, userId: null, nombre: "", email: "" })}
+        onHide={() =>
+          setDeleteConfirm({ show: false, userId: null, nombre: "", email: "" })
+        }
         onConfirm={handleDelete}
         mensaje={
           <>

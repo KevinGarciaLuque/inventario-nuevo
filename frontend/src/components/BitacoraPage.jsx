@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/axios";
 import { FaSearch, FaFilter, FaRedo } from "react-icons/fa";
+import "../styles/scroll.css";
+
+
 
 export default function BitacoraPage() {
   const [registros, setRegistros] = useState([]);
@@ -59,7 +62,7 @@ export default function BitacoraPage() {
             <FaSearch className="text-muted" />
           </span>
           <input
-            className="form-control border-start-0 "
+            className="form-control border-start-0"
             placeholder="Buscar acción o detalle..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -78,7 +81,7 @@ export default function BitacoraPage() {
           ))}
         </select>
         <select
-          className="form-select filtro-select w-50 "
+          className="form-select filtro-select w-50"
           value={accionFiltro}
           onChange={(e) => setAccionFiltro(e.target.value)}
         >
@@ -103,122 +106,129 @@ export default function BitacoraPage() {
       </div>
 
       {/* Tabla con scroll y sticky header */}
-      <div className="card shadow-sm">
-        <div className="card-body p-0">
-          <div
-            className="table-responsive"
-            style={{
-              maxHeight: "350px",
-              overflowY: "auto",
-              overflowX: "auto",
-            }}
-          >
-            <table className="table table-bordered table-hover align-middle mb-0 bitacora-table">
-              <thead
-                className="table-light"
-                style={{ position: "sticky", top: 0, zIndex: 2 }}
-              >
-                <tr>
-                  <th style={{ width: 120, background: "#fff" }}>Fecha</th>
-                  <th style={{ width: 140, background: "#fff" }}>Usuario</th>
-                  <th style={{ width: 180, background: "#fff" }}>Acción</th>
-                  <th style={{ background: "#fff" }}>Descripción</th>
+      <div className="bg-white shadow rounded scroll-container">
+        <table className="table table-bordered align-middle bitacora-table sticky-header">
+          <thead className="table-light">
+            <tr>
+              <th style={{ width: 120 }}>Fecha</th>
+              <th style={{ width: 140 }}>Usuario</th>
+              <th style={{ width: 180 }}>Acción</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={4} className="text-center py-5">
+                  <span className="spinner-border text-warning me-2"></span>
+                  Cargando...
+                </td>
+              </tr>
+            ) : filtrados.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center text-muted">
+                  No hay registros para mostrar
+                </td>
+              </tr>
+            ) : (
+              filtrados.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    {new Date(r.fecha).toLocaleString("es-HN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td>
+                    <span className="badge bg-primary bg-opacity-25 text-primary px-3 py-2">
+                      <i className="bi bi-person-circle me-1"></i>
+                      {nombreUsuario(r.usuario_id)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="badge bg-warning bg-opacity-25 text-warning px-3 py-2">
+                      <i className="bi bi-activity me-1"></i>
+                      {r.accion}
+                    </span>
+                  </td>
+                  <td style={{ wordBreak: "break-word" }}>{r.descripcion}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-5">
-                      <span className="spinner-border text-warning me-2"></span>
-                      Cargando...
-                    </td>
-                  </tr>
-                ) : filtrados.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center text-muted">
-                      No hay registros para mostrar
-                    </td>
-                  </tr>
-                ) : (
-                  filtrados.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        {new Date(r.fecha).toLocaleString("es-HN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td>
-                        <span className="badge bg-primary bg-opacity-25 text-primary px-3 py-2">
-                          <i className="bi bi-person-circle me-1"></i>
-                          {nombreUsuario(r.usuario_id)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="badge bg-warning bg-opacity-25 text-warning px-3 py-2">
-                          <i className="bi bi-activity me-1"></i>
-                          {r.accion}
-                        </span>
-                      </td>
-                      <td style={{ wordBreak: "break-word" }}>
-                        {r.descripcion}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Estilos responsivos y sticky header */}
       <style>{`
-        /* Filtros adaptativos */
-        @media (max-width: 991.98px) {
-          .bitacora-filtros {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            gap: 0.7rem !important;
-          }
-          .bitacora-title {
-            margin-bottom: 0.2rem !important;
-            font-size: 1.2rem !important;
-          }
-        }
-        @media (max-width: 575.98px) {
-          .filtro-input-search, .filtro-select {
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-          .bitacora-title {
-            font-size: 1.03rem !important;
-          }
-        }
-        /* Tabla: celdas pequeñas y scroll en móvil */
-        @media (max-width: 575.98px) {
-          .bitacora-table th, .bitacora-table td {
-            font-size: 0.93rem !important;
-            padding: 0.38rem 0.5rem !important;
-            min-width: 84px;
-            vertical-align: middle;
-          }
-          .bitacora-table td {
-            word-break: break-word;
-            white-space: pre-line;
-          }
-        }
-        /* Sticky header */
-        .bitacora-table thead th {
-          position: sticky !important;
-          top: 0;
-          z-index: 2;
-          background: #fff !important;
-        }
-      `}</style>
+  /* Contenedor con scroll */
+  .scroll-container {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  /* Encabezado sticky fijo arriba */
+  .bitacora-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 2;
+    border-bottom: 2px solid #dee2e6;
+  }
+
+  /* Scroll personalizado */
+  .scroll-container::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scroll-container::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+  }
+
+  /* Responsive */
+  @media (max-width: 991.98px) {
+    .bitacora-filtros {
+      flex-direction: column !important;
+      align-items: stretch !important;
+      gap: 0.7rem !important;
+    }
+    .bitacora-title {
+      margin-bottom: 0.2rem !important;
+      font-size: 1.2rem !important;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .filtro-input-search,
+    .filtro-select {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .bitacora-title {
+      font-size: 1.03rem !important;
+    }
+
+    .bitacora-table th,
+    .bitacora-table td {
+      font-size: 0.93rem !important;
+      padding: 0.38rem 0.5rem !important;
+      min-width: 84px;
+      vertical-align: middle;
+    }
+
+    .bitacora-table td {
+      word-break: break-word;
+      white-space: pre-line;
+    }
+  }
+`}</style>
     </div>
   );
 }
