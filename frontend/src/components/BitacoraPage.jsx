@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/axios";
 import { FaSearch, FaFilter, FaRedo } from "react-icons/fa";
-import "../styles/scroll.css";
+
 
 
 
