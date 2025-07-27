@@ -1,5 +1,5 @@
 ////////////////////////////////////////Produccion////////////////////////////////////
-import axios from "axios";
+/*import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -29,41 +29,8 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export default api;*/
 
-/*import axios from "axios";
-
-// Utiliza la variable del entorno VITE_API_URL del archivo .env
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// Configura la instancia de Axios para que todas las peticiones vayan al backend
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: { "Content-Type": "application/json" },
-  // withCredentials: true, // Descomenta si tu backend usa sesiones/cookies
-});
-
-// Interceptores globales para errores
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response) {
-      console.error(
-        "API Error:",
-        error.response.data?.message || error.message
-      );
-    } else {
-      console.error("Error de conexión con el backend.");
-    }
-    return Promise.reject(
-      new Error(
-        error.response?.data?.message || error.message || "Unknown error"
-      )
-    );
-  }
-);
-
-export default api;
 
 
 
@@ -71,7 +38,7 @@ export default api;
 
 /////////////////////////////Trabajar Localmente/////////////////////////////
 
-/*import axios from "axios";
+import axios from "axios";
 
 // Si decides cambiar el puerto, solo ajusta aquí:
 const API_BASE_URL = "http://127.0.0.1:3000/api";
@@ -102,4 +69,4 @@ api.interceptors.response.use(
   }
 );
 
-export default api;*/
+export default api;

@@ -180,9 +180,23 @@ export default function CaiPage() {
         </div>
       </Form>
 
-      <div className="bg-white shadow-sm rounded scroll-container">
-        <Table bordered hover className="mb-0 sticky-header">
-          <thead className="table-light">
+      <div
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "300px", // 🔥 Altura fija para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal para celulares
+          border: "1px solid #dee2e6", // opcional para visualización clara
+        }}
+      >
+        <Table
+          bordered
+          hover
+          className="mb-0 sticky-header"
+          style={{ minWidth: "700px" }} // ⬅️ Ajusta según tus columnas visibles
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th>ID</th>
               <th>CAI</th>

@@ -442,11 +442,20 @@ return (
       </form>
       {/* Tabla de movimientos */}
       <div
-        className="scroll-container bg-white shadow-sm rounded"
-        style={{ maxHeight: "220px" }}
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "220px",
+          height: "220px", // 🔽 Altura fija
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal
+          border: "1px solid #dee2e6", // 🧱 Borde visual opcional
+        }}
       >
-        <table className="table table-bordered align-middle mb-0 sticky-header movimientos-table w-100">
-          <thead className="table-light">
+        <table
+          className="table table-bordered align-middle mb-0 sticky-header movimientos-table w-100"
+          style={{ minWidth: "800px" }} // Ajuste según columnas
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th>Fecha</th>
               <th>Producto</th>

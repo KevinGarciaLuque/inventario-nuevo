@@ -209,11 +209,13 @@ export default function MovimientosPage() {
       <div className="card shadow-sm">
         <div className="card-body p-0">
           <div
-            className="scroll-container"
+            className="bg-white"
             style={{
               maxHeight: "400px",
+              height: "250px", // 🔥 Fijamos altura
               overflowY: "auto",
               overflowX: "auto",
+              border: "1px solid #dee2e6", // 🧱 Borde visual
               position: "relative",
             }}
           >
@@ -221,7 +223,7 @@ export default function MovimientosPage() {
               className="table table-bordered table-hover align-middle mb-0 sticky-header w-100"
               style={{ minWidth: "800px" }}
             >
-              <thead className="table-light">
+              <thead className="table-light sticky-top">
                 <tr>
                   <th>Fecha</th>
                   <th>Producto</th>

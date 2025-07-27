@@ -41,7 +41,7 @@ export default function Layout({ onLogout }) {
   };
 
   return (
-    <div className="layout-root d-flex min-vh-100 bg-light ">
+    <div className="layout-root d-flex min-vh-100 bg-light position-relative">
       {/* Sidebar */}
       <div
         className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
@@ -55,6 +55,15 @@ export default function Layout({ onLogout }) {
           onToggle={toggleSidebar}
         />
       </div>
+
+      {/* Overlay para cerrar sidebar en móvil */}
+      {!sidebarCollapsed && isMobile && (
+        <div
+          className="sidebar-overlay"
+          onClick={toggleSidebar}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Main content */}
       <div className="d-flex flex-column flex-grow-1 overflow-hidden main-content-responsive">
@@ -87,10 +96,6 @@ export default function Layout({ onLogout }) {
                 {currentPage === "facturas" && <FacturasPage />}
               </div>
             </div>
-            {/* Botón de Soporte fijo abajo 
-            <div className="position-fixed bottom-0 end-0 m-4">
-              <Soporte />
-            </div> */}
           </div>
         </main>
       </div>
@@ -112,7 +117,6 @@ export default function Layout({ onLogout }) {
             z-index: 2000;
           }
           .main-content-responsive {
-            /* Asegura que el contenido principal se vea bien */
             min-width: 0 !important;
           }
           .table-responsive {
@@ -120,8 +124,18 @@ export default function Layout({ onLogout }) {
             overflow-y: visible !important;
           }
           .sticky-header thead th {
-            position: static !important; /* quita el sticky en móvil si molesta */
+            position: static !important;
           }
+        }
+
+        .sidebar-overlay {
+          position: fixed;
+          top: 0;
+          left: 70vw; /* mismo valor que sidebar móvil */
+          right: 0;
+          bottom: 0;
+          z-index: 1050;
+          background-color: rgba(0, 0, 0, 0);
         }
       `}</style>
     </div>

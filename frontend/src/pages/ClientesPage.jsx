@@ -215,19 +215,25 @@ export default function ClientesPage() {
           <Spinner animation="border" />
         </div>
       ) : (
-        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+        <div
+          className="bg-white shadow-sm rounded mb-4"
+          style={{
+            maxHeight: "400px",
+            height: "400px", // 🔥 Altura para scroll vertical
+            overflowY: "auto",
+            overflowX: "auto", // 🔁 Scroll horizontal para móviles
+            border: "1px solid #dee2e6", // 🧱 Borde visual
+          }}
+        >
           <Table
             striped
             bordered
             hover
             responsive
-            className="mb-0"
+            className="sticky-header mb-0"
             style={{ minWidth: 700 }}
           >
-            <thead
-              className="bg-light"
-              style={{ position: "sticky", top: 0, zIndex: 1 }}
-            >
+            <thead className="table-light sticky-top">
               <tr>
                 <th>Nombre</th>
                 <th>RTN</th>

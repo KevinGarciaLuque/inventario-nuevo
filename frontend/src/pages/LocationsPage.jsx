@@ -184,10 +184,19 @@ export default function LocationsPage() {
       )}
       {/* TABLA RESPONSIVA */}
       <div
-        className="table-responsive"
-        style={{ maxHeight: "400px", overflowY: "auto" }}
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "300px", // 🔥 Fijamos altura para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal en pantallas pequeñas
+          border: "1px solid #dee2e6", // 🧱 Borde visual opcional
+        }}
       >
-        <table className="table table-bordered align-middle locations-table sticky-header">
+        <table
+          className="table table-bordered align-middle locations-table sticky-header"
+          style={{ minWidth: "600px" }} // ⬅️ Ancho mínimo para evitar compresión
+        >
           <thead className="table-light sticky-top">
             <tr>
               <th>Nombre</th>

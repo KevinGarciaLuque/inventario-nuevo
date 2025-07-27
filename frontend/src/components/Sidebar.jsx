@@ -132,7 +132,7 @@ export default function Sidebar({
       </nav>
 
       {/* Soporte */}
-      <div className="px-3 py-2 border-top small text-muted text-center">
+      <div className="px-5 py-2 border-top small text-muted text-center">
         <button
           className={`btn btn-outline-info btn-sm w-100 d-flex align-items-center justify-content-center ${
             isCollapsed ? "flex-column" : ""
@@ -157,7 +157,7 @@ export default function Sidebar({
 
       {/* Footer */}
       {!isCollapsed && (
-        <div className="px-3 py-2 border-top small text-center text-light">
+        <div className="sidebar-footer px-3 py-2 border-top small text-center">
           <i className="bi bi-info-circle me-1"></i> Pixel Digital <br />
           Desarrollado por: Kevin Garcia
         </div>
@@ -187,26 +187,38 @@ export default function Sidebar({
           letter-spacing: 1px;
         }
         .sidebar-link {
-          min-height: 44px;
-          transition: all 0.2s ease;
-          text-align: left;
-        }
-        .sidebar-link:focus {
-          box-shadow: 0 0 0 .15rem #ffc10766;
-        }
-        .sidebar-link:hover {
-          background-color: #292929;
-          color: #ffc107;
-        }
+  min-height: 44px;
+  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+  text-align: left;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-link:hover {
+  background-color: #343a40 !important;
+  color: #ffc107 !important;
+  box-shadow: inset 10px 0 0 #ffc107;
+}
+
+.sidebar-link:hover .icon-wrapper {
+  color: #ffc107;
+  transform: scale(1.1);
+}
+
+.icon-wrapper {
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-footer {
+  color: #dee2e6;
+  background-color: #212529;
+  font-size: 0.85rem;
+  transition: opacity 0.3s ease;
+  border-top: 1px solid #2e2e2e;
+}
 
 
-        @media (max-width: 768px) {
-          .sidebar-container {
-            top: 0;
-            left: 0;
-            max-width: 100%;
-          }
-        }
       `}</style>
     </div>
   );

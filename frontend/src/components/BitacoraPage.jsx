@@ -105,9 +105,21 @@ export default function BitacoraPage() {
       </div>
 
       {/* Tabla con scroll y sticky header */}
-      <div className="bg-white shadow rounded scroll-container">
-        <table className="table table-bordered align-middle bitacora-table sticky-header">
-          <thead className="table-light">
+      <div
+        className="bg-white shadow rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "400px", // 🔥 Altura fija para forzar scroll vertical
+          overflowY: "auto",
+          overflowX: "auto",
+          border: "1px solid #dee2e6", // 🧱 Borde claro opcional
+        }}
+      >
+        <table
+          className="table table-bordered align-middle bitacora-table sticky-header"
+          style={{ minWidth: "800px" }} // 🔁 Scroll horizontal en móviles
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th style={{ width: 120 }}>Fecha</th>
               <th style={{ width: 140 }}>Usuario</th>

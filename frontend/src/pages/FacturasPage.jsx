@@ -87,9 +87,24 @@ export default function FacturasPage() {
         </Button>
       </InputGroup>
 
-      <div className="bg-white shadow-sm rounded scroll-container">
-        <Table striped bordered hover className="mb-0 sticky-header">
-          <thead className="table-primary">
+      <div
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "400px", // 🔥 Altura fija para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal en celular
+          border: "1px solid #dee2e6", // 🧱 Opcional para claridad visual
+        }}
+      >
+        <Table
+          striped
+          bordered
+          hover
+          className="mb-0 sticky-header"
+          style={{ minWidth: "800px" }} // ⬅️ Ancho mínimo para scroll horizontal
+        >
+          <thead className="table-primary sticky-top">
             <tr>
               <th>#</th>
               <th>Número Factura</th>

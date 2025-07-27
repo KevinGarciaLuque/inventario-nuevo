@@ -236,9 +236,21 @@ export default function UsersPage() {
         </form>
       )}
 
-      <div className="scroll-container">
-        <table className="table table-bordered align-middle mb-0 sticky-header">
-          <thead className="table-light">
+      <div
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "300px", // 🔽 Altura fija para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal para móviles
+          border: "1px solid #dee2e6", // 🧱 Borde visual
+        }}
+      >
+        <table
+          className="table table-bordered align-middle mb-0 sticky-header"
+          style={{ minWidth: "700px" }} // Ajusta según columnas
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th>Nombre</th>
               <th>Email</th>

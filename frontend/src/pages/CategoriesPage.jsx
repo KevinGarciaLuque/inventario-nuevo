@@ -185,9 +185,21 @@ export default function CategoriesPage() {
       )}
 
       {/* TABLA RESPONSIVA */}
-      <div className="scroll-container">
-        <table className="table table-bordered align-middle categories-table sticky-header">
-          <thead className="table-light">
+      <div
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "300px", // 🔽 Altura fija para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal en móviles
+          border: "1px solid #dee2e6", // 🧱 Borde visual opcional
+        }}
+      >
+        <table
+          className="table table-bordered align-middle categories-table sticky-header"
+          style={{ minWidth: "600px" }} // ⬅️ Ancho mínimo para evitar compresión
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th>Nombre</th>
               <th>Descripción</th>

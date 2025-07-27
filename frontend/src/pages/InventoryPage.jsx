@@ -291,14 +291,20 @@ export default function InventoryPage({ onView }) {
 
       {/* Tabla de productos */}
       <div
-        className="scroll-container bg-white shadow rounded"
-        style={{ overflowX: "auto", overflowY: "auto", maxHeight: "500px" }}
+        className="bg-white shadow rounded mb-4"
+        style={{
+          maxHeight: "500px",
+          height: "400px", // 🔥 altura fija que fuerza scroll vertical
+          overflowY: "auto",
+          overflowX: "auto",
+          border: "1px solid #dee2e6", // borde para claridad visual
+        }}
       >
         <table
-          className="table table-bordered align-middle sticky-header w-100"
-          style={{ minWidth: "800px" }}
+          className="table table-bordered align-middle sticky-header"
+          style={{ minWidth: "800px" }} // 🔄 ancho mínimo para scroll horizontal
         >
-          <thead className="table-light">
+          <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
               <th>Código</th>
@@ -405,7 +411,6 @@ export default function InventoryPage({ onView }) {
       />
 
       {/* Estilo para encabezado sticky corregido */}
-
     </section>
   );
 }

@@ -41,6 +41,8 @@ export default function RegistrarVentaPage() {
   const [cai, setCai] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "" });
   const [usarRTN, setUsarRTN] = useState(false);
+  const bufferRef = useRef("");
+
 
   // Clientes
   const [clientes, setClientes] = useState([]);
@@ -85,24 +87,29 @@ export default function RegistrarVentaPage() {
     }
   }, [usarRTN]);
 
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      const char = e.key;
-      if (char.length === 1) setCodigoBuffer((prev) => prev + char);
-      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-      scannerTimeout.current = setTimeout(() => {
-        if (codigoBuffer.length > 0) {
-          handleBuscarCodigo(codigoBuffer);
-          setCodigoBuffer("");
-        }
-      }, 300);
-    };
-    window.addEventListener("keypress", handleKeyPress);
-    return () => {
-      window.removeEventListener("keypress", handleKeyPress);
-      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-    };
-  }, [codigoBuffer]);
+useEffect(() => {
+  const handleKeyPress = (e) => {
+    const char = e.key;
+    if (char.length === 1) {
+      bufferRef.current += char;
+    }
+
+    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+    scannerTimeout.current = setTimeout(() => {
+      if (bufferRef.current.length > 0) {
+        handleBuscarCodigo(bufferRef.current);
+        bufferRef.current = "";
+      }
+    }, 300);
+  };
+
+  window.addEventListener("keypress", handleKeyPress);
+  return () => {
+    window.removeEventListener("keypress", handleKeyPress);
+    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+  };
+}, []);
+
 
   const cargarProductos = async () => {
     const res = await api.get("/productos");
@@ -428,10 +435,17 @@ export default function RegistrarVentaPage() {
           list="sugerencias"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              handleBuscarNombre();
+              e.preventDefault();
+              const esCodigo = /^\d{6,}$/.test(buscar.trim()); // Puedes ajustar esta regla
+              if (esCodigo) {
+                handleBuscarCodigo(buscar.trim());
+              } else {
+                handleBuscarNombre();
+              }
             }
           }}
         />
+
         <datalist id="sugerencias">
           {productos.map((p) => (
             <option key={p.id} value={p.nombre} />
@@ -447,10 +461,22 @@ export default function RegistrarVentaPage() {
 
       <h4 className="mt-4">Carrito de Venta</h4>
       <div
-        className="table-responsive mb-4"
-        style={{ maxHeight: "500px", overflowY: "auto" }}
+        className="mb-4"
+        style={{
+          maxHeight: "400px",
+          height: "400px", // 🔥 Forzar altura en todos los dispositivos
+          overflowY: "auto",
+          overflowX: "auto",
+          border: "1px solid #dee2e6", // opcional para claridad visual
+        }}
       >
-        <Table striped bordered hover className="sticky-header">
+        <Table
+          striped
+          bordered
+          hover
+          className="sticky-header"
+          style={{ minWidth: "800px" }} // ajusta a tus columnas
+        >
           <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
@@ -510,8 +536,8 @@ export default function RegistrarVentaPage() {
       </div>
 
       <div className="text-end">
-        <p>Subtotal: {subtotal.toFixed(2)} Lps</p>
-        <p>ISV 15%: {impuesto.toFixed(2)} Lps</p>
+        <div>Subtotal: {subtotal.toFixed(2)} Lps</div>
+        <div>ISV 15%: {impuesto.toFixed(2)} Lps</div>
         <h4>Total: {total.toFixed(2)} Lps</h4>
         <Button variant="success" size="lg" onClick={registrarVenta}>
           <FaCashRegister className="me-2" /> Registrar Venta

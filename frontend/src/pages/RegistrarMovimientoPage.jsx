@@ -207,17 +207,23 @@ export default function RegistrarMovimientoPage() {
       </div>
 
       <div
-        className="scroll-container mb-4"
-        style={{ maxHeight: "300px", overflowY: "auto", overflowX: "auto" }}
+        className="bg-white shadow-sm rounded mb-4"
+        style={{
+          maxHeight: "300px",
+          height: "180px", // 🔥 Altura fija para scroll vertical
+          overflowY: "auto",
+          overflowX: "auto", // 🔁 Scroll horizontal para celular
+          border: "1px solid #dee2e6", // 🧱 Opcional para mejor visibilidad
+        }}
       >
         <Table
           striped
           bordered
           hover
           className="sticky-header w-100"
-          style={{ minWidth: "700px" }}
+          style={{ minWidth: "700px" }} // ⬅️ Desencadena scroll horizontal si es necesario
         >
-          <thead className="table-light">
+          <thead className="table-light sticky-top">
             <tr>
               <th>ID</th>
               <th>Nombre</th>
