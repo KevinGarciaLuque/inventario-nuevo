@@ -157,69 +157,78 @@ export default function Sidebar({
 
       {/* Footer */}
       {!isCollapsed && (
-        <div className="sidebar-footer px-3 py-2 border-top small text-center">
+        <div className="sidebar-footer px-3 py-2  mb-4  border-top small text-center">
           <i className="bi bi-info-circle me-1"></i> Pixel Digital <br />
           Desarrollado por: Kevin Garcia
         </div>
       )}
 
       {/* Estilos */}
+      {/* Dentro del return, al final */}
       <style>{`
-        .sidebar-container {
-          width: 100%;
-          max-width: 250px;
-          min-width: 72px;
-          height: 100vh;
-          position: fixed;
-          z-index: 1051;
-          transition: all 0.3s ease;
-          overflow-y: auto;
-        }
-        .sidebar-container.collapsed {
-          max-width: 72px !important;
-        }
-        .sidebar-header {
-          height: 60px;
-          padding: 0.75rem 1rem;
-        }
-        .sidebar-title {
-          font-family: 'Montserrat', sans-serif;
-          letter-spacing: 1px;
-        }
-        .sidebar-link {
-  min-height: 44px;
-  transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
-  text-align: left;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-}
+  .sidebar-container {
+    width: 100%;
+    max-width: 250px;
+    min-width: 72px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1051;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    background-color: #212529;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    box-shadow: none;
+  }
 
-.sidebar-link:hover {
-  background-color: #343a40 !important;
-  color: #ffc107 !important;
-  box-shadow: inset 10px 0 0 #ffc107;
-}
+  .sidebar-container.collapsed {
+    max-width: 72px !important;
+  }
 
-.sidebar-link:hover .icon-wrapper {
-  color: #ffc107;
-  transform: scale(1.1);
-}
+  .sidebar-header {
+    height: 60px;
+    padding: 0.75rem 1rem;
+  }
 
-.icon-wrapper {
-  transition: all 0.2s ease-in-out;
-}
+  .sidebar-title {
+    font-family: 'Montserrat', sans-serif;
+    letter-spacing: 1px;
+  }
 
-.sidebar-footer {
-  color: #dee2e6;
-  background-color: #212529;
-  font-size: 0.85rem;
-  transition: opacity 0.3s ease;
-  border-top: 1px solid #2e2e2e;
-}
+  .sidebar-link {
+    min-height: 44px;
+    transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    text-align: left;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+  }
 
+  .sidebar-link:hover {
+    background-color: #343a40 !important;
+    color: #ffc107 !important;
+    box-shadow: inset 10px 0 0 #ffc107;
+  }
 
-      `}</style>
+  .sidebar-link:hover .icon-wrapper {
+    color: #ffc107;
+    transform: scale(1.1);
+  }
+
+  .icon-wrapper {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .sidebar-footer {
+    color: #dee2e6;
+    background-color: #212529;
+    font-size: 0.85rem;
+    transition: opacity 0.3s ease;
+    border-top: 1px solid #2e2e2e;
+  }
+`}</style>
     </div>
   );
 }

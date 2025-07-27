@@ -91,7 +91,7 @@ export default function FacturasPage() {
         className="bg-white shadow-sm rounded mb-4"
         style={{
           maxHeight: "400px",
-          height: "400px", // 🔥 Altura fija para scroll vertical
+          height: "300px", // 🔥 Altura fija para scroll vertical
           overflowY: "auto",
           overflowX: "auto", // 🔁 Scroll horizontal en celular
           border: "1px solid #dee2e6", // 🧱 Opcional para claridad visual

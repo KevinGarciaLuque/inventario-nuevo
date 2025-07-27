@@ -45,8 +45,14 @@ export default function Layout({ onLogout }) {
       {/* Sidebar */}
       <div
         className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
-          ${sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
+          ${sidebarCollapsed ? "sidebar-collapsed" : ""}
           ${isMobile ? "sidebar-mobile" : ""}`}
+        style={{
+          borderTopRightRadius: "12px",
+          borderBottomRightRadius: "12px",
+          zIndex: 2060, // Asegura que esté por encima de
+          overflowX: "hidden", // Evita el espacio extra
+        }}
       >
         <Sidebar
           currentPage={currentPage}
@@ -109,35 +115,43 @@ export default function Layout({ onLogout }) {
 
       {/* CSS específico para el Layout */}
       <style>{`
-        /* Ajuste sidebar para móvil */
-        @media (max-width: 768px) {
-          .sidebar {
-            max-width: 70vw !important;
-            min-width: 70vw !important;
-            z-index: 2000;
-          }
-          .main-content-responsive {
-            min-width: 0 !important;
+    @media (max-width: 768px) {
+      .sidebar {
+        transition: width 0.4s ease-in-out, transform 0.4s ease-in-out, opacity 0.4s ease-in-out;
+        max-width: 70vw !important;
+        min-width: 70vw !important;
+        z-index: 2060;
+        transition: width 0.4s ease-in-out;
+        }
+        .main-content-responsive {
+          min-width: 0 !important;
           }
           .table-responsive {
             max-height: none !important;
             overflow-y: visible !important;
-          }
-          .sticky-header thead th {
-            position: static !important;
-          }
-        }
+            }
+            .sticky-header thead th {
+              position: static !important;
+              }
+              }
+              
+              .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 10vw;
+                right: 0;
+                bottom: 0;
+                z-index: 2059;
+                background-color: transparent;
+                background-color: rgba(0, 0, 0, 0.4); /* opacidad suave */
+                backdrop-filter: blur(3px); /* opcional: efecto de desenfoque */   }   
+      .sidebar-mobile.sidebar-collapsed {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+}
 
-        .sidebar-overlay {
-          position: fixed;
-          top: 0;
-          left: 70vw; /* mismo valor que sidebar móvil */
-          right: 0;
-          bottom: 0;
-          z-index: 1050;
-          background-color: rgba(0, 0, 0, 0);
-        }
-      `}</style>
+  `}</style>
     </div>
   );
 }

@@ -14,14 +14,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg(""); // Limpiar errores anteriores
+    setErrorMsg("");
 
     try {
       const res = await api.post("/auth/login", { email, password });
+
+      // Verifica que venga bien estructurado
+      if (!res.data.user || !res.data.user.nombre) {
+        throw new Error("Respuesta del servidor inválida: falta nombre");
+      }
+
+      // Guardar usuario y token en contexto y localStorage
       login(res.data.user, res.data.token);
-      localStorage.setItem("token", res.data.token);
     } catch (err) {
-      setErrorMsg(err.message); // Muestra el error elegante
+      const msg = err.response?.data?.error || "Error de autenticación";
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -44,7 +51,6 @@ export default function Login() {
               <div className="card-body p-4">
                 <h2 className="card-title text-center mb-4">Iniciar Sesión</h2>
 
-                {/* Muestra mensaje de error si hay */}
                 {errorMsg && (
                   <div className="alert alert-danger text-center" role="alert">
                     {errorMsg}

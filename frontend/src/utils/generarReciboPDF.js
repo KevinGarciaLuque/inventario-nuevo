@@ -35,14 +35,16 @@ const generarReciboPDF = ({
     posY += 25;
 
     doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("MOTO REPUESTOS S.A.", 40, posY, { align: "center" });
+    doc.text("MOTOREPUESTOS", 40, posY, { align: "center" });
+    posY += 5;
+    doc.text("Y TALLER JOSE", 40, posY, { align: "center" });
     posY += 5;
     doc.setFont("helvetica", "normal").setFontSize(9);
     doc.text("Sucursal Tegucigalpa", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("RTN: 08011999123456", 40, posY, { align: "center" });
+    doc.text("RTN: XXX-XXXX-XXXX", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("Tel: (504) 2222-3333", 40, posY, { align: "center" });
+    doc.text("Tel: (504) 9873-6249", 40, posY, { align: "center" });
     posY += 5;
     doc.line(10, posY, 70, posY);
     posY += 5;
@@ -69,14 +71,20 @@ const generarReciboPDF = ({
     doc.text(`Cajero: ${user.nombre}`, 10, posY);
     posY += 4;
 
+    // Mostrar nombre del cliente o "Consumidor Final"
     if (cliente_nombre) {
       doc.text(`Cliente: ${cliente_nombre}`, 10, posY);
-      posY += 4;
+    } else {
+      doc.text(`Cliente: Consumidor Final`, 10, posY);
     }
+    posY += 4;
+
+    // Mostrar RTN solo si existe
     if (cliente_rtn) {
       doc.text(`RTN: ${cliente_rtn}`, 10, posY);
       posY += 4;
     }
+
     if (cliente_direccion) {
       doc.text(`Dirección: ${cliente_direccion}`, 10, posY);
       posY += 4;
@@ -157,7 +165,7 @@ const generarReciboPDF = ({
     posY += 8;
 
     doc.setFontSize(8);
-    doc.text("SU PAGO EFECTIVO: L", 10, posY, );
+    doc.text("SU PAGO EFECTIVO: L", 10, posY);
     posY += 4;
     doc.text("SU CAMBIO: L", 10, posY);
     posY += 6;
@@ -168,18 +176,10 @@ const generarReciboPDF = ({
     doc.text(`"${convertirNumeroALetras(total)} Lempiras Exactos"`, 10, posY);
     posY += 8;
 
-  
-
     doc.setFont("helvetica", "bold");
     doc.text("*** GRACIAS POR SU COMPRA ***", 40, posY, { align: "center" });
     posY += 5;
-    doc.setFont("helvetica", "normal");
-    doc.text("Original - Cliente", 10, posY);
-    posY += 4;
-    doc.text("Copia Amarilla - Contabilidad", 10, posY);
-    posY += 4;
-    doc.text("Copia Rosada - Obligación Tributaria", 10, posY);
-    posY += 5;
+
     doc.setFont("helvetica", "bold");
     doc.text("La factura es beneficio de todos.", 40, posY, {
       align: "center",
@@ -194,7 +194,102 @@ const generarReciboPDF = ({
 
 // Convertidor simple (puedes personalizarlo con lógica real después)
 const convertirNumeroALetras = (numero) => {
-  return "Un mil seiscientos seis";
+  const unidades = [
+    "",
+    "uno",
+    "dos",
+    "tres",
+    "cuatro",
+    "cinco",
+    "seis",
+    "siete",
+    "ocho",
+    "nueve",
+  ];
+  const decenas = [
+    "",
+    "diez",
+    "veinte",
+    "treinta",
+    "cuarenta",
+    "cincuenta",
+    "sesenta",
+    "setenta",
+    "ochenta",
+    "noventa",
+  ];
+  const especiales = {
+    11: "once",
+    12: "doce",
+    13: "trece",
+    14: "catorce",
+    15: "quince",
+    16: "dieciséis",
+    17: "diecisiete",
+    18: "dieciocho",
+    19: "diecinueve",
+  };
+  const centenas = [
+    "",
+    "ciento",
+    "doscientos",
+    "trescientos",
+    "cuatrocientos",
+    "quinientos",
+    "seiscientos",
+    "setecientos",
+    "ochocientos",
+    "novecientos",
+  ];
+
+  const parteEntera = Math.floor(numero);
+  const parteDecimal = Math.round((numero - parteEntera) * 100);
+
+  const convertir = (n) => {
+    if (n === 0) return "cero";
+    if (n === 100) return "cien";
+
+    let letras = "";
+    const mil = Math.floor(n / 1000);
+    const restoMil = n % 1000;
+    const cent = Math.floor(restoMil / 100);
+    const dec = Math.floor((restoMil % 100) / 10);
+    const uni = restoMil % 10;
+
+    if (mil === 1) {
+      letras += "mil ";
+    } else if (mil > 1) {
+      letras += `${convertir(mil)} mil `;
+    }
+
+    if (cent) letras += `${centenas[cent]} `;
+
+    const decenasUnidades = restoMil % 100;
+
+    if (decenasUnidades >= 11 && decenasUnidades <= 19) {
+      letras += `${especiales[decenasUnidades]} `;
+    } else {
+      if (dec) {
+        letras += `${decenas[dec]}`;
+        if (uni) letras += ` y `;
+      }
+      if (uni && !(decenasUnidades >= 11 && decenasUnidades <= 19)) {
+        letras += `${unidades[uni]} `;
+      }
+    }
+
+    return letras.trim();
+  };
+
+  let resultado = `${convertir(parteEntera)} Lempiras`;
+
+  if (parteDecimal > 0) {
+    resultado += ` con ${convertir(parteDecimal)} centavos`;
+  }
+
+  resultado = resultado.charAt(0).toUpperCase() + resultado.slice(1);
+  return resultado;
 };
+
 
 export default generarReciboPDF;
