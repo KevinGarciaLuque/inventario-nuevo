@@ -1,5 +1,5 @@
 ///////////////////Produccion///////////////////////////////////////
-/*const express = require("express");
+const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
@@ -74,12 +74,12 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Backend corriendo en http://127.0.0.1:${PORT}`);
 });
-*/
+
 
 
 
 //////////////////////////////////////Trabajar Localmente///////////////////////////////////////////
-const express = require("express");
+/*const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
@@ -152,5 +152,5 @@ app.use("/uploads", express.static(uploadsPath));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Backend corriendo en http://127.0.0.1:${PORT}`);
-});
+});*/
 
