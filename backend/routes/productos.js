@@ -85,7 +85,7 @@ router.post("/", async (req, res) => {
         stock,
         stock_minimo,
         precio,
-        imagen,
+        imagen || null, // ✅ Corrige cadenas vacías o undefined
       ]
     );
 

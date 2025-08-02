@@ -40,9 +40,9 @@ export default function Login() {
         <div className="row login-row align-items-center justify-content-center min-vh-100">
           <div className="col-lg-6 d-none d-lg-flex flex-column justify-content-center align-items-center">
             <h1 className="inicio-titulo text-white text-center w-100">
-              REPUESTOS
+              SISTEMA
               <br />
-              DE MOTOS
+              DE INVENTARIO
             </h1>
           </div>
 

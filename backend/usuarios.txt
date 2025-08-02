@@ -4,8 +4,11 @@ aluque	       aluque@gmail.com	        usuario	123456789
 
 
 Para Mandarlo a produccion modificar lo siguiente
+******************backend*****************
 .env del backend
 server.js
+
+******************frontend**************
 
 .env del frontend
 axios.js del frontend

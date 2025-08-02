@@ -35,9 +35,9 @@ const generarReciboPDF = ({
     posY += 25;
 
     doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("MOTOREPUESTOS", 40, posY, { align: "center" });
+    doc.text("INVENTARIO", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("Y TALLER JOSE", 40, posY, { align: "center" });
+    doc.text("CAFE", 40, posY, { align: "center" });
     posY += 5;
     doc.setFont("helvetica", "normal").setFontSize(9);
     doc.text("Sucursal Tegucigalpa", 40, posY, { align: "center" });

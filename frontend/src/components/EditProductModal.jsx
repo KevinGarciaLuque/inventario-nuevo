@@ -98,7 +98,7 @@ export default function EditProductModal({
     try {
       await api.put(`/productos/${product.id}`, {
         ...form,
-        imagen: imageUrl,
+        imagen: imageUrl || null, // ✅ corregido aquí también
       });
       setSuccessType("success");
       setSuccessMsg("¡Producto actualizado correctamente!");

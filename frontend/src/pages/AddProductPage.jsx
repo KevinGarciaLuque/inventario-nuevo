@@ -74,7 +74,7 @@ export default function AddProductPage() {
     try {
       await api.post("/productos", {
         ...form,
-        imagen: imageUrl,
+        imagen: imageUrl || null, // ✅ corregido aquí
         usuario_id,
       });
       setShowSuccess(true); // Mostrar el modal de éxito

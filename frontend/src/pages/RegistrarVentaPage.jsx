@@ -163,7 +163,8 @@ useEffect(() => {
           mostrarToast("No hay stock disponible.");
           return prev;
         }
-        return [...prev, { ...producto, cantidad: 1 }];
+      return [{ ...producto, cantidad: 1 }, ...prev];
+
       }
     });
   };
@@ -312,10 +313,20 @@ useEffect(() => {
 
       <FormCheck
         type="switch"
-        label="Usar cliente con RTN"
+        id="switch-rt"
+        label={
+          <span style={{ fontSize: "1.2rem", fontWeight: "500" }}>
+            Usar cliente con RTN
+          </span>
+        }
         checked={usarRTN}
         onChange={() => setUsarRTN(!usarRTN)}
-        className="mb-3"
+        style={{
+          fontSize: "2.0rem",
+          padding: "0.5rem",
+          marginBottom: "1rem",
+          marginLeft: "4rem",
+        }}
       />
 
       {/* ========== SECCIÓN CLIENTES ========== */}
@@ -463,7 +474,7 @@ useEffect(() => {
       <div
         className="mb-4"
         style={{
-          maxHeight: "400px",
+          maxHeight: "350px",
           height: "400px", // 🔥 Forzar altura en todos los dispositivos
           overflowY: "auto",
           overflowX: "auto",
