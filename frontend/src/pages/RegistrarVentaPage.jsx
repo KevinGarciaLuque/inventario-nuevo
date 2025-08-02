@@ -22,6 +22,7 @@ import {
 import api from "../../api/axios";
 import { useUser } from "../context/UserContext";
 import generarReciboPDF from "../utils/generarReciboPDF";
+import MetodosPagos from "../components/MetodosPagos";
 
 const API_URL = "http://localhost:3000";
 const getImgSrc = (imagen) => {
@@ -42,7 +43,7 @@ export default function RegistrarVentaPage() {
   const [toast, setToast] = useState({ show: false, message: "" });
   const [usarRTN, setUsarRTN] = useState(false);
   const bufferRef = useRef("");
-
+  const [datosPago, setDatosPago] = useState({});
 
   // Clientes
   const [clientes, setClientes] = useState([]);
@@ -58,6 +59,12 @@ export default function RegistrarVentaPage() {
     dataRecibo: null,
   });
 
+  const [feedbackModal, setFeedbackModal] = useState({
+    show: false,
+    success: true,
+    message: "",
+  });
+
   // Modal agregar cliente rápido
   const [modalCliente, setModalCliente] = useState(false);
   const [formularioCliente, setFormularioCliente] = useState({
@@ -69,10 +76,22 @@ export default function RegistrarVentaPage() {
 
   // Datos del cliente para factura
   const [venta, setVenta] = useState({
+    metodo_pago: "efectivo",
+    efectivo: 0,
+    cambio: 0,
     cliente_nombre: "",
     cliente_rtn: "",
     cliente_direccion: "",
   });
+
+  const handleCambio = ({ metodo, efectivo, cambio }) => {
+    setVenta((prev) => ({
+      ...prev,
+      metodo_pago: metodo,
+      efectivo,
+      cambio,
+    }));
+  };
 
   const scannerTimeout = useRef(null);
 
@@ -87,29 +106,34 @@ export default function RegistrarVentaPage() {
     }
   }, [usarRTN]);
 
-useEffect(() => {
-  const handleKeyPress = (e) => {
-    const char = e.key;
-    if (char.length === 1) {
-      bufferRef.current += char;
-    }
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Evitar que se dispare si el usuario está escribiendo en un input
+      const target = e.target.tagName;
+      const esInputEditable = target === "INPUT" || target === "TEXTAREA";
 
-    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-    scannerTimeout.current = setTimeout(() => {
-      if (bufferRef.current.length > 0) {
-        handleBuscarCodigo(bufferRef.current);
-        bufferRef.current = "";
+      if (esInputEditable) return;
+
+      const char = e.key;
+      if (char.length === 1) {
+        bufferRef.current += char;
       }
-    }, 300);
-  };
 
-  window.addEventListener("keypress", handleKeyPress);
-  return () => {
-    window.removeEventListener("keypress", handleKeyPress);
-    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-  };
-}, []);
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+      scannerTimeout.current = setTimeout(() => {
+        if (bufferRef.current.length > 0) {
+          handleBuscarCodigo(bufferRef.current);
+          bufferRef.current = "";
+        }
+      }, 300);
+    };
 
+    window.addEventListener("keypress", handleKeyPress);
+    return () => {
+      window.removeEventListener("keypress", handleKeyPress);
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+    };
+  }, []);
 
   const cargarProductos = async () => {
     const res = await api.get("/productos");
@@ -163,8 +187,7 @@ useEffect(() => {
           mostrarToast("No hay stock disponible.");
           return prev;
         }
-      return [{ ...producto, cantidad: 1 }, ...prev];
-
+        return [...prev, { ...producto, cantidad: 1 }];
       }
     });
   };
@@ -228,64 +251,96 @@ useEffect(() => {
   // =======================
   // VENTA Y FACTURA
   // =======================
-  const subtotal = carrito.reduce(
+  const total = carrito.reduce(
     (acc, item) => acc + item.cantidad * parseFloat(item.precio),
     0
   );
-  const impuesto = subtotal * 0.15;
-  const total = subtotal + impuesto;
+
+  // Calcula impuesto incluido (ya contenido dentro del precio)
+  const impuesto = (total / 1.15) * 0.15;
+  const subtotal = total - impuesto;
 
   const registrarVenta = async () => {
-    if (!carrito.length || !cai) {
-      mostrarModal({
-        type: "error",
-        title: "Datos faltantes",
-        message: "No hay productos o CAI activo.",
-      });
-      return;
-    }
-
     try {
+      if (carrito.length === 0) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message: "⚠️ No hay productos en el carrito.",
+        });
+        return;
+      }
+
+      if (venta.metodo_pago === "efectivo" && venta.efectivo < total) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message: "⚠️ El efectivo recibido no puede ser menor al total.",
+        });
+        return;
+      }
+
       const productosPayload = carrito.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
       }));
 
-      const res = await api.post("/ventas", {
+      const { data } = await api.post("/ventas", {
         usuario_id: user.id,
         productos: productosPayload,
         cliente_nombre: venta.cliente_nombre,
         cliente_rtn: venta.cliente_rtn,
         cliente_direccion: venta.cliente_direccion,
+        metodo_pago: venta.metodo_pago,
+        efectivo: venta.efectivo,
+        cambio: venta.cambio,
+      });
+
+      generarReciboPDF({
+        numeroFactura: data.numeroFactura,
+        carrito,
+        subtotal,
+        impuesto,
+        total,
+        user,
+        cai: cai || {},
+        cliente_nombre: venta.cliente_nombre,
+        cliente_rtn: venta.cliente_rtn,
+        cliente_direccion: venta.cliente_direccion,
+        metodoPago: venta.metodo_pago,
+        efectivo: venta.efectivo,
+        cambio: venta.cambio,
       });
 
       setModal({
         show: true,
         type: "success",
-        title: "Venta registrada",
-        message: `Factura No. ${res.data.numeroFactura} generada.`,
+        title: " Venta registrada",
+        message: "La venta fue registrada exitosamente.",
         dataRecibo: {
-          numeroFactura: res.data.numeroFactura,
-          carrito: [...carrito],
+          numeroFactura: data.numeroFactura,
+          carrito,
           subtotal,
           impuesto,
           total,
           user,
-          cai,
+          cai: cai || {},
           cliente_nombre: venta.cliente_nombre,
           cliente_rtn: venta.cliente_rtn,
           cliente_direccion: venta.cliente_direccion,
+          metodoPago: venta.metodo_pago,
+          efectivo: venta.efectivo,
+          cambio: venta.cambio,
         },
       });
 
-      setCarrito([]);
-      setVenta({ cliente_nombre: "", cliente_rtn: "", cliente_direccion: "" });
-      consultarCai();
-    } catch (err) {
-      mostrarModal({
-        type: "error",
-        title: "Error",
-        message: err.response?.data?.error || "No se pudo registrar la venta.",
+      // Limpiar carrito, formulario, etc.
+    } catch (error) {
+      console.error("❌ Error al registrar venta:", error);
+      setFeedbackModal({
+        show: true,
+        success: false,
+        message: "❌ Error al registrar la venta.",
       });
     }
   };
@@ -299,7 +354,10 @@ useEffect(() => {
   };
 
   const imprimirRecibo = () => {
-    if (modal.dataRecibo) generarReciboPDF(modal.dataRecibo);
+    if (modal.dataRecibo) {
+      generarReciboPDF(modal.dataRecibo);
+      setModal((prev) => ({ ...prev, show: false }));
+    }
   };
 
   // =======================
@@ -315,7 +373,7 @@ useEffect(() => {
         type="switch"
         id="switch-rt"
         label={
-          <span style={{ fontSize: "1.2rem", fontWeight: "500" }}>
+          <span style={{ fontSize: "1.rem", fontWeight: "400" }}>
             Usar cliente con RTN
           </span>
         }
@@ -474,8 +532,8 @@ useEffect(() => {
       <div
         className="mb-4"
         style={{
-          maxHeight: "350px",
-          height: "400px", // 🔥 Forzar altura en todos los dispositivos
+          maxHeight: "300px",
+          height: "300px", // 🔥 Forzar altura en todos los dispositivos
           overflowY: "auto",
           overflowX: "auto",
           border: "1px solid #dee2e6", // opcional para claridad visual
@@ -491,6 +549,7 @@ useEffect(() => {
           <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
+              <th>Código</th>
               <th>Producto</th>
               <th>Categoría</th>
               <th>Ubicación</th>
@@ -512,6 +571,7 @@ useEffect(() => {
                     rounded
                   />
                 </td>
+                <td>{item.codigo || "-"}</td>
                 <td>{item.nombre}</td>
                 <td>{item.categoria || "-"}</td>
                 <td>{item.ubicacion || "-"}</td>
@@ -545,6 +605,7 @@ useEffect(() => {
           </tbody>
         </Table>
       </div>
+      <MetodosPagos total={total} onCambioCalculado={handleCambio} />
 
       <div className="text-end">
         <div>Subtotal: {subtotal.toFixed(2)} Lps</div>
@@ -664,6 +725,36 @@ useEffect(() => {
             <div className="toast-body">{toast.message}</div>
           </div>
         </div>
+      )}
+      {feedbackModal.show && (
+        <Modal
+          show={modal.show}
+          onHide={() => setModal({ ...modal, show: false })}
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title className="d-flex align-items-center">
+              <BsCheckCircleFill className="text-success me-2 fs-4" />
+              <span className="text-success">{modal.title}</span>
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="text-center">
+            <p>{modal.message}</p>
+            {modal.dataRecibo && (
+              <div className="d-flex justify-content-center gap-2 mt-3">
+                <Button variant="primary" onClick={imprimirRecibo}>
+                  🧾 Imprimir Recibo
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setModal({ ...modal, show: false })}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            )}
+          </Modal.Body>
+        </Modal>
       )}
     </div>
   );
