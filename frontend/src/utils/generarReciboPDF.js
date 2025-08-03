@@ -9,16 +9,12 @@ const generarReciboPDF = ({
   impuesto,
   total,
   user,
-  cai = {},
+  cai,
   cliente_nombre,
   cliente_rtn,
   cliente_direccion,
-  metodoPago = "efectivo",
-  efectivo = 0,
-  cambio = 0,
 }) => {
   const alturaTotal = 150 + carrito.length * 10 + 100;
-  const totalNumerico = Number(total || 0);
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -27,8 +23,9 @@ const generarReciboPDF = ({
   });
 
   let posY = 10;
+  const anchoRecibo = 80;
   const margenIzq = 10;
-  const margenDer = 70;
+  const margenDer = anchoRecibo - 10;
 
   const img = new Image();
   img.src = logoImage;
@@ -42,29 +39,24 @@ const generarReciboPDF = ({
     posY += 5;
     doc.text("CAFE", 40, posY, { align: "center" });
     posY += 5;
-
     doc.setFont("helvetica", "normal").setFontSize(9);
     doc.text("Sucursal Tegucigalpa", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("RTN: 000-0000-0000", 40, posY, { align: "center" });
+    doc.text("RTN: XXX-XXXX-XXXX", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("Tel: (504) 0000-000", 40, posY, { align: "center" });
+    doc.text("Tel: (504) 9873-6249", 40, posY, { align: "center" });
     posY += 5;
     doc.line(10, posY, 70, posY);
     posY += 5;
 
     doc.setFontSize(8);
-    doc.text(`CAI: ${cai.cai_codigo || "-"}`, 10, posY);
+    doc.text(`CAI: ${cai.cai_codigo}`, 10, posY);
     posY += 4;
-    doc.text(
-      `Rango: ${cai.rango_inicio || "-"} - ${cai.rango_fin || "-"}`,
-      10,
-      posY
-    );
+    doc.text(`Rango: ${cai.rango_inicio} - ${cai.rango_fin}`, 10, posY);
     posY += 4;
-    doc.text(`Autorizado: ${cai.fecha_autorizacion || "-"}`, 10, posY);
+    doc.text(`Autorizado: ${cai.fecha_autorizacion}`, 10, posY);
     posY += 4;
-    doc.text(`Vence: ${cai.fecha_limite_emision || "-"}`, 10, posY);
+    doc.text(`Vence: ${cai.fecha_limite_emision}`, 10, posY);
     posY += 6;
 
     doc.setFont("helvetica", "bold").setFontSize(11);
@@ -76,11 +68,18 @@ const generarReciboPDF = ({
     posY += 4;
     doc.text(`Fecha: ${new Date().toLocaleString("es-HN")}`, 10, posY);
     posY += 4;
-    doc.text(`Cajero: ${user?.nombre || "Sistema"}`, 10, posY);
-    posY += 4;
-    doc.text(`Cliente: ${cliente_nombre || "Consumidor Final"}`, 10, posY);
+    doc.text(`Cajero: ${user.nombre}`, 10, posY);
     posY += 4;
 
+    // Mostrar nombre del cliente o "Consumidor Final"
+    if (cliente_nombre) {
+      doc.text(`Cliente: ${cliente_nombre}`, 10, posY);
+    } else {
+      doc.text(`Cliente: Consumidor Final`, 10, posY);
+    }
+    posY += 4;
+
+    // Mostrar RTN solo si existe
     if (cliente_rtn) {
       doc.text(`RTN: ${cliente_rtn}`, 10, posY);
       posY += 4;
@@ -94,19 +93,20 @@ const generarReciboPDF = ({
     doc.line(10, posY, 70, posY);
     posY += 5;
 
+    // Tabla con Código de Producto
     autoTable(doc, {
       startY: posY,
       head: [["Cant", "Código", "Descripción", "P/U", "Total"]],
       body: carrito.map((item) => [
         item.cantidad,
-        item.codigo || "-",
-        item.nombre?.substring(0, 12) || "",
+        item.codigo ? String(item.codigo) : "-",
+        item.nombre ? item.nombre.substring(0, 12) : "",
         item.precio ? Number(item.precio).toFixed(2) : "0.00",
         item.cantidad && item.precio
-          ? (item.cantidad * item.precio).toFixed(2)
+          ? (item.cantidad * Number(item.precio)).toFixed(2)
           : "0.00",
       ]),
-      margin: { left: 3, right: 3 },
+      margin: { left: 3, right: 3 }, // Tus márgenes personalizados
       styles: { fontSize: 7, halign: "center" },
       headStyles: { fillColor: [50, 50, 50], textColor: 255 },
     });
@@ -115,75 +115,72 @@ const generarReciboPDF = ({
     doc.line(10, posY, 70, posY);
     posY += 5;
 
-    doc.setFontSize(8);
+    // Alinea valores a la derecha
+    doc.setFont("helvetica", "normal").setFontSize(8);
+
     doc.text("Sub Total Exonerado:", margenIzq, posY);
     doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
+
     doc.text("Sub Total Exento:", margenIzq, posY);
     doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
+
     doc.text("Sub Total Gravado 15%:", margenIzq, posY);
-    doc.text(`L ${subtotal.toFixed(2)}`, margenDer, posY, { align: "right" });
+    doc.text(`L ${Number(subtotal).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
+
     doc.text("Sub Total Gravado 18%:", margenIzq, posY);
     doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
+
     doc.text("Descuentos/Rebajas:", margenIzq, posY);
     doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 4;
+
     doc.text("Sub Total:", margenIzq, posY);
-    doc.text(`L ${subtotal.toFixed(2)}`, margenDer, posY, { align: "right" });
+    doc.text(`L ${Number(subtotal).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
+
     doc.text("15% ISV:", margenIzq, posY);
-    doc.text(`L ${impuesto.toFixed(2)}`, margenDer, posY, { align: "right" });
+    doc.text(`L ${Number(impuesto).toFixed(2)}`, margenDer, posY, {
+      align: "right",
+    });
     posY += 4;
+
     doc.text("18% ISV:", margenIzq, posY);
     doc.text(`L 0.00`, margenDer, posY, { align: "right" });
     posY += 6;
 
     doc.setFont("helvetica", "bold").setFontSize(10);
-    doc.text("TOTAL A PAGAR:", margenIzq, posY);
-    doc.text(`L ${totalNumerico.toFixed(2)}`, margenDer, posY, {
+    doc.text(`TOTAL A PAGAR:`, margenIzq, posY);
+    doc.text(`L ${Number(total).toFixed(2)}`, margenDer, posY, {
       align: "right",
     });
-    posY += 6;
+    doc.setFont("helvetica", "normal");
+    posY += 8;
 
-    doc.setFont("helvetica", "normal").setFontSize(8);
-    const metodo = metodoPago.toLowerCase();
-    doc.text(
-      `Método de pago: ${metodo === "tarjeta" ? "Tarjeta" : "Efectivo"}`,
-      margenIzq,
-      posY
-    );
+    doc.setFontSize(8);
+    doc.text("SU PAGO EFECTIVO: L", 10, posY);
     posY += 4;
-
-    if (metodo === "efectivo") {
-      doc.text(
-        `Pago en efectivo: L ${Number(efectivo).toFixed(2)}`,
-        margenIzq,
-        posY
-      );
-      posY += 4;
-      doc.text(
-        `Cambio entregado: L ${Number(cambio).toFixed(2)}`,
-        margenIzq,
-        posY
-      );
-      posY += 4;
-    } else if (metodo === "tarjeta") {
-      doc.text("Pago realizado con tarjeta", margenIzq, posY);
-      posY += 4;
-    }
+    doc.text("SU CAMBIO: L", 10, posY);
+    posY += 6;
 
     doc.setFont("helvetica", "italic");
     doc.text("Su cantidad a pagar es de:", 10, posY);
     posY += 4;
-    doc.text(`"${convertirNumeroALetras(totalNumerico)} Exactos"`, 10, posY);
+    doc.text(`"${convertirNumeroALetras(total)} Lempiras Exactos"`, 10, posY);
     posY += 8;
 
     doc.setFont("helvetica", "bold");
     doc.text("*** GRACIAS POR SU COMPRA ***", 40, posY, { align: "center" });
     posY += 5;
+
+    doc.setFont("helvetica", "bold");
     doc.text("La factura es beneficio de todos.", 40, posY, {
       align: "center",
     });
@@ -195,7 +192,7 @@ const generarReciboPDF = ({
   };
 };
 
-// Convertidor simple a letras
+// Convertidor simple (puedes personalizarlo con lógica real después)
 const convertirNumeroALetras = (numero) => {
   const unidades = [
     "",
@@ -245,33 +242,54 @@ const convertirNumeroALetras = (numero) => {
     "novecientos",
   ];
 
+  const parteEntera = Math.floor(numero);
+  const parteDecimal = Math.round((numero - parteEntera) * 100);
+
   const convertir = (n) => {
     if (n === 0) return "cero";
     if (n === 100) return "cien";
+
     let letras = "";
     const mil = Math.floor(n / 1000);
     const restoMil = n % 1000;
     const cent = Math.floor(restoMil / 100);
     const dec = Math.floor((restoMil % 100) / 10);
     const uni = restoMil % 10;
-    if (mil === 1) letras += "mil ";
-    else if (mil > 1) letras += `${convertir(mil)} mil `;
-    if (cent) letras += `${centenas[cent]} `;
-    const decenasUnidades = restoMil % 100;
-    if (especiales[decenasUnidades])
-      letras += `${especiales[decenasUnidades]} `;
-    else {
-      if (dec) letras += `${decenas[dec]}`;
-      if (uni) letras += ` y ${unidades[uni]} `;
+
+    if (mil === 1) {
+      letras += "mil ";
+    } else if (mil > 1) {
+      letras += `${convertir(mil)} mil `;
     }
+
+    if (cent) letras += `${centenas[cent]} `;
+
+    const decenasUnidades = restoMil % 100;
+
+    if (decenasUnidades >= 11 && decenasUnidades <= 19) {
+      letras += `${especiales[decenasUnidades]} `;
+    } else {
+      if (dec) {
+        letras += `${decenas[dec]}`;
+        if (uni) letras += ` y `;
+      }
+      if (uni && !(decenasUnidades >= 11 && decenasUnidades <= 19)) {
+        letras += `${unidades[uni]} `;
+      }
+    }
+
     return letras.trim();
   };
 
-  const parteEntera = Math.floor(numero);
-  const parteDecimal = Math.round((numero - parteEntera) * 100);
   let resultado = `${convertir(parteEntera)} Lempiras`;
-  if (parteDecimal > 0) resultado += ` con ${convertir(parteDecimal)} centavos`;
-  return resultado.charAt(0).toUpperCase() + resultado.slice(1);
+
+  if (parteDecimal > 0) {
+    resultado += ` con ${convertir(parteDecimal)} centavos`;
+  }
+
+  resultado = resultado.charAt(0).toUpperCase() + resultado.slice(1);
+  return resultado;
 };
+
 
 export default generarReciboPDF;
