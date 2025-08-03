@@ -3,6 +3,9 @@ Kevin	           kg@gmail.com	        admin	123456789
 aluque	       aluque@gmail.com	        usuario	123456789
 
 
+
+admin@motorepuestos.com.
+
 Para Mandarlo a produccion modificar lo siguiente
 ******************backend*****************
 .env del backend

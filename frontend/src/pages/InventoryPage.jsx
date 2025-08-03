@@ -196,7 +196,7 @@ export default function InventoryPage({ onView }) {
   return (
     <section className="container py-4">
       <div ref={flashRef}></div>
-      <h2 className="mb-4 text-center">Inventario de Repuestos</h2>
+      <h2 className="mb-4 text-center">Inventario</h2>
 
       {/* Toast de mensajes */}
       <Modal

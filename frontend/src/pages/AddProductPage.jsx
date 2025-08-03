@@ -112,7 +112,7 @@ export default function AddProductPage() {
         </Modal.Body>
       </Modal>
 
-      <h2 className="mb-4 text-center">Añadir Nuevo Repuesto</h2>
+      <h2 className="mb-4 text-center">Añadir Nuevo Producto</h2>
       <form
         onSubmit={handleSubmit}
         className="bg-white p-4 shadow rounded row g-3 add-product-form"
