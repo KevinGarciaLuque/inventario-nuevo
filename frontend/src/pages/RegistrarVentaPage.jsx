@@ -32,6 +32,7 @@ const getImgSrc = (imagen) => {
   return `${API_URL}/uploads/${imagen}`;
 };
 
+
 export default function RegistrarVentaPage() {
   const { user } = useUser();
   const [productos, setProductos] = useState([]);
