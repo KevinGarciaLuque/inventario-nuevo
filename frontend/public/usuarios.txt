@@ -1,0 +1,12 @@
+Administrador	admin@motorepuestos.com	admin	admin123	
+Kevin	           kg@gmail.com	        admin	123456789
+aluque	       aluque@gmail.com	        usuario	123456789
+
+
+Para Mandarlo a produccion modificar lo siguiente
+.env del backend
+server.js
+
+.env del frontend
+axios.js del frontend
+
