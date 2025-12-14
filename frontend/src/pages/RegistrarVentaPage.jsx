@@ -190,41 +190,37 @@ export default function RegistrarVentaPage() {
     if (inputBuscarRef.current) inputBuscarRef.current.value = "";
   };
 
-  const handleBuscarCodigo = async (codigo) => {
-    const limpio = (codigo ?? "").trim();
-    if (!limpio) return;
-
-    try {
-      const res = await api.get(
-        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`
-      );
-
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        agregarProductoAlCarrito(res.data[0]);
-        limpiarInputBuscar();
-      } else {
-        mostrarToast("Producto no encontrado");
-      }
-    } catch (err) {
-      console.error(err);
-      mostrarToast("Error al buscar producto");
-    }
-  };
-
-  const handleBuscarNombre = () => {
-    const nombre = (buscar ?? "").trim().toLowerCase();
-    if (!nombre) return;
-
-    const prod = productos.find(
-      (p) => (p.nombre || "").toLowerCase() === nombre
+const handleBuscarCodigo = async (codigo) => {
+  try {
+    const res = await api.get(
+      `/productos/buscar?codigo=${encodeURIComponent(codigo.trim())}`
     );
-    if (prod) {
-      agregarProductoAlCarrito(prod);
-      limpiarInputBuscar();
-    } else {
-      mostrarToast("Producto no encontrado");
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      agregarProductoAlCarrito(res.data[0]);
+      setBuscar("");
+      if (inputBuscarRef.current) inputBuscarRef.current.value = "";
+      return true; // ✅ encontró
     }
-  };
+    return false; // ❌ no encontró
+  } catch (e) {
+    console.error(e);
+    mostrarToast("Error al buscar producto");
+    return false;
+  }
+};
+
+const handleBuscarNombre = (texto) => {
+  const nombre = texto.trim().toLowerCase();
+  const prod = productos.find((p) => p.nombre.toLowerCase() === nombre);
+  if (prod) {
+    agregarProductoAlCarrito(prod);
+    setBuscar("");
+    if (inputBuscarRef.current) inputBuscarRef.current.value = "";
+    return true;
+  }
+  return false;
+};
+
 
   // ✅ Este es el fix de móvil:
   // NO depender solo del estado "buscar" al tocar el botón,
@@ -259,6 +255,18 @@ export default function RegistrarVentaPage() {
       )
     );
   };
+const buscarYAgregar = async () => {
+  const valor = (inputBuscarRef.current?.value ?? buscar ?? "").trim();
+  if (!valor) return;
+
+  // 1) intenta por código SIEMPRE
+  const okCodigo = await handleBuscarCodigo(valor);
+  if (okCodigo) return;
+
+  // 2) si no encontró por código, intenta por nombre
+  const okNombre = handleBuscarNombre(valor);
+  if (!okNombre) mostrarToast("Producto no encontrado");
+};
 
   // =======================
   // CLIENTES
@@ -580,20 +588,19 @@ export default function RegistrarVentaPage() {
             <option key={p.id} value={p.nombre} />
           ))}
         </datalist>
-        <Button
-          variant="primary"
-          onClick={() => {
-            const valor = limpiarCodigo(
-              inputBuscarRef.current?.value ?? buscar
-            );
-            const esCodigo = /^[a-zA-Z0-9\-]+$/.test(valor);
-            if (esCodigo) {
-              handleBuscarCodigo(valor);
-            } else {
-              handleBuscarNombre();
+        <FormControl
+          ref={inputBuscarRef}
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              buscarYAgregar();
             }
           }}
-        >
+        />
+
+        <Button variant="primary" onClick={buscarYAgregar}>
           Agregar
         </Button>
 
