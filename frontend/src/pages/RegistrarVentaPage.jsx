@@ -1,27 +1,19 @@
-import { useEffect, useRef, useState } from "react";
-import { Alert } from "react-bootstrap";
-import { FaExclamationTriangle } from "react-icons/fa";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Button,
-  FormControl,
+  Form,
   FormCheck,
+  FormControl,
   Image,
   InputGroup,
   Modal,
-  Table,
   Spinner,
-  Form,
+  Table,
 } from "react-bootstrap";
+import { FaExclamationTriangle, FaSearch, FaTrash } from "react-icons/fa";
 import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
-import {
-  FaBoxOpen,
-  FaBroom,
-  FaCashRegister,
-  FaSearch,
-  FaTrash,
-  FaUserPlus,
-} from "react-icons/fa";
+
 import api from "../../api/axios";
 import { useUser } from "../context/UserContext";
 import generarReciboPDF from "../utils/generarReciboPDF";
@@ -39,27 +31,37 @@ const getImgSrc = (imagen) => {
 
 export default function RegistrarVentaPage() {
   const { user } = useUser();
+
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]);
+
   const [buscar, setBuscar] = useState("");
-  const [codigoBuffer, setCodigoBuffer] = useState("");
+  const inputBuscarRef = useRef(null);
+
   const [cai, setCai] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: "" });
-  const [usarRTN, setUsarRTN] = useState(false);
-  const bufferRef = useRef("");
-  const [datosPago, setDatosPago] = useState({});
-  const yaMostroModalRef = useRef(false); // ✅ No causa render como useState
   const [modalSinCai, setModalSinCai] = useState(false);
-  const caiErrorMostradoRef = useRef(false); // ✅ NO causa re-render
-  const [refreshCaiTrigger, setRefreshCaiTrigger] = useState(0);
-  const [resetPagoTrigger, setResetPagoTrigger] = useState(0);
+  const caiErrorMostradoRef = useRef(false);
+
+  const bufferRef = useRef("");
+  const scannerTimeout = useRef(null);
+
+  const [toast, setToast] = useState({ show: false, message: "" });
 
   // Clientes
+  const [usarRTN, setUsarRTN] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [clientesLoading, setClientesLoading] = useState(false);
   const [filtroCliente, setFiltroCliente] = useState("");
 
-  // Modal factura
+  // Modal agregar cliente rápido
+  const [modalCliente, setModalCliente] = useState(false);
+  const [formularioCliente, setFormularioCliente] = useState({
+    nombre: "",
+    rtn: "",
+    direccion: "",
+  });
+
+  // Modal factura / feedback
   const [modal, setModal] = useState({
     show: false,
     type: "success",
@@ -74,16 +76,7 @@ export default function RegistrarVentaPage() {
     message: "",
   });
 
-  // Modal agregar cliente rápido
-  const [modalCliente, setModalCliente] = useState(false);
-  const [formularioCliente, setFormularioCliente] = useState({
-    nombre: "",
-    rtn: "",
-    direccion: "",
-  });
-  const [editandoCliente, setEditandoCliente] = useState(false);
-
-  // Datos del cliente para factura
+  // Pago / datos cliente en venta
   const [venta, setVenta] = useState({
     metodo_pago: "efectivo",
     efectivo: 0,
@@ -93,6 +86,16 @@ export default function RegistrarVentaPage() {
     cliente_direccion: "",
   });
 
+  const [refreshCaiTrigger, setRefreshCaiTrigger] = useState(0);
+  const [resetPagoTrigger, setResetPagoTrigger] = useState(0);
+
+  const mostrarToast = (message) => {
+    setToast({ show: true, message });
+    window.setTimeout(() => setToast({ show: false, message: "" }), 2000);
+  };
+
+  const limpiarCodigo = (codigo) => codigo.trim().toUpperCase();
+
   const handleCambio = ({ metodo, efectivo, cambio }) => {
     setVenta((prev) => {
       if (
@@ -100,42 +103,44 @@ export default function RegistrarVentaPage() {
         prev.efectivo === efectivo &&
         prev.cambio === cambio
       ) {
-        return prev; // Evita re-render innecesario
+        return prev;
       }
-      return {
-        ...prev,
-        metodo_pago: metodo,
-        efectivo,
-        cambio,
-      };
+      return { ...prev, metodo_pago: metodo, efectivo, cambio };
     });
   };
 
-  const limpiarCodigo = (codigo) => {
-    return codigo.trim().toUpperCase();
+  const cargarProductos = async () => {
+    const res = await api.get("/productos");
+    setProductos(res.data || []);
   };
 
-  const scannerTimeout = useRef(null);
-
-  // ✅ Este se ejecuta solo cuando cambia el switch "usarRTN"
-  useEffect(() => {
-    if (usarRTN) {
-      cargarClientes();
+  const consultarCai = async () => {
+    try {
+      const res = await api.get("/cai/activo");
+      setCai(res.data);
+    } catch (error) {
+      if (!caiErrorMostradoRef.current) {
+        setModalSinCai(true);
+        caiErrorMostradoRef.current = true;
+      }
+      setCai(null);
     }
-  }, [usarRTN]);
+  };
 
+  useEffect(() => {
+    consultarCai();
+    cargarProductos();
+  }, []);
+
+  // Escáner por teclado (PC)
   useEffect(() => {
     const handleKeyPress = (e) => {
-      // Evitar que se dispare si el usuario está escribiendo en un input
-      const target = e.target.tagName;
-      const esInputEditable = target === "INPUT" || target === "TEXTAREA";
-
+      const tag = e.target?.tagName;
+      const esInputEditable = tag === "INPUT" || tag === "TEXTAREA";
       if (esInputEditable) return;
 
       const char = e.key;
-      if (char.length === 1) {
-        bufferRef.current += char;
-      }
+      if (char.length === 1) bufferRef.current += char;
 
       if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
       scannerTimeout.current = setTimeout(() => {
@@ -151,64 +156,16 @@ export default function RegistrarVentaPage() {
       window.removeEventListener("keypress", handleKeyPress);
       if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
     };
-  }, []);
-
-  const cargarProductos = async () => {
-    const res = await api.get("/productos");
-    setProductos(res.data);
-  };
-
-  const consultarCai = async () => {
-    try {
-      const res = await api.get("/cai/activo");
-      console.log("✅ CAI encontrado:", res.data);
-      setCai(res.data);
-    } catch (error) {
-      console.error("❌ Error al consultar CAI:", error.message);
-
-      if (!caiErrorMostradoRef.current) {
-        setModalSinCai(true); // solo una vez
-        caiErrorMostradoRef.current = true;
-      }
-
-      setCai(null);
-    }
-  };
-
-  useEffect(() => {
-    consultarCai();
-    cargarProductos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // =======================
   // BUSCAR Y AGREGAR PRODUCTOS
   // =======================
-  const handleBuscarCodigo = async (codigo) => {
-    // Buscar por código de barras
-    const res = await api.get(`/productos/buscar?codigo=${codigo.trim()}`);
-    if (res.data.length > 0) {
-      agregarProductoAlCarrito(res.data[0]);
-      setBuscar("");
-    } else {
-      mostrarToast("Producto no encontrado");
-    }
-  };
-
-  const handleBuscarNombre = () => {
-    // Buscar por nombre exacto (case insensitive)
-    const nombre = buscar.trim().toLowerCase();
-    const prod = productos.find((p) => p.nombre.toLowerCase() === nombre);
-    if (prod) {
-      agregarProductoAlCarrito(prod);
-      setBuscar("");
-    } else {
-      mostrarToast("Producto no encontrado");
-    }
-  };
-
   const agregarProductoAlCarrito = (producto) => {
     setCarrito((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
+
       if (existe) {
         if (existe.cantidad + 1 > producto.stock) {
           mostrarToast(`Stock insuficiente. Stock actual: ${producto.stock}`);
@@ -217,14 +174,77 @@ export default function RegistrarVentaPage() {
         return prev.map((p) =>
           p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
         );
-      } else {
-        if (producto.stock === 0) {
-          mostrarToast("No hay stock disponible.");
-          return prev;
-        }
-        return [...prev, { ...producto, cantidad: 1 }];
       }
+
+      if (producto.stock === 0) {
+        mostrarToast("No hay stock disponible.");
+        return prev;
+      }
+
+      return [...prev, { ...producto, cantidad: 1 }];
     });
+  };
+
+  const limpiarInputBuscar = () => {
+    setBuscar("");
+    if (inputBuscarRef.current) inputBuscarRef.current.value = "";
+  };
+
+  const handleBuscarCodigo = async (codigo) => {
+    const limpio = (codigo ?? "").trim();
+    if (!limpio) return;
+
+    try {
+      const res = await api.get(
+        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`
+      );
+
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        agregarProductoAlCarrito(res.data[0]);
+        limpiarInputBuscar();
+      } else {
+        mostrarToast("Producto no encontrado");
+      }
+    } catch (err) {
+      console.error(err);
+      mostrarToast("Error al buscar producto");
+    }
+  };
+
+  const handleBuscarNombre = () => {
+    const nombre = (buscar ?? "").trim().toLowerCase();
+    if (!nombre) return;
+
+    const prod = productos.find(
+      (p) => (p.nombre || "").toLowerCase() === nombre
+    );
+    if (prod) {
+      agregarProductoAlCarrito(prod);
+      limpiarInputBuscar();
+    } else {
+      mostrarToast("Producto no encontrado");
+    }
+  };
+
+  // ✅ Este es el fix de móvil:
+  // NO depender solo del estado "buscar" al tocar el botón,
+  // leer el valor REAL del input con ref.
+  const obtenerValorActualBuscar = () =>
+    (inputBuscarRef.current?.value ?? buscar ?? "").trim();
+
+  const onAgregarSubmit = async (e) => {
+    e.preventDefault();
+    const valor = obtenerValorActualBuscar();
+    if (!valor) return;
+
+    // si es numérico/código => buscar por código
+    // si no => buscar por nombre exacto (tu lógica actual)
+    const pareceCodigo = /^[0-9A-Za-z\-_.]+$/.test(valor) && valor.length >= 3;
+    if (pareceCodigo) {
+      await handleBuscarCodigo(valor);
+    } else {
+      handleBuscarNombre();
+    }
   };
 
   const quitarProducto = (id) =>
@@ -247,21 +267,25 @@ export default function RegistrarVentaPage() {
     setClientesLoading(true);
     try {
       const res = await api.get("/clientes");
-      setClientes(res.data);
-    } catch (error) {
+      setClientes(res.data || []);
+    } catch {
       setClientes([]);
     } finally {
       setClientesLoading(false);
     }
   };
 
-  const clientesFiltrados = clientes.filter((c) =>
-    `${c.nombre} ${c.rtn}`.toLowerCase().includes(filtroCliente.toLowerCase())
-  );
+  useEffect(() => {
+    if (usarRTN) cargarClientes();
+  }, [usarRTN]);
 
-  // =======================
-  // MODAL AGREGAR CLIENTE
-  // =======================
+  const clientesFiltrados = useMemo(() => {
+    const f = (filtroCliente || "").toLowerCase();
+    return clientes.filter((c) =>
+      `${c.nombre || ""} ${c.rtn || ""}`.toLowerCase().includes(f)
+    );
+  }, [clientes, filtroCliente]);
+
   const handleGuardarCliente = async () => {
     if (!formularioCliente.nombre.trim()) {
       mostrarToast("El nombre es obligatorio");
@@ -274,26 +298,25 @@ export default function RegistrarVentaPage() {
       cargarClientes();
       mostrarToast("Cliente agregado");
     } catch (err) {
+      console.error(err);
       mostrarToast("Error al agregar cliente");
     }
-  };
-
-  const handleCerrarModalCliente = () => {
-    setModalCliente(false);
-    setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
   };
 
   // =======================
   // VENTA Y FACTURA
   // =======================
-  const total = carrito.reduce(
-    (acc, item) => acc + item.cantidad * parseFloat(item.precio),
-    0
+  const total = useMemo(
+    () =>
+      carrito.reduce(
+        (acc, item) => acc + item.cantidad * parseFloat(item.precio),
+        0
+      ),
+    [carrito]
   );
 
-  // Calcula impuesto incluido (ya contenido dentro del precio)
-  const impuesto = (total / 1.15) * 0.15;
-  const subtotal = total - impuesto;
+  const impuesto = useMemo(() => (total / 1.15) * 0.15, [total]);
+  const subtotal = useMemo(() => total - impuesto, [total, impuesto]);
 
   const registrarVenta = async () => {
     try {
@@ -306,7 +329,7 @@ export default function RegistrarVentaPage() {
         return;
       }
 
-      if (venta.metodo_pago === "efectivo" && venta.efectivo < total) {
+      if (venta.metodo_pago === "efectivo" && Number(venta.efectivo) < total) {
         setFeedbackModal({
           show: true,
           success: false,
@@ -321,7 +344,7 @@ export default function RegistrarVentaPage() {
       }));
 
       const { data } = await api.post("/ventas", {
-        usuario_id: user.id,
+        usuario_id: user?.id,
         productos: productosPayload,
         cliente_nombre: venta.cliente_nombre,
         cliente_rtn: venta.cliente_rtn,
@@ -355,10 +378,8 @@ export default function RegistrarVentaPage() {
         dataRecibo,
       });
 
-      // 🔁 Refrescar visual del stock de facturas disponibles
       setRefreshCaiTrigger((prev) => prev + 1);
 
-      // ✅ Limpiar todos los estados
       setCarrito([]);
       setVenta({
         metodo_pago: "efectivo",
@@ -368,27 +389,19 @@ export default function RegistrarVentaPage() {
         cliente_rtn: "",
         cliente_direccion: "",
       });
-      setBuscar("");
-      setDatosPago({});
+      limpiarInputBuscar();
       setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
-      setResetPagoTrigger((prev) => prev + 1); // <-- Este es el correcto
+      setResetPagoTrigger((prev) => prev + 1);
     } catch (error) {
       console.error("❌ Error al registrar venta:", error);
       setFeedbackModal({
         show: true,
         success: false,
-        message: "❌ Error al registrar la venta.",
+        message: error?.response?.data?.message
+          ? `❌ ${error.response.data.message}`
+          : "❌ Error al registrar la venta.",
       });
     }
-  };
-
-  // =======================
-  const mostrarModal = ({ type, title, message }) =>
-    setModal({ show: true, type, title, message, dataRecibo: null });
-
-  const mostrarToast = (message) => {
-    setToast({ show: true, message });
-    setTimeout(() => setToast({ show: false }), 2000);
   };
 
   const imprimirRecibo = () => {
@@ -397,7 +410,6 @@ export default function RegistrarVentaPage() {
       setModal((prev) => ({ ...prev, show: false }));
     }
   };
-
   // ==========================================================================================================================
   // RENDER
   // =======================
@@ -568,9 +580,23 @@ export default function RegistrarVentaPage() {
             <option key={p.id} value={p.nombre} />
           ))}
         </datalist>
-        <Button variant="primary" onClick={handleBuscarNombre}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            const valor = limpiarCodigo(
+              inputBuscarRef.current?.value ?? buscar
+            );
+            const esCodigo = /^[a-zA-Z0-9\-]+$/.test(valor);
+            if (esCodigo) {
+              handleBuscarCodigo(valor);
+            } else {
+              handleBuscarNombre();
+            }
+          }}
+        >
           Agregar
         </Button>
+
         <Button variant="warning" onClick={() => setBuscar("")}>
           <FaBroom />
         </Button>
