@@ -72,14 +72,22 @@ export default function CaiPage() {
     }
   };
 
-  const cambiarEstado = async (id, activo) => {
-    try {
-      await api.patch(`/cai/${id}`, { activo });
-      cargarCai();
-    } catch (err) {
-      console.error(err);
-    }
+  const caiEstaPorAgotarse = (cai) => {
+    if (!cai) return false;
+    const disponibles = cai.rango_fin - cai.correlativo_actual;
+    return disponibles <= 50; // puedes ajustar el umbral
   };
+
+
+const cambiarEstado = async (id, activo) => {
+  try {
+    await api.patch(`/cai/${id}`, { activo });
+    cargarCai();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   return (
     <div className="container py-4">

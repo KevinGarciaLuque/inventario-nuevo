@@ -32,6 +32,7 @@ export default function FacturasPage() {
   );
 
   // Botón imprimir
+  // Botón imprimir
   const manejarImpresion = async (factura) => {
     try {
       const res = await api.get(`/facturas/${factura.id}`);
@@ -40,14 +41,18 @@ export default function FacturasPage() {
       generarReciboPDF({
         numeroFactura: datosFactura.numero_factura,
         carrito: datosFactura.carrito,
-        subtotal: datosFactura.subtotal,
-        impuesto: datosFactura.impuesto,
-        total: datosFactura.total,
+        subtotal: Number(datosFactura.subtotal) || 0,
+        impuesto: Number(datosFactura.impuesto) || 0,
+        total: Number(datosFactura.total) || 0,
         user: datosFactura.user,
         cai: datosFactura.cai,
-        cliente_nombre: datosFactura.cliente_nombre,
-        cliente_rtn: datosFactura.cliente_rtn,
-        cliente_direccion: datosFactura.cliente_direccion,
+        cliente_nombre: datosFactura.cliente_nombre || "Consumidor Final",
+        cliente_rtn: datosFactura.cliente_rtn || "",
+        cliente_direccion: datosFactura.cliente_direccion || "",
+        metodoPago: datosFactura.metodo_pago || "efectivo",
+        efectivo: Number(datosFactura.efectivo) || 0,
+        cambio: Number(datosFactura.cambio) || 0,
+        esCopia: true, // ✅ Se imprimirá como copia
       });
     } catch (error) {
       console.error("Error al generar el PDF:", error);
@@ -110,7 +115,8 @@ export default function FacturasPage() {
               <th>Número Factura</th>
               <th>CAI</th>
               <th>Fecha</th>
-              <th>Total</th>
+              <th>Total (ISV)</th>
+
               <th>Acción</th>
             </tr>
           </thead>
@@ -163,15 +169,19 @@ export default function FacturasPage() {
                 Factura #{facturaVista.numero_factura} |{" "}
                 {facturaVista.cliente_nombre}
               </h5>
+
               <div className="mb-2">
                 <b>Fecha:</b>{" "}
                 {new Date(facturaVista.fecha_emision).toLocaleString()}
               </div>
+
               <div>
                 <b>RTN:</b> {facturaVista.cliente_rtn || "N/A"} <br />
                 <b>Dirección:</b> {facturaVista.cliente_direccion || "N/A"}
               </div>
+
               <hr />
+
               <div>
                 <b>Detalle:</b>
                 <ul>
@@ -184,6 +194,7 @@ export default function FacturasPage() {
                     ))}
                 </ul>
               </div>
+
               <div className="mt-2">
                 <b>Subtotal:</b> Lps{" "}
                 {parseFloat(facturaVista.subtotal).toFixed(2)} <br />
@@ -194,11 +205,30 @@ export default function FacturasPage() {
                   Lps {parseFloat(facturaVista.total).toFixed(2)}
                 </span>
               </div>
+
+              <hr />
+
+              {facturaVista.metodo_pago === "efectivo" && (
+                <div className="mt-2">
+                  <b>Método de pago:</b> Efectivo <br />
+                  <b>Efectivo recibido:</b> Lps{" "}
+                  {parseFloat(facturaVista.efectivo).toFixed(2)} <br />
+                  <b>Cambio entregado:</b> Lps{" "}
+                  {parseFloat(facturaVista.cambio).toFixed(2)}
+                </div>
+              )}
+
+              {facturaVista.metodo_pago === "tarjeta" && (
+                <div className="mt-2">
+                  <b>Método de pago:</b> Tarjeta
+                </div>
+              )}
             </div>
           ) : (
             <div>No se pudo cargar la factura.</div>
           )}
         </Modal.Body>
+
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowVista(false)}>
             Cerrar

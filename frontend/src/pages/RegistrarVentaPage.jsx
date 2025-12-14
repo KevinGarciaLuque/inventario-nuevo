@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Alert } from "react-bootstrap";
+import { FaExclamationTriangle } from "react-icons/fa";
+
 import {
   Button,
   FormControl,
@@ -22,6 +25,8 @@ import {
 import api from "../../api/axios";
 import { useUser } from "../context/UserContext";
 import generarReciboPDF from "../utils/generarReciboPDF";
+import MetodosPagos from "../components/MetodosPagos";
+import CardCaiDisponible from "../components/CardCaiDisponible";
 
 const API_URL = "http://localhost:3000";
 const getImgSrc = (imagen) => {
@@ -31,7 +36,6 @@ const getImgSrc = (imagen) => {
   if (imagen.startsWith("uploads")) return `${API_URL}/${imagen}`;
   return `${API_URL}/uploads/${imagen}`;
 };
-
 
 export default function RegistrarVentaPage() {
   const { user } = useUser();
@@ -43,7 +47,12 @@ export default function RegistrarVentaPage() {
   const [toast, setToast] = useState({ show: false, message: "" });
   const [usarRTN, setUsarRTN] = useState(false);
   const bufferRef = useRef("");
-
+  const [datosPago, setDatosPago] = useState({});
+  const yaMostroModalRef = useRef(false); // ✅ No causa render como useState
+  const [modalSinCai, setModalSinCai] = useState(false);
+  const caiErrorMostradoRef = useRef(false); // ✅ NO causa re-render
+  const [refreshCaiTrigger, setRefreshCaiTrigger] = useState(0);
+  const [resetPagoTrigger, setResetPagoTrigger] = useState(0);
 
   // Clientes
   const [clientes, setClientes] = useState([]);
@@ -59,6 +68,12 @@ export default function RegistrarVentaPage() {
     dataRecibo: null,
   });
 
+  const [feedbackModal, setFeedbackModal] = useState({
+    show: false,
+    success: true,
+    message: "",
+  });
+
   // Modal agregar cliente rápido
   const [modalCliente, setModalCliente] = useState(false);
   const [formularioCliente, setFormularioCliente] = useState({
@@ -70,47 +85,73 @@ export default function RegistrarVentaPage() {
 
   // Datos del cliente para factura
   const [venta, setVenta] = useState({
+    metodo_pago: "efectivo",
+    efectivo: 0,
+    cambio: 0,
     cliente_nombre: "",
     cliente_rtn: "",
     cliente_direccion: "",
   });
 
+  const handleCambio = ({ metodo, efectivo, cambio }) => {
+    setVenta((prev) => {
+      if (
+        prev.metodo_pago === metodo &&
+        prev.efectivo === efectivo &&
+        prev.cambio === cambio
+      ) {
+        return prev; // Evita re-render innecesario
+      }
+      return {
+        ...prev,
+        metodo_pago: metodo,
+        efectivo,
+        cambio,
+      };
+    });
+  };
+
+  const limpiarCodigo = (codigo) => {
+    return codigo.trim().toUpperCase();
+  };
+
   const scannerTimeout = useRef(null);
 
-  useEffect(() => {
-    cargarProductos();
-    consultarCai();
-  }, []);
-
+  // ✅ Este se ejecuta solo cuando cambia el switch "usarRTN"
   useEffect(() => {
     if (usarRTN) {
       cargarClientes();
     }
   }, [usarRTN]);
 
-useEffect(() => {
-  const handleKeyPress = (e) => {
-    const char = e.key;
-    if (char.length === 1) {
-      bufferRef.current += char;
-    }
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Evitar que se dispare si el usuario está escribiendo en un input
+      const target = e.target.tagName;
+      const esInputEditable = target === "INPUT" || target === "TEXTAREA";
 
-    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-    scannerTimeout.current = setTimeout(() => {
-      if (bufferRef.current.length > 0) {
-        handleBuscarCodigo(bufferRef.current);
-        bufferRef.current = "";
+      if (esInputEditable) return;
+
+      const char = e.key;
+      if (char.length === 1) {
+        bufferRef.current += char;
       }
-    }, 300);
-  };
 
-  window.addEventListener("keypress", handleKeyPress);
-  return () => {
-    window.removeEventListener("keypress", handleKeyPress);
-    if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-  };
-}, []);
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+      scannerTimeout.current = setTimeout(() => {
+        if (bufferRef.current.length > 0) {
+          handleBuscarCodigo(limpiarCodigo(bufferRef.current));
+          bufferRef.current = "";
+        }
+      }, 300);
+    };
 
+    window.addEventListener("keypress", handleKeyPress);
+    return () => {
+      window.removeEventListener("keypress", handleKeyPress);
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+    };
+  }, []);
 
   const cargarProductos = async () => {
     const res = await api.get("/productos");
@@ -118,9 +159,26 @@ useEffect(() => {
   };
 
   const consultarCai = async () => {
-    const res = await api.get("/cai/activo");
-    setCai(res.data);
+    try {
+      const res = await api.get("/cai/activo");
+      console.log("✅ CAI encontrado:", res.data);
+      setCai(res.data);
+    } catch (error) {
+      console.error("❌ Error al consultar CAI:", error.message);
+
+      if (!caiErrorMostradoRef.current) {
+        setModalSinCai(true); // solo una vez
+        caiErrorMostradoRef.current = true;
+      }
+
+      setCai(null);
+    }
   };
+
+  useEffect(() => {
+    consultarCai();
+    cargarProductos();
+  }, []);
 
   // =======================
   // BUSCAR Y AGREGAR PRODUCTOS
@@ -164,8 +222,7 @@ useEffect(() => {
           mostrarToast("No hay stock disponible.");
           return prev;
         }
-      return [{ ...producto, cantidad: 1 }, ...prev];
-
+        return [...prev, { ...producto, cantidad: 1 }];
       }
     });
   };
@@ -229,68 +286,103 @@ useEffect(() => {
   // =======================
   // VENTA Y FACTURA
   // =======================
-  const subtotal = carrito.reduce(
+  const total = carrito.reduce(
     (acc, item) => acc + item.cantidad * parseFloat(item.precio),
     0
   );
-  const impuesto = subtotal * 0.15;
-  const total = subtotal + impuesto;
+
+  // Calcula impuesto incluido (ya contenido dentro del precio)
+  const impuesto = (total / 1.15) * 0.15;
+  const subtotal = total - impuesto;
 
   const registrarVenta = async () => {
-    if (!carrito.length || !cai) {
-      mostrarModal({
-        type: "error",
-        title: "Datos faltantes",
-        message: "No hay productos o CAI activo.",
-      });
-      return;
-    }
-
     try {
+      if (carrito.length === 0) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message: "⚠️ No hay productos para registrar la venta.",
+        });
+        return;
+      }
+
+      if (venta.metodo_pago === "efectivo" && venta.efectivo < total) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message: "⚠️ El efectivo recibido no puede ser menor al total.",
+        });
+        return;
+      }
+
       const productosPayload = carrito.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
       }));
 
-      const res = await api.post("/ventas", {
+      const { data } = await api.post("/ventas", {
         usuario_id: user.id,
         productos: productosPayload,
         cliente_nombre: venta.cliente_nombre,
         cliente_rtn: venta.cliente_rtn,
         cliente_direccion: venta.cliente_direccion,
+        metodo_pago: venta.metodo_pago,
+        efectivo: venta.efectivo,
+        cambio: venta.cambio,
       });
+
+      const dataRecibo = {
+        numeroFactura: data.numeroFactura,
+        carrito,
+        subtotal,
+        impuesto,
+        total,
+        user,
+        cai: cai || {},
+        cliente_nombre: venta.cliente_nombre,
+        cliente_rtn: venta.cliente_rtn,
+        cliente_direccion: venta.cliente_direccion,
+        metodoPago: venta.metodo_pago,
+        efectivo: venta.efectivo,
+        cambio: venta.cambio,
+      };
 
       setModal({
         show: true,
         type: "success",
         title: "Venta registrada",
-        message: `Factura No. ${res.data.numeroFactura} generada.`,
-        dataRecibo: {
-          numeroFactura: res.data.numeroFactura,
-          carrito: [...carrito],
-          subtotal,
-          impuesto,
-          total,
-          user,
-          cai,
-          cliente_nombre: venta.cliente_nombre,
-          cliente_rtn: venta.cliente_rtn,
-          cliente_direccion: venta.cliente_direccion,
-        },
+        message: "La venta fue registrada exitosamente.",
+        dataRecibo,
       });
 
+      // 🔁 Refrescar visual del stock de facturas disponibles
+      setRefreshCaiTrigger((prev) => prev + 1);
+
+      // ✅ Limpiar todos los estados
       setCarrito([]);
-      setVenta({ cliente_nombre: "", cliente_rtn: "", cliente_direccion: "" });
-      consultarCai();
-    } catch (err) {
-      mostrarModal({
-        type: "error",
-        title: "Error",
-        message: err.response?.data?.error || "No se pudo registrar la venta.",
+      setVenta({
+        metodo_pago: "efectivo",
+        efectivo: 0,
+        cambio: 0,
+        cliente_nombre: "",
+        cliente_rtn: "",
+        cliente_direccion: "",
+      });
+      setBuscar("");
+      setDatosPago({});
+      setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
+      setResetPagoTrigger((prev) => prev + 1); // <-- Este es el correcto
+    } catch (error) {
+      console.error("❌ Error al registrar venta:", error);
+      setFeedbackModal({
+        show: true,
+        success: false,
+        message: "❌ Error al registrar la venta.",
       });
     }
   };
 
+  // =======================
   const mostrarModal = ({ type, title, message }) =>
     setModal({ show: true, type, title, message, dataRecibo: null });
 
@@ -300,10 +392,13 @@ useEffect(() => {
   };
 
   const imprimirRecibo = () => {
-    if (modal.dataRecibo) generarReciboPDF(modal.dataRecibo);
+    if (modal.dataRecibo) {
+      generarReciboPDF(modal.dataRecibo);
+      setModal((prev) => ({ ...prev, show: false }));
+    }
   };
 
-  // =======================
+  // ==========================================================================================================================
   // RENDER
   // =======================
   return (
@@ -311,24 +406,33 @@ useEffect(() => {
       <h2 className="mb-4 text-center">
         <FaBoxOpen className="text-primary me-2" /> Módulo de Ventas
       </h2>
+      <div className="d-flex align-items-center justify-content-between flex-wrap mb-3">
+        {/* Switch: Usar cliente con RTN */}
+        <FormCheck
+          type="switch"
+          id="switch-rt"
+          label={
+            <span style={{ fontSize: "1.rem", fontWeight: "400" }}>
+              Usar cliente con RTN
+            </span>
+          }
+          checked={usarRTN}
+          onChange={() => setUsarRTN(!usarRTN)}
+          style={{
+            fontSize: "2.0rem",
+            padding: "0.5rem",
+            marginBottom: "1rem",
+            marginLeft: "4rem",
+          }}
+        />
 
-      <FormCheck
-        type="switch"
-        id="switch-rt"
-        label={
-          <span style={{ fontSize: "1.2rem", fontWeight: "500" }}>
-            Usar cliente con RTN
-          </span>
-        }
-        checked={usarRTN}
-        onChange={() => setUsarRTN(!usarRTN)}
-        style={{
-          fontSize: "2.0rem",
-          padding: "0.5rem",
-          marginBottom: "1rem",
-          marginLeft: "4rem",
-        }}
-      />
+        {/* Card del CAI: alineado a la derecha */}
+        <div style={{ flexShrink: 0 }}>
+          <CardCaiDisponible refreshTrigger={refreshCaiTrigger} />
+        </div>
+      </div>
+
+      {/* ============================================== STOCK DISponible ========== */}
 
       {/* ========== SECCIÓN CLIENTES ========== */}
       {usarRTN && (
@@ -448,9 +552,10 @@ useEffect(() => {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              const esCodigo = /^\d{6,}$/.test(buscar.trim()); // Puedes ajustar esta regla
+              const valor = limpiarCodigo(buscar);
+              const esCodigo = /^[a-zA-Z0-9\-]+$/.test(valor); // acepta letras, números y guiones
               if (esCodigo) {
-                handleBuscarCodigo(buscar.trim());
+                handleBuscarCodigo(valor);
               } else {
                 handleBuscarNombre();
               }
@@ -475,8 +580,8 @@ useEffect(() => {
       <div
         className="mb-4"
         style={{
-          maxHeight: "350px",
-          height: "400px", // 🔥 Forzar altura en todos los dispositivos
+          maxHeight: "300px",
+          height: "300px", // 🔥 Forzar altura en todos los dispositivos
           overflowY: "auto",
           overflowX: "auto",
           border: "1px solid #dee2e6", // opcional para claridad visual
@@ -492,6 +597,7 @@ useEffect(() => {
           <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
+              <th>Código</th>
               <th>Producto</th>
               <th>Categoría</th>
               <th>Ubicación</th>
@@ -513,6 +619,7 @@ useEffect(() => {
                     rounded
                   />
                 </td>
+                <td>{item.codigo || "-"}</td>
                 <td>{item.nombre}</td>
                 <td>{item.categoria || "-"}</td>
                 <td>{item.ubicacion || "-"}</td>
@@ -547,13 +654,37 @@ useEffect(() => {
         </Table>
       </div>
 
-      <div className="text-end">
-        <div>Subtotal: {subtotal.toFixed(2)} Lps</div>
-        <div>ISV 15%: {impuesto.toFixed(2)} Lps</div>
-        <h4>Total: {total.toFixed(2)} Lps</h4>
-        <Button variant="success" size="lg" onClick={registrarVenta}>
-          <FaCashRegister className="me-2" /> Registrar Venta
-        </Button>
+      <div className="row mt-3">
+        <div className="col-md-6 mb-3">
+          <MetodosPagos
+            total={total}
+            onCambioCalculado={handleCambio}
+            resetTrigger={resetPagoTrigger}
+          />
+        </div>
+        <div className="col-md-6 d-flex flex-column justify-content-between">
+          <div className="bg-light p-3 rounded shadow-sm h-100">
+            <div className="mb-2">
+              <strong>Subtotal:</strong> L {subtotal.toFixed(2)}
+            </div>
+            <div className="mb-2">
+              <strong>ISV 15%:</strong> L {impuesto.toFixed(2)}
+            </div>
+            <div className="mb-3">
+              <h5 className="m-0">
+                <strong>Total:</strong> L {total.toFixed(2)}
+              </h5>
+            </div>
+            <Button
+              variant="success"
+              size="lg"
+              onClick={registrarVenta}
+              className="w-100"
+            >
+              <FaCashRegister className="me-2" /> Registrar Venta
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* ===== MODAL FACTURA ===== */}
@@ -655,6 +786,23 @@ useEffect(() => {
           </Button>
         </Modal.Footer>
       </Modal>
+      <Modal show={modalSinCai} onHide={() => setModalSinCai(false)} centered>
+        <Modal.Body className="text-center py-4">
+          <BsExclamationTriangleFill
+            size={64}
+            color="#dc3545"
+            className="mb-3"
+          />
+          <h5 className="text-danger fw-bold mb-3">No hay CAI activo</h5>
+          <p className="text-muted">
+            No se puede registrar la venta porque no hay un CAI activo en el
+            sistema.
+          </p>
+          <Button variant="secondary" onClick={() => setModalSinCai(false)}>
+            Cerrar
+          </Button>
+        </Modal.Body>
+      </Modal>
 
       {toast.show && (
         <div
@@ -665,6 +813,52 @@ useEffect(() => {
             <div className="toast-body">{toast.message}</div>
           </div>
         </div>
+      )}
+      {feedbackModal.show && (
+        <Modal
+          show={modal.show}
+          onHide={() => setModal({ ...modal, show: false })}
+          centered
+        >
+          <Modal.Body className="text-center py-4">
+            {modal.type === "success" ? (
+              <BsCheckCircleFill size={64} color="#198754" className="mb-3" />
+            ) : (
+              <BsExclamationTriangleFill
+                size={64}
+                color="#dc3545"
+                className="mb-3"
+              />
+            )}
+
+            <h5
+              className={`mb-2 fw-bold ${
+                modal.type === "success" ? "text-success" : "text-danger"
+              }`}
+            >
+              {modal.title}
+            </h5>
+
+            <div className="mb-3 text-muted">{modal.message}</div>
+
+            <div className="d-flex justify-content-center align-items-center flex-wrap gap-3">
+              {modal.type === "success" && (
+                <Button
+                  variant="primary"
+                  onClick={() => generarReciboPDF(modal.dataRecibo)}
+                >
+                  🧾 Imprimir Recibo
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => setModal({ ...modal, show: false })}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </Modal.Body>
+        </Modal>
       )}
     </div>
   );

@@ -35,7 +35,8 @@ router.get("/:id", async (req, res) => {
       `SELECT 
         f.numero_factura, f.fecha_emision,
         f.cliente_nombre, f.cliente_rtn, f.cliente_direccion,
-        v.id AS venta_id, u.nombre AS cajero,
+        v.id AS venta_id, v.metodo_pago, v.efectivo, v.cambio,
+        u.nombre AS cajero,
         c.cai_codigo, c.rango_inicio, c.rango_fin,
         c.fecha_autorizacion, c.fecha_limite_emision
       FROM facturas f
@@ -50,31 +51,32 @@ router.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Factura no encontrada" });
     }
 
-    // Extraer datos y asegurar que no sean nulos
     const factura = {
       ...facturaRows[0],
       cliente_nombre: facturaRows[0].cliente_nombre ?? "",
       cliente_rtn: facturaRows[0].cliente_rtn ?? "",
       cliente_direccion: facturaRows[0].cliente_direccion ?? "",
+      metodo_pago: facturaRows[0].metodo_pago ?? "Efectivo",
+      efectivo: parseFloat(facturaRows[0].efectivo ?? 0),
+      cambio: parseFloat(facturaRows[0].cambio ?? 0),
     };
 
     // 2. Obtener productos de la factura
     const [items] = await db.query(
       `SELECT p.codigo, p.nombre, dv.cantidad, dv.precio_unitario AS precio
-      FROM detalle_ventas dv
-      JOIN productos p ON dv.producto_id = p.id
-      WHERE dv.venta_id = ?`,
+       FROM detalle_ventas dv
+       JOIN productos p ON dv.producto_id = p.id
+       WHERE dv.venta_id = ?`,
       [factura.venta_id]
     );
 
-
-    // 3. Calcular totales
-    const subtotal = items.reduce(
+    // 3. Calcular totales (con impuesto incluido en el precio)
+    const total = items.reduce(
       (acc, item) => acc + item.cantidad * item.precio,
       0
     );
-    const impuesto = +(subtotal * 0.15).toFixed(2);
-    const total = +(subtotal + impuesto).toFixed(2);
+    const impuesto = +((total / 1.15) * 0.15).toFixed(2);
+    const subtotal = +(total - impuesto).toFixed(2);
 
     // 4. Respuesta completa para generar PDF
     res.json({
@@ -87,10 +89,13 @@ router.get("/:id", async (req, res) => {
       subtotal,
       impuesto,
       total,
+      metodo_pago: factura.metodo_pago,
+      efectivo: factura.efectivo,
+      cambio: factura.cambio,
       user: { nombre: factura.cajero },
       cai: {
         cai_codigo: factura.cai_codigo,
-        rango_inicio: factura.cai_codigo.toString(),
+        rango_inicio: factura.rango_inicio.toString(),
         rango_fin: factura.rango_fin.toString(),
         fecha_autorizacion: factura.fecha_autorizacion,
         fecha_limite_emision: factura.fecha_limite_emision,

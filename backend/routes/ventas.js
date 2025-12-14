@@ -7,9 +7,12 @@ router.post("/", async (req, res) => {
   const {
     productos,
     usuario_id,
-    cliente_nombre,
-    cliente_rtn,
-    cliente_direccion,
+    cliente_nombre = "",
+    cliente_rtn = "",
+    cliente_direccion = "",
+    metodo_pago = "efectivo",
+    efectivo = 0,
+    cambio = 0,
   } = req.body;
 
   if (!productos || productos.length === 0) {
@@ -20,11 +23,17 @@ router.post("/", async (req, res) => {
   await connection.beginTransaction();
 
   try {
+    console.log("📦 Venta recibida:", req.body);
+
     let total = 0;
     const detalleVenta = [];
 
     // Validar stock y calcular totales
     for (const item of productos) {
+      if (!item.producto_id || !item.cantidad) {
+        throw new Error("Producto inválido en el carrito.");
+      }
+
       const [productoResult] = await connection.query(
         "SELECT precio, stock FROM productos WHERE id = ?",
         [item.producto_id]
@@ -53,22 +62,36 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const impuesto = parseFloat((total * 0.15).toFixed(2));
-    const total_con_impuesto = parseFloat((total + impuesto).toFixed(2));
+    // ✅ Extraer ISV del precio ya incluido
+    const subtotal = parseFloat((total / 1.15).toFixed(2));
+    const impuesto = parseFloat((total - subtotal).toFixed(2));
+    const total_con_impuesto = parseFloat(total.toFixed(2));
 
     // Insertar venta
     const [ventaResult] = await connection.query(
-      "INSERT INTO ventas (total, impuesto, total_con_impuesto, usuario_id) VALUES (?, ?, ?, ?)",
-      [total, impuesto, total_con_impuesto, usuario_id]
+      `INSERT INTO ventas (
+        total, impuesto, total_con_impuesto,
+        usuario_id, metodo_pago, efectivo, cambio
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        subtotal,
+        impuesto,
+        total_con_impuesto,
+        usuario_id,
+        metodo_pago,
+        metodo_pago === "efectivo" ? efectivo : 0,
+        metodo_pago === "efectivo" ? cambio : 0,
+      ]
     );
 
     const venta_id = ventaResult.insertId;
 
-    // Insertar detalle
+    // Insertar detalle de la venta y actualizar stock
     for (const detalle of detalleVenta) {
       await connection.query(
-        `INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, subtotal)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO detalle_ventas (
+          venta_id, producto_id, cantidad, precio_unitario, subtotal
+        ) VALUES (?, ?, ?, ?, ?)`,
         [
           venta_id,
           detalle.producto_id,
@@ -78,15 +101,14 @@ router.post("/", async (req, res) => {
         ]
       );
 
-      // Actualizar stock
       await connection.query(
         "UPDATE productos SET stock = stock - ? WHERE id = ?",
         [detalle.cantidad, detalle.producto_id]
       );
     }
 
-    // ➕ Registrar cliente si no existe
-    if (cliente_rtn) {
+    // Registrar cliente si aplica
+    if (cliente_rtn && cliente_rtn.trim() !== "") {
       const [clienteExistente] = await connection.query(
         "SELECT id FROM clientes WHERE rtn = ?",
         [cliente_rtn]
@@ -122,16 +144,20 @@ router.post("/", async (req, res) => {
     const [facturaResult] = await connection.query(
       `INSERT INTO facturas (
         numero_factura, venta_id, cai_id, total_factura,
-        cliente_nombre, cliente_rtn, cliente_direccion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        cliente_nombre, cliente_rtn, cliente_direccion,
+        metodo_pago, efectivo, cambio
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         numeroFactura,
         venta_id,
         cai.id,
-        total_con_impuesto,
+        total_con_impuesto, // ✅ Este valor es correcto
         cliente_nombre,
         cliente_rtn,
         cliente_direccion,
+        metodo_pago,
+        metodo_pago === "efectivo" ? efectivo : 0,
+        metodo_pago === "efectivo" ? cambio : 0,
       ]
     );
 
@@ -165,14 +191,14 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     await connection.rollback();
-    console.error(error);
+    console.error("❌ Error en registrar venta:", error.message);
     res.status(500).json({ message: error.message });
   } finally {
     connection.release();
   }
 });
 
-// Consultar listado de ventas
+// Listar ventas
 router.get("/", async (req, res) => {
   try {
     const [ventas] = await db.query(
@@ -182,6 +208,7 @@ router.get("/", async (req, res) => {
     );
     res.json(ventas);
   } catch (error) {
+    console.error("❌ Error al obtener ventas:", error.message);
     res.status(500).json({ message: "Error al obtener las ventas" });
   }
 });
