@@ -68,3 +68,30 @@
     padding: 1.3rem 0.6rem;
   }
 }
+
+
+/* ===============================
+   GLASS EFFECT SOLO LOGIN
+   =============================== */
+.glass-login {
+  background: rgba(255, 255, 255, 0.30) !important; /* transparencia real */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Inputs ligeramente transparentes */
+.glass-login .form-control {
+  background: rgba(255, 255, 255, 0.50);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Título */
+.glass-login .card-title {
+  font-weight: 700;
+}
+
+/* Suaviza el borde */
+.glass-login {
+  border-radius: 18px;
+}

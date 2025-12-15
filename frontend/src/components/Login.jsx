@@ -47,7 +47,7 @@ export default function Login() {
           </div>
 
           <div className="col-12 col-md-8 col-lg-5 mx-auto">
-            <div className="card shadow-sm login-card">
+            <div className="card shadow-sm login-card glass-login">
               <div className="card-body p-4">
                 <h2 className="card-title text-center mb-4">Iniciar Sesión</h2>
 
@@ -60,7 +60,7 @@ export default function Login() {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label htmlFor="email" className="form-label">
-                      Correo Electrónico
+                      Correo Electrónico:
                     </label>
                     <input
                       type="email"
@@ -73,7 +73,7 @@ export default function Login() {
                   </div>
                   <div className="mb-4">
                     <label htmlFor="password" className="form-label">
-                      Contraseña
+                      Contraseña:
                     </label>
                     <input
                       type="password"
