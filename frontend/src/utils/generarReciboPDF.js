@@ -33,7 +33,7 @@ const generarReciboPDF = ({
     format: [80, alturaTotal],
   });
 
-  let posY = 10;
+  let posY = 0;
   const margenIzq = 10;
   const margenDer = 70;
 
@@ -41,13 +41,14 @@ const generarReciboPDF = ({
   img.src = logoImage;
 
   img.onload = () => {
-    doc.addImage(img, "PNG", 20, posY, 40, 20);
-    posY += 25;
+    doc.addImage(img, "PNG", 10, posY, 60, 60); //aqui se modifica la imagen
+    posY +=50;
+      posY += 10;
 
     doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("MERCADITO", 40, posY, { align: "center" });
+    doc.text("Sistema", 40, posY, { align: "center" });
     posY += 5;
-    doc.text("CRISTIAN", 40, posY, { align: "center" });
+    doc.text("Inventario", 40, posY, { align: "center" });
     posY += 5;
 
     doc.setFont("helvetica", "normal").setFontSize(9);
@@ -209,11 +210,11 @@ const generarReciboPDF = ({
       posY += 4;
     });
 
-    posY += 4;
+    posY += 10;
 
     doc.setFont("helvetica", "bold");
     doc.text("*** GRACIAS POR SU COMPRA ***", 40, posY, { align: "center" });
-    posY += 5;
+    posY += 10;
     doc.text("La factura es beneficio de todos.", 40, posY, {
       align: "center",
     });

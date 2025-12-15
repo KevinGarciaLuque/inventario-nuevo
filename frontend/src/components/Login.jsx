@@ -98,8 +98,8 @@ export default function Login() {
               </div>
             </div>
             <div className="text-center mt-3">
-              <small className="text-muted">
-                © {new Date().getFullYear()} MotoRepuestos Inc.
+              <small className="text-white">
+                © {new Date().getFullYear()} Kevin Garcia.
               </small>
             </div>
           </div>

@@ -10,21 +10,21 @@ import {
   Spinner,
   Table,
 } from "react-bootstrap";
+import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
 import {
-  FaSearch,
-  FaTrash,
   FaBoxOpen,
   FaBroom,
-  FaUserPlus,
   FaCashRegister,
+  FaSearch,
+  FaTrash,
+  FaUserPlus,
 } from "react-icons/fa";
-import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
 
 import api from "../../api/axios";
+import CardCaiDisponible from "../components/CardCaiDisponible";
+import MetodosPagos from "../components/MetodosPagos";
 import { useUser } from "../context/UserContext";
 import generarReciboPDF from "../utils/generarReciboPDF";
-import MetodosPagos from "../components/MetodosPagos";
-import CardCaiDisponible from "../components/CardCaiDisponible";
 
 const API_URL = "http://localhost:3000";
 const getImgSrc = (imagen) => {
@@ -558,7 +558,6 @@ export default function RegistrarVentaPage() {
           <FaSearch />
         </InputGroup.Text>
 
-        {/* ✅ SOLO UN INPUT (con ref) */}
         <FormControl
           ref={inputBuscarRef}
           placeholder="Buscar producto por nombre o escanear código"
@@ -568,7 +567,7 @@ export default function RegistrarVentaPage() {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              buscarYAgregar(); // ✅ código y nombre
+              buscarYAgregar();
             }
           }}
         />
@@ -579,7 +578,7 @@ export default function RegistrarVentaPage() {
           ))}
         </datalist>
 
-        <Button variant="primary" onClick={() => buscarYAgregar()}>
+        <Button variant="primary" onClick={buscarYAgregar}>
           Agregar
         </Button>
 
@@ -588,19 +587,28 @@ export default function RegistrarVentaPage() {
         </Button>
       </InputGroup>
 
-      <h4 className="mt-4">Carrito de Venta</h4>
+      {/* ===== CARRITO DE VENTA ===== */}
+      {/* ===== CARRITO DE VENTA ===== */}
+      <h4 className="mt-0 mb-4">Carrito de Venta</h4>
+
       <div
         className="mb-4"
         style={{
           maxHeight: "300px",
-          height: "300px",
+          height: "300px", // 🔥 Forzar altura en todos los dispositivos
           overflowY: "auto",
           overflowX: "auto",
-          border: "1px solid #dee2e6",
+          border: "1px solid #dee2e6", // opcional para claridad visual
         }}
       >
-        <Table striped bordered hover style={{ minWidth: "800px" }}>
-          <thead className="table-light">
+        <Table
+          striped
+          bordered
+          hover
+          className="sticky-header"
+          style={{ minWidth: "800px" }} // ajusta a tus columnas
+        >
+          <thead className="table-light sticky-top">
             <tr>
               <th>Imagen</th>
               <th>Código</th>
@@ -638,10 +646,7 @@ export default function RegistrarVentaPage() {
                     value={item.cantidad}
                     className="form-control form-control-sm"
                     onChange={(e) =>
-                      modificarCantidad(
-                        item.id,
-                        parseInt(e.target.value || "1", 10)
-                      )
+                      modificarCantidad(item.id, parseInt(e.target.value))
                     }
                   />
                 </td>
@@ -829,7 +834,7 @@ export default function RegistrarVentaPage() {
         </div>
       )}
 
-      {/* ===== FEEDBACK MODAL (ERRORES) ===== */}
+      {/* ===== FEEDBACK MODAL ===== */}
       <Modal
         show={feedbackModal.show}
         onHide={() =>
