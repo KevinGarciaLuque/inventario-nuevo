@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Button,
   Form,
   FormCheck,
@@ -11,7 +10,14 @@ import {
   Spinner,
   Table,
 } from "react-bootstrap";
-import { FaExclamationTriangle, FaSearch, FaTrash } from "react-icons/fa";
+import {
+  FaSearch,
+  FaTrash,
+  FaBoxOpen,
+  FaBroom,
+  FaUserPlus,
+  FaCashRegister,
+} from "react-icons/fa";
 import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
 
 import api from "../../api/axios";
@@ -61,7 +67,7 @@ export default function RegistrarVentaPage() {
     direccion: "",
   });
 
-  // Modal factura / feedback
+  // Modal éxito venta (para imprimir)
   const [modal, setModal] = useState({
     show: false,
     type: "success",
@@ -70,6 +76,7 @@ export default function RegistrarVentaPage() {
     dataRecibo: null,
   });
 
+  // Modal feedback (errores / advertencias)
   const [feedbackModal, setFeedbackModal] = useState({
     show: false,
     success: true,
@@ -94,7 +101,7 @@ export default function RegistrarVentaPage() {
     window.setTimeout(() => setToast({ show: false, message: "" }), 2000);
   };
 
-  const limpiarCodigo = (codigo) => codigo.trim().toUpperCase();
+  const limpiarCodigo = (codigo) => (codigo ?? "").trim().toUpperCase();
 
   const handleCambio = ({ metodo, efectivo, cambio }) => {
     setVenta((prev) => {
@@ -132,33 +139,6 @@ export default function RegistrarVentaPage() {
     cargarProductos();
   }, []);
 
-  // Escáner por teclado (PC)
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      const tag = e.target?.tagName;
-      const esInputEditable = tag === "INPUT" || tag === "TEXTAREA";
-      if (esInputEditable) return;
-
-      const char = e.key;
-      if (char.length === 1) bufferRef.current += char;
-
-      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-      scannerTimeout.current = setTimeout(() => {
-        if (bufferRef.current.length > 0) {
-          handleBuscarCodigo(limpiarCodigo(bufferRef.current));
-          bufferRef.current = "";
-        }
-      }, 300);
-    };
-
-    window.addEventListener("keypress", handleKeyPress);
-    return () => {
-      window.removeEventListener("keypress", handleKeyPress);
-      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // =======================
   // BUSCAR Y AGREGAR PRODUCTOS
   // =======================
@@ -190,58 +170,87 @@ export default function RegistrarVentaPage() {
     if (inputBuscarRef.current) inputBuscarRef.current.value = "";
   };
 
-const handleBuscarCodigo = async (codigo) => {
-  try {
-    const res = await api.get(
-      `/productos/buscar?codigo=${encodeURIComponent(codigo.trim())}`
-    );
-    if (Array.isArray(res.data) && res.data.length > 0) {
-      agregarProductoAlCarrito(res.data[0]);
-      setBuscar("");
-      if (inputBuscarRef.current) inputBuscarRef.current.value = "";
-      return true; // ✅ encontró
-    }
-    return false; // ❌ no encontró
-  } catch (e) {
-    console.error(e);
-    mostrarToast("Error al buscar producto");
-    return false;
-  }
-};
+  const handleBuscarCodigo = async (codigo) => {
+    const limpio = (codigo ?? "").trim();
+    if (!limpio) return false;
 
-const handleBuscarNombre = (texto) => {
-  const nombre = texto.trim().toLowerCase();
-  const prod = productos.find((p) => p.nombre.toLowerCase() === nombre);
-  if (prod) {
-    agregarProductoAlCarrito(prod);
-    setBuscar("");
-    if (inputBuscarRef.current) inputBuscarRef.current.value = "";
-    return true;
-  }
-  return false;
-};
+    try {
+      const res = await api.get(
+        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`
+      );
 
-
-  // ✅ Este es el fix de móvil:
-  // NO depender solo del estado "buscar" al tocar el botón,
-  // leer el valor REAL del input con ref.
-  const obtenerValorActualBuscar = () =>
-    (inputBuscarRef.current?.value ?? buscar ?? "").trim();
-
-  const onAgregarSubmit = async (e) => {
-    e.preventDefault();
-    const valor = obtenerValorActualBuscar();
-    if (!valor) return;
-
-    // si es numérico/código => buscar por código
-    // si no => buscar por nombre exacto (tu lógica actual)
-    const pareceCodigo = /^[0-9A-Za-z\-_.]+$/.test(valor) && valor.length >= 3;
-    if (pareceCodigo) {
-      await handleBuscarCodigo(valor);
-    } else {
-      handleBuscarNombre();
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        agregarProductoAlCarrito(res.data[0]);
+        limpiarInputBuscar();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      mostrarToast("Error al buscar producto");
+      return false;
     }
   };
+
+  const handleBuscarNombre = (texto) => {
+    const nombre = (texto ?? "").trim().toLowerCase();
+    if (!nombre) return false;
+
+    const prod = productos.find(
+      (p) => (p.nombre || "").toLowerCase() === nombre
+    );
+
+    if (prod) {
+      agregarProductoAlCarrito(prod);
+      limpiarInputBuscar();
+      return true;
+    }
+    return false;
+  };
+
+  // ✅ ÚNICA FUNCIÓN: intenta por código, si no existe, intenta por nombre
+  const buscarYAgregar = async (valorOverride = null) => {
+    const valor = (
+      valorOverride ??
+      inputBuscarRef.current?.value ??
+      buscar ??
+      ""
+    ).trim();
+
+    if (!valor) return;
+
+    const okCodigo = await handleBuscarCodigo(valor);
+    if (okCodigo) return;
+
+    const okNombre = handleBuscarNombre(valor);
+    if (!okNombre) mostrarToast("Producto no encontrado");
+  };
+
+  // Escáner por teclado (PC)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      const tag = e.target?.tagName;
+      const esInputEditable = tag === "INPUT" || tag === "TEXTAREA";
+      if (esInputEditable) return;
+
+      const char = e.key;
+      if (char.length === 1) bufferRef.current += char;
+
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+      scannerTimeout.current = setTimeout(() => {
+        const codigo = limpiarCodigo(bufferRef.current);
+        if (codigo.length > 0) buscarYAgregar(codigo);
+        bufferRef.current = "";
+      }, 300);
+    };
+
+    window.addEventListener("keypress", handleKeyPress);
+    return () => {
+      window.removeEventListener("keypress", handleKeyPress);
+      if (scannerTimeout.current) clearTimeout(scannerTimeout.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const quitarProducto = (id) =>
     setCarrito((prev) => prev.filter((p) => p.id !== id));
@@ -255,18 +264,6 @@ const handleBuscarNombre = (texto) => {
       )
     );
   };
-const buscarYAgregar = async () => {
-  const valor = (inputBuscarRef.current?.value ?? buscar ?? "").trim();
-  if (!valor) return;
-
-  // 1) intenta por código SIEMPRE
-  const okCodigo = await handleBuscarCodigo(valor);
-  if (okCodigo) return;
-
-  // 2) si no encontró por código, intenta por nombre
-  const okNombre = handleBuscarNombre(valor);
-  if (!okNombre) mostrarToast("Producto no encontrado");
-};
 
   // =======================
   // CLIENTES
@@ -309,6 +306,11 @@ const buscarYAgregar = async () => {
       console.error(err);
       mostrarToast("Error al agregar cliente");
     }
+  };
+
+  const handleCerrarModalCliente = () => {
+    setModalCliente(false);
+    setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
   };
 
   // =======================
@@ -418,7 +420,8 @@ const buscarYAgregar = async () => {
       setModal((prev) => ({ ...prev, show: false }));
     }
   };
-  // ==========================================================================================================================
+
+  // =======================
   // RENDER
   // =======================
   return (
@@ -426,13 +429,13 @@ const buscarYAgregar = async () => {
       <h2 className="mb-4 text-center">
         <FaBoxOpen className="text-primary me-2" /> Módulo de Ventas
       </h2>
+
       <div className="d-flex align-items-center justify-content-between flex-wrap mb-3">
-        {/* Switch: Usar cliente con RTN */}
         <FormCheck
           type="switch"
           id="switch-rt"
           label={
-            <span style={{ fontSize: "1.rem", fontWeight: "400" }}>
+            <span style={{ fontSize: "1rem", fontWeight: "400" }}>
               Usar cliente con RTN
             </span>
           }
@@ -446,15 +449,11 @@ const buscarYAgregar = async () => {
           }}
         />
 
-        {/* Card del CAI: alineado a la derecha */}
         <div style={{ flexShrink: 0 }}>
           <CardCaiDisponible refreshTrigger={refreshCaiTrigger} />
         </div>
       </div>
 
-      {/* ============================================== STOCK DISponible ========== */}
-
-      {/* ========== SECCIÓN CLIENTES ========== */}
       {usarRTN && (
         <>
           <h5>Clientes</h5>
@@ -472,17 +471,12 @@ const buscarYAgregar = async () => {
               <FaUserPlus className="mb-1" /> Agregar Cliente
             </Button>
           </InputGroup>
+
           <div className="scroll-container" style={{ maxHeight: "150px" }}>
             {clientesLoading ? (
               <Spinner animation="border" size="sm" />
             ) : (
-              <Table
-                bordered
-                hover
-                size="sm"
-                responsive
-                className="sticky-header w-100"
-              >
+              <Table bordered hover size="sm" responsive className="w-100">
                 <thead className="table-light">
                   <tr>
                     <th>Nombre</th>
@@ -525,7 +519,6 @@ const buscarYAgregar = async () => {
             )}
           </div>
 
-          {/* Inputs cliente solo si está activado el switch */}
           <div className="row mt-3">
             <div className="col-md-4 mb-2">
               <FormControl
@@ -564,7 +557,10 @@ const buscarYAgregar = async () => {
         <InputGroup.Text>
           <FaSearch />
         </InputGroup.Text>
+
+        {/* ✅ SOLO UN INPUT (con ref) */}
         <FormControl
+          ref={inputBuscarRef}
           placeholder="Buscar producto por nombre o escanear código"
           value={buscar}
           onChange={(e) => setBuscar(e.target.value)}
@@ -572,13 +568,7 @@ const buscarYAgregar = async () => {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              const valor = limpiarCodigo(buscar);
-              const esCodigo = /^[a-zA-Z0-9\-]+$/.test(valor); // acepta letras, números y guiones
-              if (esCodigo) {
-                handleBuscarCodigo(valor);
-              } else {
-                handleBuscarNombre();
-              }
+              buscarYAgregar(); // ✅ código y nombre
             }
           }}
         />
@@ -588,23 +578,12 @@ const buscarYAgregar = async () => {
             <option key={p.id} value={p.nombre} />
           ))}
         </datalist>
-        <FormControl
-          ref={inputBuscarRef}
-          value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              buscarYAgregar();
-            }
-          }}
-        />
 
-        <Button variant="primary" onClick={buscarYAgregar}>
+        <Button variant="primary" onClick={() => buscarYAgregar()}>
           Agregar
         </Button>
 
-        <Button variant="warning" onClick={() => setBuscar("")}>
+        <Button variant="warning" onClick={limpiarInputBuscar}>
           <FaBroom />
         </Button>
       </InputGroup>
@@ -614,20 +593,14 @@ const buscarYAgregar = async () => {
         className="mb-4"
         style={{
           maxHeight: "300px",
-          height: "300px", // 🔥 Forzar altura en todos los dispositivos
+          height: "300px",
           overflowY: "auto",
           overflowX: "auto",
-          border: "1px solid #dee2e6", // opcional para claridad visual
+          border: "1px solid #dee2e6",
         }}
       >
-        <Table
-          striped
-          bordered
-          hover
-          className="sticky-header"
-          style={{ minWidth: "800px" }} // ajusta a tus columnas
-        >
-          <thead className="table-light sticky-top">
+        <Table striped bordered hover style={{ minWidth: "800px" }}>
+          <thead className="table-light">
             <tr>
               <th>Imagen</th>
               <th>Código</th>
@@ -665,7 +638,10 @@ const buscarYAgregar = async () => {
                     value={item.cantidad}
                     className="form-control form-control-sm"
                     onChange={(e) =>
-                      modificarCantidad(item.id, parseInt(e.target.value))
+                      modificarCantidad(
+                        item.id,
+                        parseInt(e.target.value || "1", 10)
+                      )
                     }
                   />
                 </td>
@@ -783,6 +759,7 @@ const buscarYAgregar = async () => {
               autoFocus
             />
           </Form.Group>
+
           <Form.Group className="mb-3">
             <Form.Label>RTN</Form.Label>
             <Form.Control
@@ -796,6 +773,7 @@ const buscarYAgregar = async () => {
               placeholder="RTN"
             />
           </Form.Group>
+
           <Form.Group className="mb-3">
             <Form.Label>Dirección</Form.Label>
             <Form.Control
@@ -819,6 +797,8 @@ const buscarYAgregar = async () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* ===== MODAL SIN CAI ===== */}
       <Modal show={modalSinCai} onHide={() => setModalSinCai(false)} centered>
         <Modal.Body className="text-center py-4">
           <BsExclamationTriangleFill
@@ -837,6 +817,7 @@ const buscarYAgregar = async () => {
         </Modal.Body>
       </Modal>
 
+      {/* ===== TOAST ===== */}
       {toast.show && (
         <div
           className="position-fixed bottom-0 end-0 p-3"
@@ -847,52 +828,43 @@ const buscarYAgregar = async () => {
           </div>
         </div>
       )}
-      {feedbackModal.show && (
-        <Modal
-          show={modal.show}
-          onHide={() => setModal({ ...modal, show: false })}
-          centered
-        >
-          <Modal.Body className="text-center py-4">
-            {modal.type === "success" ? (
-              <BsCheckCircleFill size={64} color="#198754" className="mb-3" />
-            ) : (
-              <BsExclamationTriangleFill
-                size={64}
-                color="#dc3545"
-                className="mb-3"
-              />
-            )}
 
-            <h5
-              className={`mb-2 fw-bold ${
-                modal.type === "success" ? "text-success" : "text-danger"
-              }`}
-            >
-              {modal.title}
-            </h5>
-
-            <div className="mb-3 text-muted">{modal.message}</div>
-
-            <div className="d-flex justify-content-center align-items-center flex-wrap gap-3">
-              {modal.type === "success" && (
-                <Button
-                  variant="primary"
-                  onClick={() => generarReciboPDF(modal.dataRecibo)}
-                >
-                  🧾 Imprimir Recibo
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                onClick={() => setModal({ ...modal, show: false })}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </Modal.Body>
-        </Modal>
-      )}
+      {/* ===== FEEDBACK MODAL (ERRORES) ===== */}
+      <Modal
+        show={feedbackModal.show}
+        onHide={() =>
+          setFeedbackModal({ show: false, success: true, message: "" })
+        }
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          {feedbackModal.success ? (
+            <BsCheckCircleFill size={64} color="#198754" className="mb-3" />
+          ) : (
+            <BsExclamationTriangleFill
+              size={64}
+              color="#dc3545"
+              className="mb-3"
+            />
+          )}
+          <h5
+            className={`mb-2 fw-bold ${
+              feedbackModal.success ? "text-success" : "text-danger"
+            }`}
+          >
+            {feedbackModal.success ? "Listo" : "Atención"}
+          </h5>
+          <div className="mb-3 text-muted">{feedbackModal.message}</div>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setFeedbackModal({ show: false, success: true, message: "" })
+            }
+          >
+            Cerrar
+          </Button>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
