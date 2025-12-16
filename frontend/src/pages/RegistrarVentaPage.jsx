@@ -553,39 +553,46 @@ export default function RegistrarVentaPage() {
 
       {/* ===== BUSCAR Y AGREGAR PRODUCTO ===== */}
       <h5 className="mt-4">Buscar Producto</h5>
-      <InputGroup className="mb-3">
-        <InputGroup.Text>
-          <FaSearch />
-        </InputGroup.Text>
 
-        <FormControl
-          ref={inputBuscarRef}
-          placeholder="Buscar producto por nombre o escanear código"
-          value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
-          list="sugerencias"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              buscarYAgregar();
-            }
-          }}
-        />
+      <Form
+        onSubmit={(e) => {
+          e.preventDefault();
+          buscarYAgregar();
+        }}
+      >
+        <InputGroup className="mb-3">
+          <InputGroup.Text>
+            <FaSearch />
+          </InputGroup.Text>
 
-        <datalist id="sugerencias">
-          {productos.map((p) => (
-            <option key={p.id} value={p.nombre} />
-          ))}
-        </datalist>
+          <FormControl
+            ref={inputBuscarRef}
+            placeholder="Buscar producto por nombre o escanear código"
+            value={buscar}
+            onChange={(e) => setBuscar(e.target.value)}
+            list="sugerencias"
+            // 🔥 Forzar que el teclado muestre “Buscar/Ir” en vez de “Siguiente” (mejora en Android)
+            enterKeyHint="search"
+            inputMode="search"
+            autoComplete="off"
+          />
 
-        <Button variant="primary" onClick={buscarYAgregar}>
-          Agregar
-        </Button>
+          <datalist id="sugerencias">
+            {productos.map((p) => (
+              <option key={p.id} value={p.nombre} />
+            ))}
+          </datalist>
 
-        <Button variant="warning" onClick={limpiarInputBuscar}>
-          <FaBroom />
-        </Button>
-      </InputGroup>
+          {/* IMPORTANTE: submit */}
+          <Button variant="primary" type="submit">
+            Agregar
+          </Button>
+
+          <Button variant="warning" type="button" onClick={limpiarInputBuscar}>
+            <FaBroom />
+          </Button>
+        </InputGroup>
+      </Form>
 
       {/* ===== CARRITO DE VENTA ===== */}
       {/* ===== CARRITO DE VENTA ===== */}
