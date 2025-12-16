@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import { Modal, Button } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
@@ -6,24 +6,33 @@ import { CheckCircleFill } from "react-bootstrap-icons";
 export default function AddProductPage() {
   const [categorias, setCategorias] = useState([]);
   const [ubicaciones, setUbicaciones] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+
   const [form, setForm] = useState({
     codigo: "",
     nombre: "",
+    lote: "",
+    fecha_vencimiento: "",
     descripcion: "",
     categoria_id: "",
     ubicacion_id: "",
     stock: 0,
     stock_minimo: 1,
     precio: "",
+
+    // ✅ Medidas (DB)
+    contenido_medida: "",
+    unidad_medida_id: "",
+
     imagen: "",
   });
+
   const [imagenFile, setImagenFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Obtén usuario_id del usuario logueado
-  // Obtén usuario_id del usuario logueado (versión segura)
+  // ✅ Obtener usuario_id (seguro)
   const usuario_id = (() => {
     try {
       const u = localStorage.getItem("usuario");
@@ -32,21 +41,77 @@ export default function AddProductPage() {
       return null;
     }
   })();
-  
 
+  // ========================
+  // Cargar catálogos
+  // ========================
   useEffect(() => {
-    api.get("/categorias").then((res) => setCategorias(res.data));
-    api.get("/ubicaciones").then((res) => setUbicaciones(res.data));
+    let mounted = true;
+
+    const cargarCatalogos = async () => {
+      try {
+        const [cats, ubs, uns] = await Promise.all([
+          api.get("/categorias"),
+          api.get("/ubicaciones"),
+          api.get("/unidades"),
+        ]);
+
+        if (!mounted) return;
+
+        setCategorias(Array.isArray(cats.data) ? cats.data : []);
+        setUbicaciones(Array.isArray(ubs.data) ? ubs.data : []);
+
+        const listaUnidades = Array.isArray(uns.data) ? uns.data : [];
+        // ✅ Solo activas
+        setUnidades(listaUnidades.filter((u) => !!u.activo));
+      } catch (e) {
+        console.error(e);
+        if (!mounted) return;
+        setCategorias([]);
+        setUbicaciones([]);
+        setUnidades([]);
+      }
+    };
+
+    cargarCatalogos();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
+  // ✅ Limpiar preview (evita fuga de memoria)
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  // ✅ Ordenar unidades por tipo y nombre
+  const unidadesOrdenadas = useMemo(() => {
+    const copy = [...unidades];
+    copy.sort((a, b) => {
+      const t = (a.tipo || "").localeCompare(b.tipo || "", "es");
+      if (t !== 0) return t;
+      return (a.nombre || "").localeCompare(b.nombre || "", "es");
+    });
+    return copy;
+  }, [unidades]);
+
+  // ========================
+  // Handlers
+  // ========================
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // ✅ Si viene un number input, mantenemos string para que el usuario pueda borrar
     setForm((f) => ({ ...f, [name]: value }));
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0] || null;
     setImagenFile(file);
+
+    if (preview) URL.revokeObjectURL(preview);
     setPreview(file ? URL.createObjectURL(file) : null);
   };
 
@@ -54,46 +119,103 @@ export default function AddProductPage() {
     e.preventDefault();
     setLoading(true);
 
-    let imageUrl = "";
-    if (imagenFile) {
-      const formData = new FormData();
-      formData.append("imagen", imagenFile);
-      try {
-        const res = await api.post("/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        // Asegúrate de que la ruta devuelta es res.data.path o res.data.url según tu backend
-        imageUrl = res.data.path || res.data.url;
-      } catch (err) {
-        alert("Error al subir la imagen");
+    try {
+      // ✅ fecha válida (HTML date ya ayuda)
+      if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
+        alert("Fecha de vencimiento inválida");
         setLoading(false);
         return;
       }
-    }
 
-    try {
-      await api.post("/productos", {
+      // ✅ medidas: si usa una, exigir la otra
+      const unidadIdStr = String(form.unidad_medida_id || "").trim();
+      const contenidoStr = String(form.contenido_medida ?? "").trim();
+
+      const tieneUnidad = unidadIdStr !== "";
+      const tieneContenido = contenidoStr !== "";
+
+      if (
+        (tieneUnidad && !tieneContenido) ||
+        (!tieneUnidad && tieneContenido)
+      ) {
+        alert(
+          "Si usas medidas, completa Cantidad/Contenido y Unidad de medida."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Si hay contenido, debe ser número válido
+      if (tieneContenido) {
+        const n = Number(contenidoStr);
+        if (!Number.isFinite(n) || n <= 0) {
+          alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ Subir imagen si existe
+      let imageUrl = "";
+      if (imagenFile) {
+        const formData = new FormData();
+        formData.append("imagen", imagenFile);
+
+        try {
+          const res = await api.post("/upload", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          imageUrl = res.data?.path || res.data?.url || "";
+        } catch (err) {
+          alert("Error al subir la imagen");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ Normalizar payload para backend
+      const payload = {
         ...form,
-        imagen: imageUrl || null, // ✅ corregido aquí
+
+        lote: (form.lote || "").trim() || null,
+        fecha_vencimiento: form.fecha_vencimiento || null,
+
+        unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+        contenido_medida: tieneContenido ? Number(contenidoStr) : null,
+
+        imagen: imageUrl || null,
         usuario_id,
-      });
-      setShowSuccess(true); // Mostrar el modal de éxito
+      };
+
+      await api.post("/productos", payload);
+
+      setShowSuccess(true);
+
       setForm({
         codigo: "",
         nombre: "",
+        lote: "",
+        fecha_vencimiento: "",
         descripcion: "",
         categoria_id: "",
         ubicacion_id: "",
         stock: 0,
         stock_minimo: 1,
         precio: "",
+        contenido_medida: "",
+        unidad_medida_id: "",
         imagen: "",
       });
+
       setImagenFile(null);
+      if (preview) URL.revokeObjectURL(preview);
       setPreview(null);
     } catch (error) {
-      alert("Error al agregar el producto");
+      console.error(error);
+      alert(error?.message || "Error al agregar el producto");
     }
+
     setLoading(false);
   };
 
@@ -113,6 +235,7 @@ export default function AddProductPage() {
       </Modal>
 
       <h2 className="mb-4 text-center">Añadir Nuevo Producto</h2>
+
       <form
         onSubmit={handleSubmit}
         className="bg-white p-4 shadow rounded row g-3 add-product-form"
@@ -127,6 +250,7 @@ export default function AddProductPage() {
             required
           />
         </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Nombre</label>
           <input
@@ -137,6 +261,66 @@ export default function AddProductPage() {
             required
           />
         </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Lote</label>
+          <input
+            className="form-control"
+            name="lote"
+            value={form.lote}
+            onChange={handleChange}
+            placeholder="Ej: LOTE-2025-001"
+          />
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Fecha de vencimiento</label>
+          <input
+            type="date"
+            className="form-control"
+            name="fecha_vencimiento"
+            value={form.fecha_vencimiento}
+            onChange={handleChange}
+          />
+          <small className="text-muted">(Opcional)</small>
+        </div>
+
+        {/* ✅ MEDIDAS */}
+        <div className="col-md-4 col-12">
+          <label className="form-label">Cantidad / Contenido</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="form-control"
+            name="contenido_medida"
+            value={form.contenido_medida}
+            onChange={handleChange}
+            placeholder="Ej: 5, 2.5, 750"
+          />
+          <small className="text-muted">(Opcional)</small>
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Unidad de medida</label>
+          <select
+            className="form-select"
+            name="unidad_medida_id"
+            value={form.unidad_medida_id}
+            onChange={handleChange}
+          >
+            <option value="">Seleccionar (opcional)</option>
+            {unidadesOrdenadas.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre} ({u.abreviatura}) — {u.tipo}
+              </option>
+            ))}
+          </select>
+          <small className="text-muted">
+            Las unidades se administran en el módulo “Unidades de Medida”.
+          </small>
+        </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Categoría</label>
           <select
@@ -154,6 +338,7 @@ export default function AddProductPage() {
             ))}
           </select>
         </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Ubicación</label>
           <select
@@ -171,6 +356,7 @@ export default function AddProductPage() {
             ))}
           </select>
         </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Stock</label>
           <input
@@ -183,6 +369,7 @@ export default function AddProductPage() {
             required
           />
         </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Stock mínimo</label>
           <input
@@ -195,6 +382,7 @@ export default function AddProductPage() {
             required
           />
         </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Precio</label>
           <input
@@ -207,6 +395,7 @@ export default function AddProductPage() {
             required
           />
         </div>
+
         <div className="col-md-8 col-12">
           <label className="form-label">Descripción</label>
           <textarea
@@ -215,8 +404,9 @@ export default function AddProductPage() {
             rows={2}
             value={form.descripcion}
             onChange={handleChange}
-          ></textarea>
+          />
         </div>
+
         <div className="col-md-6 col-12">
           <label className="form-label">Imagen</label>
           <input
@@ -236,6 +426,7 @@ export default function AddProductPage() {
             </div>
           )}
         </div>
+
         <div className="col-md-6 col-12 d-flex align-items-end">
           <button
             type="submit"
@@ -246,12 +437,10 @@ export default function AddProductPage() {
           </button>
         </div>
       </form>
+
       <style>{`
-        /* FORMULARIO RESPONSIVO */
         @media (max-width: 991.98px) {
-          .add-product-form > div {
-            margin-bottom: 0.4rem !important;
-          }
+          .add-product-form > div { margin-bottom: 0.4rem !important; }
         }
         @media (max-width: 767.98px) {
           .add-product-form > div {

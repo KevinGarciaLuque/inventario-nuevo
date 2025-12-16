@@ -1,43 +1,72 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+
 import InventoryPage from "../pages/InventoryPage";
 import AddProductPage from "../pages/AddProductPage";
 import CategoriesPage from "../pages/CategoriesPage";
 import LocationsPage from "../pages/LocationsPage";
 import ReportsPage from "../pages/ReportsPage";
-import ProductModal from "./ProductModal";
 import UsersPage from "../pages/UsersPage";
-import BitacoraPage from "./BitacoraPage";
+import ClientesPage from "../pages/ClientesPage";
 import MovimientosPage from "../pages/MovimientosPage";
 import RegistrarMovimientoPage from "../pages/RegistrarMovimientoPage";
 import RegistrarVentaPage from "../pages/RegistrarVentaPage";
 import CaiPage from "../pages/CaiPage";
 import FacturasPage from "../pages/FacturasPage";
-import Soporte from "../components/Soporte";
-import ClientesPage from "../pages/ClientesPage";
+import UnidadesMedidaPage from "../pages/UnidadesMedidaPage";
+
+import ProductModal from "./ProductModal";
+import BitacoraPage from "./BitacoraPage";
 
 import "../styles/Layout.css";
 
 export default function Layout({ onLogout }) {
   const [currentPage, setCurrentPage] = useState("inventory");
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // ✅ Desktop: colapsado/expandido
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // ✅ Móvil: drawer abierto/cerrado
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 992);
+    const handleResize = () => {
+      const mobile = window.innerWidth < 992;
+      setIsMobile(mobile);
+
+      // ✅ Si pasas a desktop, cierra drawer móvil
+      if (!mobile) setSidebarOpen(false);
+    };
+
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // ✅ Evita scroll del body cuando el drawer está abierto (móvil)
   useEffect(() => {
-    if (isMobile) setSidebarCollapsed(true);
-    else setSidebarCollapsed(false);
-  }, [isMobile]);
+    if (isMobile && sidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isMobile, sidebarOpen]);
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed((v) => !v);
+  // ✅ Toggle único:
+  // - Móvil: abre/cierra drawer
+  // - Desktop: colapsa/expande
+  const toggleSidebar = (force) => {
+    if (isMobile) {
+      if (typeof force === "boolean") return setSidebarOpen(force);
+      setSidebarOpen((v) => !v);
+    } else {
+      setSidebarCollapsed((v) => !v);
+    }
   };
 
   return (
@@ -45,28 +74,36 @@ export default function Layout({ onLogout }) {
       {/* Sidebar */}
       <div
         className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
-          ${sidebarCollapsed ? "sidebar-collapsed" : ""}
-          ${isMobile ? "sidebar-mobile" : ""}`}
+          ${!isMobile && sidebarCollapsed ? "sidebar-collapsed" : ""}
+          ${isMobile ? "sidebar-mobile" : ""}
+          ${isMobile && sidebarOpen ? "sidebar-open" : ""}`}
         style={{
           borderTopRightRadius: "12px",
           borderBottomRightRadius: "12px",
-          zIndex: 2060, // Asegura que esté por encima de
-          overflowX: "hidden", // Evita el espacio extra
+          zIndex: 2060,
+          overflowX: "hidden",
         }}
       >
         <Sidebar
           currentPage={currentPage}
-          onChangePage={setCurrentPage}
-          isCollapsed={sidebarCollapsed}
+          onChangePage={(page) => {
+            setCurrentPage(page);
+
+            // ✅ en móvil: al elegir opción, cierra el drawer
+            if (isMobile) setSidebarOpen(false);
+          }}
+          // ✅ en desktop sí usamos collapsed; en móvil siempre false (drawer siempre “expandido”)
+          isCollapsed={!isMobile ? sidebarCollapsed : false}
+          // ✅ toggle controla drawer en móvil y colapsado en desktop
           onToggle={toggleSidebar}
         />
       </div>
 
-      {/* Overlay para cerrar sidebar en móvil */}
-      {!sidebarCollapsed && isMobile && (
+      {/* Overlay (solo móvil y abierto) */}
+      {isMobile && sidebarOpen && (
         <div
           className="sidebar-overlay"
-          onClick={toggleSidebar}
+          onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
@@ -75,8 +112,9 @@ export default function Layout({ onLogout }) {
       <div className="d-flex flex-column flex-grow-1 overflow-hidden main-content-responsive">
         <Navbar
           onLogout={onLogout}
-          onToggleSidebar={toggleSidebar}
-          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => toggleSidebar()}
+          // (si tu Navbar usa esto para icono/estado visual)
+          sidebarCollapsed={!isMobile ? sidebarCollapsed : !sidebarOpen}
         />
 
         <main className="flex-grow-1 p-4 overflow-auto main-content-inner">
@@ -100,6 +138,7 @@ export default function Layout({ onLogout }) {
                 {currentPage === "ventas" && <RegistrarVentaPage />}
                 {currentPage === "cai" && <CaiPage />}
                 {currentPage === "facturas" && <FacturasPage />}
+                {currentPage === "unidades" && <UnidadesMedidaPage />}
               </div>
             </div>
           </div>
@@ -113,45 +152,56 @@ export default function Layout({ onLogout }) {
         />
       )}
 
-      {/* CSS específico para el Layout */}
+      {/* CSS del Layout */}
       <style>{`
-    @media (max-width: 768px) {
-      .sidebar {
-        transition: width 0.4s ease-in-out, transform 0.4s ease-in-out, opacity 0.4s ease-in-out;
-        max-width: 70vw !important;
-        min-width: 70vw !important;
-        z-index: 2060;
-        transition: width 0.4s ease-in-out;
+        /* Overlay */
+        .sidebar-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 2059;
+          background-color: rgba(0, 0, 0, 0.45);
+          backdrop-filter: blur(3px);
         }
-        .main-content-responsive {
-          min-width: 0 !important;
+
+        /* MÓVIL: drawer */
+        @media (max-width: 991.98px) {
+          .sidebar.sidebar-mobile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+
+            width: 78vw;
+            max-width: 320px;
+            min-width: 260px;
+
+            transform: translateX(-100%);
+            pointer-events: none;
+            transition: transform 0.35s ease;
           }
+
+          .sidebar.sidebar-mobile.sidebar-open {
+            transform: translateX(0);
+            pointer-events: auto;
+          }
+
+          .main-content-responsive {
+            min-width: 0 !important;
+          }
+
           .table-responsive {
             max-height: none !important;
             overflow-y: visible !important;
-            }
-            .sticky-header thead th {
-              position: static !important;
-              }
-              }
-              
-              .sidebar-overlay {
-                position: fixed;
-                top: 0;
-                left: 10vw;
-                right: 0;
-                bottom: 0;
-                z-index: 2059;
-                background-color: transparent;
-                background-color: rgba(0, 0, 0, 0.4); /* opacidad suave */
-                backdrop-filter: blur(3px); /* opcional: efecto de desenfoque */   }   
-      .sidebar-mobile.sidebar-collapsed {
-        transform: translateX(-100%);
-        opacity: 0;
-        pointer-events: none;
-}
+          }
 
-  `}</style>
+          .sticky-header thead th {
+            position: static !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

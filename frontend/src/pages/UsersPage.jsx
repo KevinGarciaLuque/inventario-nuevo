@@ -207,6 +207,7 @@ export default function UsersPage() {
             >
               <option value="admin">Administrador</option>
               <option value="usuario">Usuario</option>
+              <option value="almacen">Almacén</option>
             </select>
           </div>
           <div className="col-md-1 col-6 mx-1">
