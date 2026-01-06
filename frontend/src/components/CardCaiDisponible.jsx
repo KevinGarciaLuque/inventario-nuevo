@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
-import api from "../../api/axios";
-import { Card, Spinner, Modal } from "react-bootstrap";
-import { FaFileInvoiceDollar } from "react-icons/fa";
+import { useEffect, useRef, useState } from "react";
+import { Card, Modal, Spinner } from "react-bootstrap";
 import { BsExclamationTriangleFill } from "react-icons/bs";
+import { FaFileInvoiceDollar } from "react-icons/fa";
+import api from "../api/axios";
 
 export default function CardCaiDisponible() {
   const [disponible, setDisponible] = useState(null);

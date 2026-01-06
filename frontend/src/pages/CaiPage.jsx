@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Button, Form, Modal, Table, Badge } from "react-bootstrap";
-import api from "../../api/axios";
+import { useEffect, useState } from "react";
+import { Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
+import api from "../api/axios";
 
 export default function CaiPage() {
   const [caiList, setCaiList] = useState([]);
@@ -78,16 +78,14 @@ export default function CaiPage() {
     return disponibles <= 50; // puedes ajustar el umbral
   };
 
-
-const cambiarEstado = async (id, activo) => {
-  try {
-    await api.patch(`/cai/${id}`, { activo });
-    cargarCai();
-  } catch (err) {
-    console.error(err);
-  }
-};
-
+  const cambiarEstado = async (id, activo) => {
+    try {
+      await api.patch(`/cai/${id}`, { activo });
+      cargarCai();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className="container py-4">

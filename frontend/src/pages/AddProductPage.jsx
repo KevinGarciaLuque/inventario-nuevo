@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
-import api from "../../api/axios";
-import { Modal, Button } from "react-bootstrap";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Modal } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
+import api from "../api/axios";
 
 export default function AddProductPage() {
   const [categorias, setCategorias] = useState([]);

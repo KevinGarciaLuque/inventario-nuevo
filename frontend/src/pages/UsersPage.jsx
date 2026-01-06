@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { Modal, Button } from "react-bootstrap";
-import api from "../../api/axios";
-import { useUser } from "../context/UserContext";
+import { useEffect, useState } from "react";
+import { Button, Modal } from "react-bootstrap";
+import api from "../api/axios";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import { useUser } from "../context/UserContext";
 
 export default function UsersPage() {
   const { user } = useUser();
@@ -20,7 +20,7 @@ export default function UsersPage() {
     show: false,
     userId: null,
     nombre: "",
-    email: ""
+    email: "",
   });
 
   // Modal feedback
@@ -77,7 +77,8 @@ export default function UsersPage() {
       showModal({
         type: "error",
         title: "Error al guardar",
-        message: err.response?.data?.message || "No se pudo guardar el usuario.",
+        message:
+          err.response?.data?.message || "No se pudo guardar el usuario.",
       });
     }
   };
@@ -115,7 +116,8 @@ export default function UsersPage() {
       showModal({
         type: "error",
         title: "No se pudo eliminar",
-        message: e?.response?.data?.message || "El usuario no pudo ser eliminado.",
+        message:
+          e?.response?.data?.message || "El usuario no pudo ser eliminado.",
       });
     }
   };
@@ -208,6 +210,7 @@ export default function UsersPage() {
               <option value="admin">Administrador</option>
               <option value="usuario">Usuario</option>
               <option value="almacen">Almacén</option>
+              <option value="cajero">Cajero</option>
             </select>
           </div>
           <div className="col-md-1 col-6 mx-1">

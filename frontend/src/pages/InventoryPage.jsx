@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Modal, Button } from "react-bootstrap";
-import { Trash, CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
-import api from "../../api/axios";
+import { useEffect, useRef, useState } from "react";
+import { Button, Modal } from "react-bootstrap";
+import { CheckCircleFill, Trash, XCircleFill } from "react-bootstrap-icons";
+import { FaBroom } from "react-icons/fa";
+import api from "../api/axios";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import EditProductModal from "../components/EditProductModal";
 import { useUser } from "../context/UserContext";
-import { FaBroom } from "react-icons/fa";
-import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
 const API_URL = "http://localhost:3000";
 

@@ -3,7 +3,21 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const bcrypt = require("bcryptjs");
-const auth = require("../middlewares/auth"); // 👈 middleware JWT
+const auth = require("./auth"); // ✅ carpeta "middleware" (singular)
+
+/* =====================================================
+   Helpers
+===================================================== */
+const SOLO_ADMIN = (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ message: "Acceso no autorizado" });
+    return false;
+  }
+  return true;
+};
+
+const ROLES_PERMITIDOS = ["admin", "usuario", "almacen", "cajero"];
+
 
 /* =====================================================
    OBTENER USUARIO LOGUEADO (/me)
@@ -11,6 +25,10 @@ const auth = require("../middlewares/auth"); // 👈 middleware JWT
 ===================================================== */
 router.get("/me", auth, async (req, res) => {
   try {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "No autorizado" });
+    }
+
     const [rows] = await db.query(
       "SELECT id, nombre, email, rol, creado_en FROM usuarios WHERE id = ?",
       [req.user.id]
@@ -20,9 +38,10 @@ router.get("/me", auth, async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    res.json(rows[0]);
+    return res.json(rows[0]);
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener usuario", error });
+    console.error("GET /usuarios/me:", error);
+    return res.status(500).json({ message: "Error al obtener usuario" });
   }
 });
 
@@ -32,17 +51,16 @@ router.get("/me", auth, async (req, res) => {
 ===================================================== */
 router.get("/", auth, async (req, res) => {
   try {
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso no autorizado" });
-    }
+    if (!SOLO_ADMIN(req, res)) return;
 
     const [rows] = await db.query(
       "SELECT id, nombre, email, rol, creado_en FROM usuarios ORDER BY creado_en DESC"
     );
 
-    res.json(rows);
+    return res.json(rows);
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener usuarios", error });
+    console.error("GET /usuarios:", error);
+    return res.status(500).json({ message: "Error al obtener usuarios" });
   }
 });
 
@@ -52,11 +70,9 @@ router.get("/", auth, async (req, res) => {
 ===================================================== */
 router.post("/", auth, async (req, res) => {
   try {
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso no autorizado" });
-    }
+    if (!SOLO_ADMIN(req, res)) return;
 
-    const { nombre, email, password, rol } = req.body;
+    const { nombre, email, password, rol } = req.body || {};
 
     if (!nombre || !email || !password || !rol) {
       return res
@@ -64,15 +80,15 @@ router.post("/", auth, async (req, res) => {
         .json({ message: "Todos los campos son requeridos" });
     }
 
-    // Validar roles permitidos
-    const rolesPermitidos = ["admin", "usuario", "almacen"];
-    if (!rolesPermitidos.includes(rol)) {
+    if (!ROLES_PERMITIDOS.includes(rol)) {
       return res.status(400).json({ message: "Rol inválido" });
     }
 
+    const correo = String(email).trim().toLowerCase();
+
     // Verificar email duplicado
     const [exist] = await db.query("SELECT id FROM usuarios WHERE email = ?", [
-      email,
+      correo,
     ]);
 
     if (exist.length > 0) {
@@ -80,16 +96,17 @@ router.post("/", auth, async (req, res) => {
     }
 
     // Hashear contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(String(password), 10);
 
     await db.query(
       "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)",
-      [nombre, email, hashedPassword, rol]
+      [String(nombre).trim(), correo, hashedPassword, rol]
     );
 
-    res.json({ message: "Usuario creado correctamente" });
+    return res.status(201).json({ message: "Usuario creado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al crear usuario", error });
+    console.error("POST /usuarios:", error);
+    return res.status(500).json({ message: "Error al crear usuario" });
   }
 });
 
@@ -99,32 +116,47 @@ router.post("/", auth, async (req, res) => {
 ===================================================== */
 router.put("/:id", auth, async (req, res) => {
   try {
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso no autorizado" });
-    }
+    if (!SOLO_ADMIN(req, res)) return;
 
     const { id } = req.params;
-    const { nombre, email, rol } = req.body;
+    const { nombre, email, rol } = req.body || {};
+
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: "ID inválido" });
+    }
 
     if (!nombre || !email || !rol) {
       return res.status(400).json({ message: "Datos incompletos" });
     }
 
-    const rolesPermitidos = ["admin", "usuario", "almacen"];
-    if (!rolesPermitidos.includes(rol)) {
+    if (!ROLES_PERMITIDOS.includes(rol)) {
       return res.status(400).json({ message: "Rol inválido" });
     }
 
-    await db.query("UPDATE usuarios SET nombre=?, email=?, rol=? WHERE id=?", [
-      nombre,
-      email,
-      rol,
-      id,
-    ]);
+    const correo = String(email).trim().toLowerCase();
 
-    res.json({ message: "Usuario actualizado correctamente" });
+    // Evitar email duplicado en OTRO usuario
+    const [dup] = await db.query(
+      "SELECT id FROM usuarios WHERE email = ? AND id <> ?",
+      [correo, Number(id)]
+    );
+    if (dup.length > 0) {
+      return res.status(409).json({ message: "El correo ya existe" });
+    }
+
+    const [result] = await db.query(
+      "UPDATE usuarios SET nombre=?, email=?, rol=? WHERE id=?",
+      [String(nombre).trim(), correo, rol, Number(id)]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.json({ message: "Usuario actualizado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al actualizar usuario", error });
+    console.error("PUT /usuarios/:id:", error);
+    return res.status(500).json({ message: "Error al actualizar usuario" });
   }
 });
 
@@ -134,26 +166,36 @@ router.put("/:id", auth, async (req, res) => {
 ===================================================== */
 router.put("/:id/password", auth, async (req, res) => {
   try {
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso no autorizado" });
-    }
+    if (!SOLO_ADMIN(req, res)) return;
 
     const { id } = req.params;
-    const { password } = req.body;
+    const { password } = req.body || {};
 
-    if (!password) {
-      return res
-        .status(400)
-        .json({ message: "La nueva contraseña es requerida" });
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: "ID inválido" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({
+        message: "La nueva contraseña es requerida (mínimo 6 caracteres)",
+      });
+    }
 
-    await db.query("UPDATE usuarios SET password=? WHERE id=?", [hashed, id]);
+    const hashed = await bcrypt.hash(String(password), 10);
 
-    res.json({ message: "Contraseña actualizada correctamente" });
+    const [result] = await db.query(
+      "UPDATE usuarios SET password=? WHERE id=?",
+      [hashed, Number(id)]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.json({ message: "Contraseña actualizada correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al actualizar contraseña", error });
+    console.error("PUT /usuarios/:id/password:", error);
+    return res.status(500).json({ message: "Error al actualizar contraseña" });
   }
 });
 
@@ -163,24 +205,33 @@ router.put("/:id/password", auth, async (req, res) => {
 ===================================================== */
 router.delete("/:id", auth, async (req, res) => {
   try {
-    if (req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso no autorizado" });
-    }
+    if (!SOLO_ADMIN(req, res)) return;
 
     const { id } = req.params;
 
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: "ID inválido" });
+    }
+
     // Evitar que un admin se elimine a sí mismo
-    if (Number(id) === req.user.id) {
+    if (Number(id) === Number(req.user?.id)) {
       return res
         .status(400)
         .json({ message: "No puedes eliminar tu propio usuario" });
     }
 
-    await db.query("DELETE FROM usuarios WHERE id=?", [id]);
+    const [result] = await db.query("DELETE FROM usuarios WHERE id=?", [
+      Number(id),
+    ]);
 
-    res.json({ message: "Usuario eliminado correctamente" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    return res.json({ message: "Usuario eliminado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al eliminar usuario", error });
+    console.error("DELETE /usuarios/:id:", error);
+    return res.status(500).json({ message: "Error al eliminar usuario" });
   }
 });
 

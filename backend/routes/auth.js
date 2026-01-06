@@ -29,7 +29,7 @@ router.post("/login", async (req, res) => {
     // JWT
     const token = jwt.sign(
       { id: user.id, email: user.email, rol: user.rol },
-      process.env.JWT_SECRET || "secreto_demo", // Cámbialo en producción
+      process.env.JWT_SECRET || "0ae7!bdA@Hgf#1x2ZLK", // Cámbialo en producción
       { expiresIn: "2h" }
     );
 

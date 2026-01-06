@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from "react";
-import api from "../../api/axios";
-import { FaSearch, FaFilter, FaRedo } from "react-icons/fa";
-
-
+import { useEffect, useState } from "react";
+import { FaFilter, FaRedo, FaSearch } from "react-icons/fa";
+import api from "../api/axios";
 
 export default function BitacoraPage() {
   const [registros, setRegistros] = useState([]);

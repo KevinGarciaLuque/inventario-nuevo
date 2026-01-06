@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { Modal, Button } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Button, Modal } from "react-bootstrap";
 import {
-  BsPencilSquare,
-  BsTrash,
   BsCheckCircleFill,
   BsExclamationTriangleFill,
+  BsPencilSquare,
+  BsTrash,
 } from "react-icons/bs";
-import api from "../../api/axios";
+import api from "../api/axios";
 import { useUser } from "../context/UserContext"; // Ajusta si tu contexto es otro nombre
 
 export default function LocationsPage() {

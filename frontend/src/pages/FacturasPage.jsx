@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Table, Form, InputGroup, Button, Modal } from "react-bootstrap";
-import { FaBroom, FaPrint, FaEye } from "react-icons/fa";
-import api from "../../api/axios";
+import { useEffect, useState } from "react";
+import { Button, Form, InputGroup, Modal, Table } from "react-bootstrap";
+import { FaBroom, FaEye, FaPrint } from "react-icons/fa";
+import api from "../api/axios";
 import generarReciboPDF from "../utils/generarReciboPDF"; // Ajusta el path según tu proyecto
 
 export default function FacturasPage() {

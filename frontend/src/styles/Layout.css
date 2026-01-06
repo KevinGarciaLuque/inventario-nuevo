@@ -1,129 +1,129 @@
 /* Sidebar ancho normal y colapsado */
 .sidebar-responsive {
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s;
-    width: 250px;
-    min-width: 60px;
-    z-index: 20;
-    position: relative;
-  }
-  
-  .sidebar-collapsed {
-    width: 60px !important;
-  }
-  
-  .sidebar-expanded {
-    width: 250px;
-  }
-  
-  /* Sidebar en móvil: tipo overlay */
-  @media (max-width: 991.98px) {
-    .sidebar-responsive {
-      position: fixed;
-      left: -250px;
-      top: 0;
-      height: 100vh;
-      width: 250px !important;
-      min-width: 0;
-      background: #23272b !important;
-      z-index: 1002;
-      box-shadow: 2px 0 20px rgba(0,0,0,0.23);
-      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .sidebar-expanded.sidebar-mobile {
-      left: 0;
-    }
-    .sidebar-collapsed.sidebar-mobile {
-      left: -250px;
-    }
-  }
-  
-  /* Bloquear scroll del main cuando sidebar móvil está abierto */
-  body.sidebar-mobile-open {
-    overflow: hidden !important;
-  }
-  
-  .main-content-responsive {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s;
+  width: 250px;
+  min-width: 60px;
+  z-index: 20;
+  position: relative;
+}
+
+.sidebar-collapsed {
+  width: 60px !important;
+}
+
+.sidebar-expanded {
+  width: 250px;
+}
+
+/* Sidebar en móvil: tipo overlay */
+@media (max-width: 991.98px) {
+  .sidebar-responsive {
+    position: fixed;
+    left: -250px;
+    top: 0;
+    height: 100vh;
+    width: 250px !important;
     min-width: 0;
-    width: 100%;
+    background: #23272b !important;
+    z-index: 1002;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.23);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
-  /* Ajustar padding del main en pantallas pequeñas */
-  @media (max-width: 767.98px) {
-    .main-content-inner {
-      padding: 0.5rem !important;
-    }
-    .main-card-responsive {
-      box-shadow: none !important;
-      border-radius: 0 !important;
-    }
+  .sidebar-expanded.sidebar-mobile {
+    left: 0;
   }
-  
-  /* Ajuste de card en móvil */
+  .sidebar-collapsed.sidebar-mobile {
+    left: -250px;
+  }
+}
+
+/* Bloquear scroll del main cuando sidebar móvil está abierto */
+body.sidebar-mobile-open {
+  overflow: hidden !important;
+}
+
+.main-content-responsive {
+  min-width: 0;
+  width: 100%;
+}
+
+/* Ajustar padding del main en pantallas pequeñas */
+@media (max-width: 767.98px) {
+  .main-content-inner {
+    padding: 0.5rem !important;
+  }
   .main-card-responsive {
-    border-radius: 18px;
-    background: #fff;
-    margin-bottom: 2rem;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
-  
-  /* Quitar el margen lateral del main en móvil */
-  @media (max-width: 575.98px) {
-    .main-content-inner {
-      padding: 0.2rem !important;
-    }
-    .main-card-responsive {
-      padding: 0 !important;
-      margin-bottom: 1rem !important;
-    }
+}
+
+/* Ajuste de card en móvil */
+.main-card-responsive {
+  border-radius: 18px;
+  background: #fff;
+  margin-bottom: 2rem;
+}
+
+/* Quitar el margen lateral del main en móvil */
+@media (max-width: 575.98px) {
+  .main-content-inner {
+    padding: 0.2rem !important;
   }
-  
-  @media (max-width: 991.98px) {
- 
-    .sidebar-mobile.sidebar-anim {
-      transition:
-        transform 0.8s cubic-bezier(.36,1.04,.22,.99),
-        opacity 0.7s cubic-bezier(.36,1.04,.22,.99);
-      will-change: transform, opacity;
-    }
-    .sidebar-mobile.sidebar-expanded {
-      display: block !important;
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      z-index: 2500;
-      min-width: 70vw !important;
-      max-width: 85vw !important;
-      height: 100vh;
-      box-shadow: 8px 0 24px #0003;
-      background: #222;
-      transform: translateX(0);
-      opacity: 1;
-    }
-    .sidebar-mobile.sidebar-collapsed {
-      display: block !important;
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      z-index: 2500;
-      min-width: 70vw !important;
-      max-width: 85vw !important;
-      height: 100vh;
-      box-shadow: 2px 0 6px #0001;
-      background: #222;
-      transform: translateX(-100%);
-      opacity: 0;
-      pointer-events: none;
-    }
-    .main-content-responsive {
-      min-width: 0 !important;
-      margin-left: 0 !important;
-    }
+  .main-card-responsive {
+    padding: 0 !important;
+    margin-bottom: 1rem !important;
   }
-  
-  
-  .sidebar-overlay {
-  transition: opacity 0.5s cubic-bezier(.36,1.04,.22,.99);
+}
+
+@media (max-width: 991.98px) {
+  .sidebar-mobile.sidebar-anim {
+    transition: transform 0.8s cubic-bezier(0.36, 1.04, 0.22, 0.99),
+      opacity 0.7s cubic-bezier(0.36, 1.04, 0.22, 0.99);
+    will-change: transform, opacity;
+  }
+  .sidebar-mobile.sidebar-expanded {
+    display: block !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    z-index: 2500;
+    min-width: 70vw !important;
+    max-width: 85vw !important;
+    height: 100vh;
+    box-shadow: 8px 0 24px #0003;
+    background: #222;
+    transform: translateX(0);
+    opacity: 1;
+  }
+  .sidebar-mobile.sidebar-collapsed {
+    display: block !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    z-index: 2500;
+    min-width: 70vw !important;
+    max-width: 85vw !important;
+    height: 100vh;
+    box-shadow: 2px 0 6px #0001;
+    background: #222;
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .main-content-responsive {
+    min-width: 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
+.sidebar-overlay {
+  transition: opacity 0.5s cubic-bezier(0.36, 1.04, 0.22, 0.99);
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: #0007;
   opacity: 1;
   z-index: 2499;
@@ -133,7 +133,6 @@
   opacity: 0;
   pointer-events: none;
 }
-
 
 /* Encabezado sticky como InventoryPage */
 .sticky-header thead th {
@@ -150,4 +149,106 @@
 .table-responsive::-webkit-scrollbar-thumb {
   background-color: #ccc;
   border-radius: 4px;
+}
+
+/* ===== TÍTULOS DE SECCIÓN (PRO) ===== */
+/* ===============================
+   TÍTULOS DE SECCIÓN – FONDO GOLD
+================================ */
+
+.sidebar-container .accordion-button {
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: 0.75rem;
+
+  color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+
+  transition: all 0.25s ease;
+}
+
+/* Hover → fondo dorado */
+.sidebar-container .accordion-button:hover {
+  color: #ffffff;
+
+  background: linear-gradient(
+    180deg,
+    rgba(255, 193, 7, 0.85),
+    rgba(255, 152, 0, 0.85)
+  );
+
+  box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.45),
+              0 6px 18px rgba(255, 193, 7, 0.35);
+}
+
+/* Activo (grupo abierto) */
+.sidebar-container .accordion-button:not(.collapsed) {
+  color: #ffffff;
+
+  background: linear-gradient(
+    180deg,
+    rgba(255, 193, 7, 0.95),
+    rgba(255, 152, 0, 0.95)
+  );
+
+  box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.55),
+              0 6px 22px rgba(255, 193, 7, 0.45);
+}
+
+/* Quitar flecha de Bootstrap */
+.sidebar-container .accordion-button::after {
+  display: none !important;
+}
+
+/* Focus limpio */
+.sidebar-container .accordion-button:focus {
+  box-shadow: none !important;
+}
+
+
+/* ===== ITEMS DEL MENÚ ===== */
+.sidebar-link {
+  position: relative;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+}
+
+/* Barra izquierda */
+.sidebar-link::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 4px;
+  height: 0;
+  background: #ffc107;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  transition: height 0.2s ease;
+  opacity: 0;
+}
+
+/* Hover item */
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  padding-left: 1.2rem;
+}
+
+/* Hover icon */
+.sidebar-link:hover span {
+  transform: translateX(2px);
+  transition: transform 0.2s ease;
+}
+
+/* Hover barra */
+.sidebar-link:hover::before {
+  height: 60%;
+  opacity: 1;
+}
+
+/* Activo */
+.sidebar-link.text-warning {
+  font-weight: 600;
 }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import api from "../../api/axios";
-import { Modal, Button, Form } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Button, Form, Modal } from "react-bootstrap";
 import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
+import api from "../api/axios";
 
 const API_URL = "http://localhost:3000"; // Cambia si usas .env
 
@@ -256,7 +256,6 @@ export default function EditProductModal({
               className="w-40 w-sm-auto"
             >
               {loading ? "Guardando..." : "Guardar Cambios"}
-             
             </Button>
           </Modal.Footer>
         </Form>

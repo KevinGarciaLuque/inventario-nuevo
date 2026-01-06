@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
-import api from "../../api/axios";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Table,
+  Badge,
   Button,
   Form,
-  Modal,
   InputGroup,
+  Modal,
   Spinner,
-  Badge,
+  Table,
 } from "react-bootstrap";
+import api from "../api/axios";
 
 const TIPOS = [
   { value: "peso", label: "Peso" },

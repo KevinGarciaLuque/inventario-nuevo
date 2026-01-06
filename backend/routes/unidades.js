@@ -2,7 +2,6 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const jwt = require("jsonwebtoken");
 
 /* =====================================================
    Helpers
@@ -16,31 +15,8 @@ const mustBePositiveInt = (v) => {
 };
 
 /* =====================================================
-   Middleware: Auth (JWT)
-   - Lee token: Authorization: Bearer <token>
-   - Llena req.user = { id, email, rol }
-===================================================== */
-const requireAuth = (req, res, next) => {
-  try {
-    const auth = req.headers.authorization || "";
-    const [type, token] = auth.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      return res
-        .status(401)
-        .json({ message: "No autenticado (token faltante)." });
-    }
-
-    const payload = jwt.verify(token, process.env.JWT_SECRET || "secreto_demo");
-    req.user = payload; // { id, email, rol }
-    next();
-  } catch (e) {
-    return res.status(401).json({ message: "Token inválido o expirado." });
-  }
-};
-
-/* =====================================================
    Middleware: Solo admin
+   (req.user lo pone el middleware global auth.js)
 ===================================================== */
 const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.rol !== "admin") {
@@ -54,14 +30,14 @@ const requireAdmin = (req, res, next) => {
 /* =====================================================
    Obtener unidades (cualquier rol, pero autenticado)
 ===================================================== */
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const [rows] = await db.query(
       "SELECT * FROM unidades_medida ORDER BY tipo, nombre"
     );
     res.json(rows);
   } catch (e) {
-    console.error(e);
+    console.error("GET /unidades:", e);
     res.status(500).json({ message: "Error al obtener unidades" });
   }
 });
@@ -69,7 +45,7 @@ router.get("/", requireAuth, async (req, res) => {
 /* =====================================================
    Crear unidad (solo admin)
 ===================================================== */
-router.post("/", requireAuth, requireAdmin, async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   const nombre = toStr(req.body.nombre);
   const abreviatura = toStr(req.body.abreviatura);
   const tipo = toStr(req.body.tipo).toLowerCase(); // peso|longitud|volumen|unidad
@@ -85,11 +61,11 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    // ✅ Evitar duplicado por tipo+abreviatura (muy útil)
     const [dup] = await db.query(
       "SELECT id FROM unidades_medida WHERE LOWER(tipo)=? AND LOWER(abreviatura)=? LIMIT 1",
       [tipo, abreviatura.toLowerCase()]
     );
+
     if (dup.length > 0) {
       return res.status(409).json({
         message: "Ya existe una unidad con esa abreviatura en ese tipo.",
@@ -101,9 +77,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
       [nombre, abreviatura, tipo]
     );
 
-    res.json({ message: "Unidad creada correctamente" });
+    res.status(201).json({ message: "Unidad creada correctamente" });
   } catch (e) {
-    console.error(e);
+    console.error("POST /unidades:", e);
     res.status(500).json({ message: "Error al crear unidad" });
   }
 });
@@ -111,7 +87,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
 /* =====================================================
    Editar unidad (solo admin)
 ===================================================== */
-router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.put("/:id", requireAdmin, async (req, res) => {
   const id = mustBePositiveInt(req.params.id);
   if (!id) return res.status(400).json({ message: "ID inválido" });
 
@@ -131,11 +107,11 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 
   try {
-    // ✅ Evitar duplicados al editar
     const [dup] = await db.query(
       "SELECT id FROM unidades_medida WHERE LOWER(tipo)=? AND LOWER(abreviatura)=? AND id<>? LIMIT 1",
       [tipo, abreviatura.toLowerCase(), id]
     );
+
     if (dup.length > 0) {
       return res.status(409).json({
         message: "Ya existe otra unidad con esa abreviatura en ese tipo.",
@@ -155,7 +131,7 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
 
     res.json({ message: "Unidad actualizada correctamente" });
   } catch (e) {
-    console.error(e);
+    console.error("PUT /unidades/:id:", e);
     res.status(500).json({ message: "Error al actualizar unidad" });
   }
 });
@@ -164,12 +140,11 @@ router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
    Eliminar unidad (solo admin)
    ❗ Bloquea si está en uso por productos
 ===================================================== */
-router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
+router.delete("/:id", requireAdmin, async (req, res) => {
   const id = mustBePositiveInt(req.params.id);
   if (!id) return res.status(400).json({ message: "ID inválido" });
 
   try {
-    // 🔎 Verificar si está en uso
     const [uso] = await db.query(
       "SELECT COUNT(*) AS total FROM productos WHERE unidad_medida_id=?",
       [id]
@@ -192,7 +167,7 @@ router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
 
     res.json({ message: "Unidad eliminada correctamente" });
   } catch (e) {
-    console.error(e);
+    console.error("DELETE /unidades/:id:", e);
     res.status(500).json({ message: "Error al eliminar unidad" });
   }
 });

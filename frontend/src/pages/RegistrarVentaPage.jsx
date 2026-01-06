@@ -20,22 +20,26 @@ import {
   FaUserPlus,
 } from "react-icons/fa";
 
-import api from "../../api/axios";
+import api from "../api/axios";
 import CardCaiDisponible from "../components/CardCaiDisponible";
 import MetodosPagos from "../components/MetodosPagos";
 import { useUser } from "../context/UserContext";
 import generarReciboPDF from "../utils/generarReciboPDF";
 
-const API_URL = "http://localhost:3000";
+// ✅ Base para imágenes (derivado de VITE_API_URL, quitando /api)
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const FILES_BASE_URL = API_BASE_URL.replace(/\/api\/?$/i, "");
+
 const getImgSrc = (imagen) => {
   if (!imagen) return "/default.jpg";
   if (imagen.startsWith("http")) return imagen;
-  if (imagen.startsWith("/uploads")) return API_URL + imagen;
-  if (imagen.startsWith("uploads")) return `${API_URL}/${imagen}`;
-  return `${API_URL}/uploads/${imagen}`;
+  if (imagen.startsWith("/uploads")) return FILES_BASE_URL + imagen;
+  if (imagen.startsWith("uploads")) return `${FILES_BASE_URL}/${imagen}`;
+  return `${FILES_BASE_URL}/uploads/${imagen}`;
 };
 
-export default function RegistrarVentaPage() {
+export default function RegistrarVentaPage({ onChangePage = () => {} }) {
   const { user } = useUser();
 
   const [productos, setProductos] = useState([]);
@@ -43,6 +47,12 @@ export default function RegistrarVentaPage() {
 
   const [buscar, setBuscar] = useState("");
   const inputBuscarRef = useRef(null);
+
+  // ✅ CAJA: bloqueo de ventas si no está abierta
+  const [cajaLoading, setCajaLoading] = useState(true);
+  const [cajaAbierta, setCajaAbierta] = useState(false);
+  const [cajaInfo, setCajaInfo] = useState(null);
+  const [msgCaja, setMsgCaja] = useState("");
 
   const [cai, setCai] = useState(null);
   const [modalSinCai, setModalSinCai] = useState(false);
@@ -121,6 +131,30 @@ export default function RegistrarVentaPage() {
     setProductos(res.data || []);
   };
 
+  // ✅ Consultar estado de caja (bloqueo estándar POS)
+  const consultarCajaEstado = async () => {
+    try {
+      setCajaLoading(true);
+      setMsgCaja("");
+
+      const res = await api.get("/caja/estado");
+      const abierta = res.data?.abierta === true;
+
+      setCajaAbierta(abierta);
+      setCajaInfo(res.data?.caja || null);
+
+      if (!abierta) {
+        setMsgCaja("Debes abrir caja antes de registrar ventas.");
+      }
+    } catch (e) {
+      setCajaAbierta(false);
+      setCajaInfo(null);
+      setMsgCaja(e?.message || "No se pudo consultar el estado de caja.");
+    } finally {
+      setCajaLoading(false);
+    }
+  };
+
   const consultarCai = async () => {
     try {
       const res = await api.get("/cai/activo");
@@ -135,8 +169,11 @@ export default function RegistrarVentaPage() {
   };
 
   useEffect(() => {
+    // ✅ Al entrar al módulo: valida caja + CAI + productos
+    consultarCajaEstado();
     consultarCai();
     cargarProductos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // =======================
@@ -282,6 +319,7 @@ export default function RegistrarVentaPage() {
 
   useEffect(() => {
     if (usarRTN) cargarClientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usarRTN]);
 
   const clientesFiltrados = useMemo(() => {
@@ -330,6 +368,17 @@ export default function RegistrarVentaPage() {
 
   const registrarVenta = async () => {
     try {
+      // ✅ BLOQUEO POS: no vender sin caja abierta
+      if (!cajaAbierta) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message:
+            "⚠️ No puedes registrar una venta sin abrir caja. Ve a Apertura de Caja.",
+        });
+        return;
+      }
+
       if (carrito.length === 0) {
         setFeedbackModal({
           show: true,
@@ -422,7 +471,67 @@ export default function RegistrarVentaPage() {
   };
 
   // =======================
-  // RENDER
+  // BLOQUEO UI SI NO HAY CAJA ABIERTA
+  // =======================
+  if (cajaLoading) {
+    return (
+      <div className="container py-4">
+        <div className="alert alert-info d-flex align-items-center gap-2">
+          <Spinner animation="border" size="sm" />
+          Consultando estado de caja...
+        </div>
+      </div>
+    );
+  }
+
+  if (!cajaAbierta) {
+    return (
+      <div className="container py-4">
+        <h2 className="mb-4 text-center">
+          <FaBoxOpen className="text-primary me-2" /> Módulo de Ventas
+        </h2>
+
+        <div className="card shadow-sm border-0">
+          <div className="card-body">
+            <h5 className="mb-2 text-danger fw-bold">⚠️ Caja no abierta</h5>
+            <p className="text-muted mb-3">
+              {msgCaja ||
+                "Para registrar ventas, primero debes realizar la apertura de caja."}
+            </p>
+
+            {cajaInfo ? (
+              <div className="small text-muted mb-3">
+                Caja ID: <strong>{cajaInfo.id}</strong>
+              </div>
+            ) : null}
+
+            <div className="d-flex flex-wrap gap-2">
+              <Button
+                variant="success"
+                onClick={() => onChangePage("caja-apertura")}
+              >
+                Ir a Apertura de Caja
+              </Button>
+
+              <Button variant="outline-secondary" onClick={consultarCajaEstado}>
+                Actualizar
+              </Button>
+
+              <Button
+                variant="outline-primary"
+                onClick={() => onChangePage("caja-historial")}
+              >
+                Ver historial
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =======================
+  // RENDER NORMAL (CAJA ABIERTA)
   // =======================
   return (
     <div className="container py-4">
@@ -571,7 +680,6 @@ export default function RegistrarVentaPage() {
             value={buscar}
             onChange={(e) => setBuscar(e.target.value)}
             list="sugerencias"
-            // 🔥 Forzar que el teclado muestre “Buscar/Ir” en vez de “Siguiente” (mejora en Android)
             enterKeyHint="search"
             inputMode="search"
             autoComplete="off"
@@ -583,7 +691,6 @@ export default function RegistrarVentaPage() {
             ))}
           </datalist>
 
-          {/* IMPORTANTE: submit */}
           <Button variant="primary" type="submit">
             Agregar
           </Button>
@@ -595,17 +702,16 @@ export default function RegistrarVentaPage() {
       </Form>
 
       {/* ===== CARRITO DE VENTA ===== */}
-      {/* ===== CARRITO DE VENTA ===== */}
       <h4 className="mt-0 mb-4">Carrito de Venta</h4>
 
       <div
         className="mb-4"
         style={{
           maxHeight: "300px",
-          height: "300px", // 🔥 Forzar altura en todos los dispositivos
+          height: "300px",
           overflowY: "auto",
           overflowX: "auto",
-          border: "1px solid #dee2e6", // opcional para claridad visual
+          border: "1px solid #dee2e6",
         }}
       >
         <Table
@@ -613,7 +719,7 @@ export default function RegistrarVentaPage() {
           bordered
           hover
           className="sticky-header"
-          style={{ minWidth: "800px" }} // ajusta a tus columnas
+          style={{ minWidth: "800px" }}
         >
           <thead className="table-light sticky-top">
             <tr>

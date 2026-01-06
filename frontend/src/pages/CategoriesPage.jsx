@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { Modal, Button } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Button, Modal } from "react-bootstrap";
 import {
-  BsPencilSquare,
-  BsTrash,
   BsCheckCircleFill,
   BsExclamationTriangleFill,
+  BsPencilSquare,
+  BsTrash,
 } from "react-icons/bs";
-import api from "../../api/axios";
+import api from "../api/axios";
 import { useUser } from "../context/UserContext"; // Ajusta según tu contexto de usuario
 
 export default function CategoriesPage() {

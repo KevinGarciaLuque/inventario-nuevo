@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
-import api from "../../api/axios";
-import { useUser } from "../context/UserContext";
-import { FaPlus, FaMinus, FaSearch, FaBoxOpen, FaBroom } from "react-icons/fa";
-import { Modal, Button, InputGroup, FormControl, Table } from "react-bootstrap";
+import { useEffect, useRef, useState } from "react";
+import { Button, FormControl, InputGroup, Modal, Table } from "react-bootstrap";
 import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
+import { FaBoxOpen, FaBroom, FaMinus, FaPlus, FaSearch } from "react-icons/fa";
+import api from "../api/axios";
+import { useUser } from "../context/UserContext";
 
 export default function RegistrarMovimientoPage() {
   const { user } = useUser();

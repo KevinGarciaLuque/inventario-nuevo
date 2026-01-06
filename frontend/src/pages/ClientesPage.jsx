@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Table,
-  Form,
   Button,
+  Form,
+  InputGroup,
   Modal,
   Spinner,
-  InputGroup,
+  Table,
 } from "react-bootstrap";
-import { FaEdit, FaTrash, FaSyncAlt } from "react-icons/fa";
 import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
-import api from "../../api/axios";
+import { FaEdit, FaSyncAlt, FaTrash } from "react-icons/fa";
 import ConfirmDeleteModal from "..//components/ConfirmDeleteModal"; // <-- Usa tu modal reutilizable
+import api from "../api/axios";
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);

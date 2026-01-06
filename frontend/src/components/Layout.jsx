@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
@@ -15,6 +15,11 @@ import RegistrarVentaPage from "../pages/RegistrarVentaPage";
 import CaiPage from "../pages/CaiPage";
 import FacturasPage from "../pages/FacturasPage";
 import UnidadesMedidaPage from "../pages/UnidadesMedidaPage";
+
+// ✅ CAJA
+import AperturaCajaPage from "../pages/Caja/AperturaCajaPage";
+import CierreCajaPage from "../pages/Caja/CierreCajaPage";
+import HistorialCierresPage from "../pages/Caja/HistorialCierresPage";
 
 import ProductModal from "./ProductModal";
 import BitacoraPage from "./BitacoraPage";
@@ -48,13 +53,17 @@ export default function Layout({ onLogout }) {
 
   // ✅ Evita scroll del body cuando el drawer está abierto (móvil)
   useEffect(() => {
+    const prev = document.body.style.overflow;
+
     if (isMobile && sidebarOpen) {
-      const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
+    } else {
+      document.body.style.overflow = prev || "";
     }
+
+    return () => {
+      document.body.style.overflow = prev || "";
+    };
   }, [isMobile, sidebarOpen]);
 
   // ✅ Toggle único:
@@ -92,7 +101,7 @@ export default function Layout({ onLogout }) {
             // ✅ en móvil: al elegir opción, cierra el drawer
             if (isMobile) setSidebarOpen(false);
           }}
-          // ✅ en desktop sí usamos collapsed; en móvil siempre false (drawer siempre “expandido”)
+          // ✅ en desktop sí usamos collapsed; en móvil siempre false
           isCollapsed={!isMobile ? sidebarCollapsed : false}
           // ✅ toggle controla drawer en móvil y colapsado en desktop
           onToggle={toggleSidebar}
@@ -135,10 +144,24 @@ export default function Layout({ onLogout }) {
                 {currentPage === "registrar-movimiento" && (
                   <RegistrarMovimientoPage />
                 )}
-                {currentPage === "ventas" && <RegistrarVentaPage />}
+                {currentPage === "ventas" && (
+                  <RegistrarVentaPage onChangePage={setCurrentPage} />
+                )}
+
                 {currentPage === "cai" && <CaiPage />}
                 {currentPage === "facturas" && <FacturasPage />}
                 {currentPage === "unidades" && <UnidadesMedidaPage />}
+
+                {/* ✅ CAJA */}
+                {currentPage === "caja-apertura" && (
+                  <AperturaCajaPage onChangePage={setCurrentPage} />
+                )}
+                {currentPage === "caja-cierre" && (
+                  <CierreCajaPage onChangePage={setCurrentPage} />
+                )}
+                {currentPage === "caja-historial" && (
+                  <HistorialCierresPage onChangePage={setCurrentPage} />
+                )}
               </div>
             </div>
           </div>
