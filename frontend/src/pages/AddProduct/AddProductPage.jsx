@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
-import api from "../api/axios";
+import api from "../../api/axios";
 
 export default function AddProductPage() {
   const [categorias, setCategorias] = useState([]);
@@ -18,7 +18,11 @@ export default function AddProductPage() {
     ubicacion_id: "",
     stock: 0,
     stock_minimo: 1,
-    precio: "",
+
+    // ✅ PRECIOS + DESCUENTO (DB)
+    precio_costo: "", // opcional
+    precio: "", // ✅ precio de venta (obligatorio)
+    descuento: "", // opcional (0-100)
 
     // ✅ Medidas (DB)
     contenido_medida: "",
@@ -41,6 +45,59 @@ export default function AddProductPage() {
       return null;
     }
   })();
+
+  // ========================
+  // Helpers vista (solo UI)
+  // ========================
+  const clampPct = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.min(100, n));
+  };
+
+  const precioVentaNum = useMemo(() => {
+    const n = Number(form.precio);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  }, [form.precio]);
+
+  const costoNumVista = useMemo(() => {
+    const raw = String(form.precio_costo ?? "").trim();
+    if (raw === "") return null;
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  }, [form.precio_costo]);
+
+  const descuentoEstado = useMemo(() => {
+    const raw = String(form.descuento ?? "").trim();
+
+    // vacío => válido (se asume 0 para vista)
+    if (raw === "") return { valido: true, pct: 0, mostrar: 0 };
+
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n)) return { valido: false, pct: null, mostrar: null };
+    if (n < 0 || n > 100) return { valido: false, pct: null, mostrar: null };
+
+    const clamped = clampPct(n);
+    return { valido: true, pct: clamped ?? 0, mostrar: n };
+  }, [form.descuento]);
+
+  const precioFinalVista = useMemo(() => {
+    if (precioVentaNum === null) return null;
+    if (!descuentoEstado.valido) return null;
+
+    const final = precioVentaNum * (1 - (descuentoEstado.pct ?? 0) / 100);
+    return Number(final.toFixed(2));
+  }, [precioVentaNum, descuentoEstado]);
+
+  const gananciaVista = useMemo(() => {
+    if (precioFinalVista === null) return null;
+    if (costoNumVista === null) return null;
+
+    const g = precioFinalVista - costoNumVista;
+    return Number(g.toFixed(2));
+  }, [precioFinalVista, costoNumVista]);
 
   // ========================
   // Cargar catálogos
@@ -102,8 +159,6 @@ export default function AddProductPage() {
   // ========================
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // ✅ Si viene un number input, mantenemos string para que el usuario pueda borrar
     setForm((f) => ({ ...f, [name]: value }));
   };
 
@@ -115,109 +170,157 @@ export default function AddProductPage() {
     setPreview(file ? URL.createObjectURL(file) : null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      // ✅ fecha válida (HTML date ya ayuda)
-      if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
-        alert("Fecha de vencimiento inválida");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ medidas: si usa una, exigir la otra
-      const unidadIdStr = String(form.unidad_medida_id || "").trim();
-      const contenidoStr = String(form.contenido_medida ?? "").trim();
-
-      const tieneUnidad = unidadIdStr !== "";
-      const tieneContenido = contenidoStr !== "";
-
-      if (
-        (tieneUnidad && !tieneContenido) ||
-        (!tieneUnidad && tieneContenido)
-      ) {
-        alert(
-          "Si usas medidas, completa Cantidad/Contenido y Unidad de medida."
-        );
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Si hay contenido, debe ser número válido
-      if (tieneContenido) {
-        const n = Number(contenidoStr);
-        if (!Number.isFinite(n) || n <= 0) {
-          alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // ✅ Subir imagen si existe
-      let imageUrl = "";
-      if (imagenFile) {
-        const formData = new FormData();
-        formData.append("imagen", imagenFile);
-
-        try {
-          const res = await api.post("/upload", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          imageUrl = res.data?.path || res.data?.url || "";
-        } catch (err) {
-          alert("Error al subir la imagen");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // ✅ Normalizar payload para backend
-      const payload = {
-        ...form,
-
-        lote: (form.lote || "").trim() || null,
-        fecha_vencimiento: form.fecha_vencimiento || null,
-
-        unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
-        contenido_medida: tieneContenido ? Number(contenidoStr) : null,
-
-        imagen: imageUrl || null,
-        usuario_id,
-      };
-
-      await api.post("/productos", payload);
-
-      setShowSuccess(true);
-
-      setForm({
-        codigo: "",
-        nombre: "",
-        lote: "",
-        fecha_vencimiento: "",
-        descripcion: "",
-        categoria_id: "",
-        ubicacion_id: "",
-        stock: 0,
-        stock_minimo: 1,
-        precio: "",
-        contenido_medida: "",
-        unidad_medida_id: "",
-        imagen: "",
-      });
-
-      setImagenFile(null);
-      if (preview) URL.revokeObjectURL(preview);
-      setPreview(null);
-    } catch (error) {
-      console.error(error);
-      alert(error?.message || "Error al agregar el producto");
+  try {
+    // ✅ fecha válida
+    if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
+      alert("Fecha de vencimiento inválida");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-  };
+    // ✅ medidas: si usa una, exigir la otra
+    const unidadIdStr = String(form.unidad_medida_id || "").trim();
+    const contenidoStr = String(form.contenido_medida ?? "").trim();
+
+    const tieneUnidad = unidadIdStr !== "";
+    const tieneContenido = contenidoStr !== "";
+
+    if ((tieneUnidad && !tieneContenido) || (!tieneUnidad && tieneContenido)) {
+      alert("Si usas medidas, completa Cantidad/Contenido y Unidad de medida.");
+      setLoading(false);
+      return;
+    }
+
+    if (tieneContenido) {
+      const n = Number(contenidoStr.replace(",", "."));
+      if (!Number.isFinite(n) || n <= 0) {
+        alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // ✅ Precio venta
+    const pv = Number(String(form.precio ?? "").replace(",", "."));
+    if (!Number.isFinite(pv) || pv < 0) {
+      alert("Precio de venta inválido.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Costo (opcional)
+    const costoStr = String(form.precio_costo ?? "").trim();
+    const costoNum =
+      costoStr === "" ? null : Number(costoStr.replace(",", "."));
+    if (costoNum !== null && (!Number.isFinite(costoNum) || costoNum < 0)) {
+      alert("Precio de costo inválido.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Descuento (opcional)
+    const descStr = String(form.descuento ?? "").trim();
+    const descNum = descStr === "" ? 0 : Number(descStr.replace(",", "."));
+
+    if (!Number.isFinite(descNum) || descNum < 0 || descNum > 100) {
+      alert("Descuento debe estar entre 0 y 100.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Subir imagen si existe
+    let imageUrl = "";
+    if (imagenFile) {
+      const formData = new FormData();
+      formData.append("imagen", imagenFile);
+
+      try {
+        const res = await api.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        imageUrl = res.data?.path || res.data?.url || "";
+      } catch (err) {
+        alert("Error al subir la imagen");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // ✅ Payload SIN ...form (para evitar que descuento se vaya vacío / se sobreescriba)
+    const payload = {
+      codigo: String(form.codigo || "").trim(),
+      nombre: String(form.nombre || "").trim(),
+      lote: (form.lote || "").trim() || null,
+      fecha_vencimiento: form.fecha_vencimiento || null,
+      descripcion: String(form.descripcion || "").trim() || null,
+
+      categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
+      ubicacion_id: form.ubicacion_id ? Number(form.ubicacion_id) : null,
+
+      stock: Number(form.stock) || 0,
+      stock_minimo: Number(form.stock_minimo) || 1,
+
+      // ✅ precios
+      precio: pv,
+      precio_costo: costoNum,
+      descuento: descNum, // ✅ AQUÍ viaja fijo y correcto
+
+      // ✅ medidas
+      contenido_medida: tieneContenido
+        ? Number(contenidoStr.replace(",", "."))
+        : null,
+      unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+
+      imagen: imageUrl || null,
+      usuario_id,
+    };
+
+    // ✅ Debug (te ayudará a confirmar que sale descuento: 5)
+    console.log("✅ Payload enviado a /productos:", payload);
+
+    await api.post("/productos", payload);
+
+    setShowSuccess(true);
+
+    setForm({
+      codigo: "",
+      nombre: "",
+      lote: "",
+      fecha_vencimiento: "",
+      descripcion: "",
+      categoria_id: "",
+      ubicacion_id: "",
+      stock: 0,
+      stock_minimo: 1,
+
+      precio_costo: "",
+      precio: "",
+      descuento: "",
+
+      contenido_medida: "",
+      unidad_medida_id: "",
+      imagen: "",
+    });
+
+    setImagenFile(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+  } catch (error) {
+    console.error(error);
+    alert(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Error al agregar el producto"
+    );
+  }
+
+  setLoading(false);
+};
 
   return (
     <section className="container py-4">
@@ -383,17 +486,92 @@ export default function AddProductPage() {
           />
         </div>
 
+        {/* ✅ PRECIOS + DESCUENTO */}
         <div className="col-md-4 col-12">
-          <label className="form-label">Precio</label>
+          <label className="form-label">Precio de costo</label>
           <input
             type="number"
             step="0.01"
-            className="form-control"
+            min="0"
+            className={`form-control ${
+              form.precio_costo !== "" && costoNumVista === null
+                ? "is-invalid"
+                : ""
+            }`}
+            name="precio_costo"
+            value={form.precio_costo}
+            onChange={handleChange}
+            placeholder="Opcional"
+          />
+          {form.precio_costo !== "" && costoNumVista === null && (
+            <small className="text-danger d-block mt-1">
+              Costo inválido. Debe ser un número mayor o igual a 0.
+            </small>
+          )}
+          <small className="text-muted">(Opcional)</small>
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Precio de venta</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className={`form-control ${
+              precioVentaNum === null && form.precio !== "" ? "is-invalid" : ""
+            }`}
             name="precio"
             value={form.precio}
             onChange={handleChange}
             required
           />
+          {precioVentaNum === null && form.precio !== "" && (
+            <small className="text-danger d-block mt-1">
+              Precio de venta inválido. Debe ser un número mayor o igual a 0.
+            </small>
+          )}
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Descuento (%)</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            className={`form-control ${
+              descuentoEstado.valido ? "" : "is-invalid"
+            }`}
+            name="descuento"
+            value={form.descuento}
+            onChange={handleChange}
+            placeholder="0"
+          />
+
+          {!descuentoEstado.valido && (
+            <small className="text-danger d-block mt-1">
+              Descuento inválido. Debe ser un número entre 0 y 100.
+            </small>
+          )}
+
+          {precioVentaNum !== null && descuentoEstado.valido && (
+            <small className="text-muted d-block mt-1">
+              Precio final: <strong>{`L ${precioFinalVista}`}</strong>
+            </small>
+          )}
+
+          {precioFinalVista !== null && costoNumVista !== null && (
+            <small
+              className={`d-block mt-1 ${
+                gananciaVista < 0 ? "text-danger" : "text-muted"
+              }`}
+            >
+              Ganancia estimada: <strong>{`L ${gananciaVista}`}</strong>
+              {gananciaVista < 0 ? " (pérdida)" : ""}
+            </small>
+          )}
+
+          <small className="text-muted">(0 a 100, opcional)</small>
         </div>
 
         <div className="col-md-8 col-12">
@@ -431,7 +609,12 @@ export default function AddProductPage() {
           <button
             type="submit"
             className="btn btn-warning w-100"
-            disabled={loading}
+            disabled={
+              loading ||
+              !descuentoEstado.valido ||
+              (form.precio_costo !== "" && costoNumVista === null) ||
+              (form.precio !== "" && precioVentaNum === null)
+            }
           >
             {loading ? "Guardando..." : "Guardar Producto"}
           </button>

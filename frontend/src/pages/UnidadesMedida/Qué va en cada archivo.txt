@@ -1,0 +1,200 @@
+🧠 Qué va en cada archivo (mapa claro)
+1️⃣ UnidadesMedidaPage.jsx (contenedor)
+
+👉 Muy pequeño
+
+Llama al hook useUnidadesMedida
+
+Renderiza:
+
+Header
+
+Filtro
+
+Tabla
+
+Modales
+
+Maneja solo el layout general
+
+📌 Aquí NO debe haber lógica pesada.
+
+2️⃣ hooks/useUnidadesMedida.js (toda la lógica)
+
+👉 Aquí vive el corazón del módulo
+
+Incluye:
+
+Estados:
+
+unidades, loading, guardando, error
+
+filtro
+
+modalForm
+
+modalDelete
+
+Efectos:
+
+cargar() en useEffect
+
+Lógica:
+
+crear / editar / eliminar
+
+toggle activo
+
+validaciones
+
+prevención de duplicados
+
+useMemo:
+
+unidadesFiltradas
+
+📌 Regla: si usa API o setState → va aquí
+
+3️⃣ components/UnidadesHeader.jsx
+
+👉 Solo UI
+
+Contiene:
+
+Título “Unidades de Medida”
+
+Texto descriptivo
+
+Botón “+ Nueva unidad”
+
+Props típicas:
+
+abrirCrear
+
+guardando
+
+4️⃣ components/UnidadesFiltro.jsx
+
+👉 Bloque del buscador
+
+Incluye:
+
+Input buscar
+
+Botón limpiar
+
+Props:
+
+filtro
+
+setFiltro
+
+guardando
+
+5️⃣ components/UnidadesTabla.jsx
+
+👉 Toda la tabla
+
+Incluye:
+
+Tabla completa
+
+Switch activo
+
+Botones Editar / Eliminar
+
+Loader y estado vacío
+
+Props:
+
+loading
+
+unidadesFiltradas
+
+guardando
+
+toggleActivo
+
+abrirEditar
+
+pedirEliminar
+
+badgeTipo (desde utils)
+
+6️⃣ components/ModalUnidadForm.jsx
+
+👉 Modal Crear / Editar
+
+Incluye:
+
+Inputs nombre / abreviatura / tipo / activo
+
+Botones Guardar / Cancelar
+
+Props:
+
+modalForm
+
+cerrarModalForm
+
+onChangeForm
+
+guardarUnidad
+
+guardando
+
+TIPOS
+
+7️⃣ components/ModalEliminarUnidad.jsx
+
+👉 Modal confirmación
+
+Incluye:
+
+Mensaje de confirmación
+
+Botón eliminar
+
+Props:
+
+modalDelete
+
+cancelarEliminar
+
+confirmarEliminar
+
+guardando
+
+8️⃣ utils/unidadesUtils.js
+
+👉 Helpers puros (sin React)
+
+Aquí mueves:
+
+TIPOS
+
+badgeTipo(tipo)
+
+normalizar(texto)
+
+existeDuplicado(unidades, payload, mode)
+
+📌 Todo lo que no necesita estado va aquí.
+
+🔥 Beneficios reales de esta estructura
+
+✔ Archivo principal baja de 400+ líneas a ~80
+✔ Lógica separada y reutilizable
+✔ Modales independientes (más fáciles de mantener)
+✔ Misma arquitectura que RegistrarVenta
+✔ Cuando algo falla, sabes exactamente dónde buscar
+
+👉 Siguiente paso (si tú quieres)
+
+En el próximo mensaje puedo:
+
+🔹 darte solo el hook useUnidadesMedida.js
+
+🔹 o empezar por los componentes UI
+
+🔹 o ayudarte a migrarlo paso a paso sin romper nada

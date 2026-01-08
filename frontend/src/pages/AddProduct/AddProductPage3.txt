@@ -1,0 +1,401 @@
+// src/pages/AddProduct/AddProductPage.jsx
+import { useEffect, useMemo, useState } from "react";
+import api from "../../api/axios";
+
+import AddProductHeader from "./components/AddProductHeader";
+import ModalProductoSuccess from "./components/ModalProductoSuccess";
+
+import ProductoFormBasico from "./components/ProductoFormBasico";
+import ProductoMedidas from "./components/ProductoMedidas";
+import ProductoInventario from "./components/ProductoInventario";
+import ProductoPrecio from "./components/ProductoPrecio";
+import ProductoDescripcion from "./components/ProductoDescripcion";
+import ProductoImagen from "./components/ProductoImagen";
+import ProductoSubmit from "./components/ProductoSubmit";
+
+export default function AddProductPage() {
+  const [categorias, setCategorias] = useState([]);
+  const [ubicaciones, setUbicaciones] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+
+  const [form, setForm] = useState({
+    codigo: "",
+    nombre: "",
+    lote: "",
+    fecha_vencimiento: "",
+    descripcion: "",
+    categoria_id: "",
+    ubicacion_id: "",
+    stock: 0,
+    stock_minimo: 1,
+
+    // ✅ Precio venta
+    precio: "",
+
+    // ✅ costos + descuento
+    precio_costo: "",
+    descuento: "",
+
+    // ✅ Medidas (DB)
+    contenido_medida: "",
+    unidad_medida_id: "",
+
+    imagen: "",
+  });
+
+  const [imagenFile, setImagenFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // ✅ Obtener usuario_id (seguro)
+  const usuario_id = (() => {
+    try {
+      const u = localStorage.getItem("usuario");
+      return u ? JSON.parse(u)?.id : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // ========================
+  // Cargar catálogos
+  // ========================
+  useEffect(() => {
+    let mounted = true;
+
+    const cargarCatalogos = async () => {
+      try {
+        const [cats, ubs, uns] = await Promise.all([
+          api.get("/categorias"),
+          api.get("/ubicaciones"),
+          api.get("/unidades"),
+        ]);
+
+        if (!mounted) return;
+
+        setCategorias(Array.isArray(cats.data) ? cats.data : []);
+        setUbicaciones(Array.isArray(ubs.data) ? ubs.data : []);
+
+        const listaUnidades = Array.isArray(uns.data) ? uns.data : [];
+        // ✅ Solo activas
+        setUnidades(listaUnidades.filter((u) => !!u.activo));
+      } catch (e) {
+        console.error(e);
+        if (!mounted) return;
+        setCategorias([]);
+        setUbicaciones([]);
+        setUnidades([]);
+      }
+    };
+
+    cargarCatalogos();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // ✅ Limpiar preview (evita fuga de memoria)
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  // ✅ Ordenar unidades por tipo y nombre
+  const unidadesOrdenadas = useMemo(() => {
+    const copy = [...unidades];
+    copy.sort((a, b) => {
+      const t = (a.tipo || "").localeCompare(b.tipo || "", "es");
+      if (t !== 0) return t;
+      return (a.nombre || "").localeCompare(b.nombre || "", "es");
+    });
+    return copy;
+  }, [unidades]);
+
+  // ========================
+  // Handlers
+  // ========================
+  // ✅ FIX: si el input es type="number", guardamos número (pero permitimos "")
+  // Esto evita que descuento se pierda o se envíe como string raro.
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "number" ? (value === "" ? "" : Number(value)) : value,
+    }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setImagenFile(file);
+
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const resetForm = () => {
+    setForm({
+      codigo: "",
+      nombre: "",
+      lote: "",
+      fecha_vencimiento: "",
+      descripcion: "",
+      categoria_id: "",
+      ubicacion_id: "",
+      stock: 0,
+      stock_minimo: 1,
+      precio: "",
+      precio_costo: "",
+      descuento: "",
+      contenido_medida: "",
+      unidad_medida_id: "",
+      imagen: "",
+    });
+
+    setImagenFile(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+
+    setLoading(true);
+
+    try {
+      // ✅ Validaciones básicas
+      const codigo = String(form.codigo ?? "").trim();
+      const nombre = String(form.nombre ?? "").trim();
+
+      if (!codigo || !nombre) {
+        alert("Código y nombre son obligatorios.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ fecha válida
+      if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
+        alert("Fecha de vencimiento inválida");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ medidas: si usa una, exigir la otra
+      const unidadIdStr = String(form.unidad_medida_id ?? "").trim();
+      const contenidoStr = String(form.contenido_medida ?? "").trim();
+
+      const tieneUnidad = unidadIdStr !== "";
+      const tieneContenido = contenidoStr !== "";
+
+      if (
+        (tieneUnidad && !tieneContenido) ||
+        (!tieneUnidad && tieneContenido)
+      ) {
+        alert(
+          "Si usas medidas, completa Cantidad/Contenido y Unidad de medida."
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (tieneContenido) {
+        const n = Number(contenidoStr);
+        if (!Number.isFinite(n) || n <= 0) {
+          alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ descuento: 0-100 si viene
+      const descuentoNum =
+        form.descuento === "" ||
+        form.descuento === null ||
+        form.descuento === undefined
+          ? 0
+          : Number(form.descuento);
+
+      if (
+        !Number.isFinite(descuentoNum) ||
+        descuentoNum < 0 ||
+        descuentoNum > 100
+      ) {
+        alert("Descuento debe ser un número entre 0 y 100.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ precio obligatorio
+      const precioNum = Number(form.precio);
+      if (!Number.isFinite(precioNum) || precioNum < 0) {
+        alert("Precio de venta inválido.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ costo opcional
+      const precioCostoNum =
+        String(form.precio_costo ?? "").trim() === ""
+          ? null
+          : Number(form.precio_costo);
+
+      if (
+        precioCostoNum !== null &&
+        (!Number.isFinite(precioCostoNum) || precioCostoNum < 0)
+      ) {
+        alert("Precio de costo inválido.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Subir imagen si existe
+      let imageUrl = "";
+      if (imagenFile) {
+        const formData = new FormData();
+        formData.append("imagen", imagenFile);
+
+        try {
+          const res = await api.post("/upload", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+
+          imageUrl = res.data?.path || res.data?.url || "";
+        } catch (err) {
+          console.error(err);
+          alert("Error al subir la imagen");
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ✅ Normalizar payload para backend
+      // IMPORTANTE: enviamos descuento como número SIEMPRE (0-100)
+      const payload = {
+        ...form,
+
+        codigo,
+        nombre,
+
+        lote: String(form.lote ?? "").trim() || null,
+        fecha_vencimiento: form.fecha_vencimiento || null,
+
+        categoria_id:
+          String(form.categoria_id ?? "").trim() === ""
+            ? null
+            : Number(form.categoria_id),
+        ubicacion_id:
+          String(form.ubicacion_id ?? "").trim() === ""
+            ? null
+            : Number(form.ubicacion_id),
+
+        stock: Number(form.stock ?? 0) || 0,
+        stock_minimo: Number(form.stock_minimo ?? 1) || 1,
+
+        precio: precioNum,
+        precio_costo: precioCostoNum,
+
+        // ✅ CLAVE: descuento numérico real
+        descuento: descuentoNum,
+
+        unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+        contenido_medida: tieneContenido ? Number(contenidoStr) : null,
+
+        imagen: imageUrl || null,
+        usuario_id,
+      };
+
+      // ✅ Debug útil (si no te gusta, lo quitas luego)
+      console.log("✅ Payload producto:", payload);
+
+      await api.post("/productos", payload);
+
+      setShowSuccess(true);
+      resetForm();
+    } catch (error) {
+      console.error(error);
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Error al agregar el producto"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="container py-4">
+      <ModalProductoSuccess
+        showSuccess={showSuccess}
+        setShowSuccess={setShowSuccess}
+      />
+
+      <AddProductHeader />
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-4 shadow rounded row g-3 add-product-form"
+      >
+        <ProductoFormBasico form={form} handleChange={handleChange} />
+
+        <ProductoMedidas
+          form={form}
+          handleChange={handleChange}
+          unidadesOrdenadas={unidadesOrdenadas}
+        />
+
+        <ProductoInventario
+          form={form}
+          handleChange={handleChange}
+          categorias={categorias}
+          ubicaciones={ubicaciones}
+        />
+
+        <ProductoPrecio form={form} handleChange={handleChange} />
+
+        <ProductoDescripcion form={form} handleChange={handleChange} />
+
+        <ProductoImagen
+          handleImageChange={handleImageChange}
+          preview={preview}
+        />
+
+        <ProductoSubmit loading={loading} />
+      </form>
+
+      <style>{`
+        @media (max-width: 991.98px) {
+          .add-product-form > div { margin-bottom: 0.4rem !important; }
+        }
+        @media (max-width: 767.98px) {
+          .add-product-form > div {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 0 0 100% !important;
+          }
+          .add-product-form {
+            padding: 1.2rem 0.3rem !important;
+            border-radius: 13px !important;
+          }
+        }
+        @media (max-width: 575.98px) {
+          .add-product-form .form-label,
+          .add-product-form .form-control,
+          .add-product-form .form-select,
+          .add-product-form textarea {
+            font-size: 1.07rem !important;
+          }
+          .add-product-form button {
+            font-size: 1.08rem !important;
+            padding: 0.8rem 1.2rem !important;
+            border-radius: 10px !important;
+          }
+        }
+      `}</style>
+    </section>
+  );
+}

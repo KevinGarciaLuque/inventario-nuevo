@@ -9,6 +9,12 @@ const IVA_FACTOR = 1.15;
    Helpers
 ===================================================== */
 const toStr = (v) => String(v ?? "").trim();
+const round2 = (n) => Number((Number(n) || 0).toFixed(2));
+const clampPct = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+};
 
 /* =====================================================
    Middleware de rol (req.user viene del auth global)
@@ -25,9 +31,6 @@ const requireRoles =
 
 /* =====================================================
    ✅ Validar caja abierta (basado en cierres_caja)
-   - Estándar POS: NO vender si no hay caja abierta.
-   - Admin: también debe tener caja abierta (recomendado por control/auditoría).
-   - Cajero: debe existir caja abierta del mismo usuario.
 ===================================================== */
 const validarCajaAbierta = async (connection, req) => {
   const usuario_id = req.user?.id;
@@ -53,6 +56,7 @@ const validarCajaAbierta = async (connection, req) => {
    - Solo admin o cajero
    - usuario_id se toma del token (req.user.id)
    - ✅ Bloquea si no hay caja abierta
+   - ✅ Descuento recalculado desde BD y guardado en detalle_ventas
 ===================================================== */
 router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
   const {
@@ -69,25 +73,32 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     return res.status(400).json({ message: "No hay productos en la venta." });
   }
 
-  const usuario_id = req.user.id;
+  const usuario_id = req.user?.id;
+  if (!usuario_id) {
+    return res.status(401).json({ message: "No autenticado." });
+  }
 
   const connection = await db.getConnection();
-  await connection.beginTransaction();
 
   try {
+    await connection.beginTransaction();
+
     // ✅ VALIDAR CAJA ABIERTA (NO VENDER SIN APERTURA)
     const cajaEstado = await validarCajaAbierta(connection, req);
     if (!cajaEstado.ok) {
-      throw new Error(
-        "No hay caja abierta. Debes realizar la apertura de caja antes de vender."
-      );
+      return res.status(400).json({
+        message:
+          "No hay caja abierta. Debes realizar la apertura de caja antes de vender.",
+      });
     }
     const caja_id = cajaEstado.caja.id;
 
-    let total = 0;
+    // =========================
+    // 1) Validar stock y calcular totales (con descuento desde BD)
+    // =========================
+    let total = 0; // total CON impuesto incluido (tu precio ya incluye ISV)
     const detalleVenta = [];
 
-    // 1) Validar stock y calcular totales
     for (const item of productos) {
       const producto_id = Number(item.producto_id);
       const cantidad = Number(item.cantidad);
@@ -99,50 +110,65 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         throw new Error("Cantidad inválida en el carrito.");
       }
 
-      const [productoResult] = await connection.query(
-        "SELECT precio, stock FROM productos WHERE id = ? LIMIT 1",
+      // ✅ Traer precio, stock y descuento desde BD (SEGURIDAD)
+      const [productoRows] = await connection.query(
+        `SELECT id, nombre, precio, descuento, stock
+         FROM productos
+         WHERE id = ?
+         LIMIT 1`,
         [producto_id]
       );
 
-      if (!productoResult.length) {
-        throw new Error(`Producto ID ${producto_id} no encontrado.`);
+      if (!productoRows.length) {
+        throw new Error(`Producto no encontrado (ID ${producto_id}).`);
       }
 
-      const producto = productoResult[0];
+      const producto = productoRows[0];
 
-      const precioUnitario = Number(producto.precio);
+      const precioBase = Number(producto.precio);
       const stockActual = Number(producto.stock);
+      const descuentoPct = clampPct(producto.descuento);
 
-      if (!Number.isFinite(precioUnitario)) {
+      if (!Number.isFinite(precioBase)) {
         throw new Error(`Precio inválido para el producto ID ${producto_id}`);
       }
-
+      if (!Number.isFinite(stockActual)) {
+        throw new Error(`Stock inválido para el producto ID ${producto_id}`);
+      }
       if (stockActual < cantidad) {
         throw new Error(
-          `Stock insuficiente para el producto ID ${producto_id}`
+          `Stock insuficiente para "${producto.nombre}". Stock: ${stockActual}`
         );
       }
 
-      const subtotalLinea = Number((precioUnitario * cantidad).toFixed(2));
-      total = Number((total + subtotalLinea).toFixed(2));
+      const precioFinal = round2(precioBase * (1 - descuentoPct / 100));
+      const subtotalLinea = round2(precioFinal * cantidad);
+
+      total = round2(total + subtotalLinea);
 
       detalleVenta.push({
         producto_id,
         cantidad,
-        precio_unitario: precioUnitario,
+        precio_unitario: round2(precioBase),
+        descuento_pct: round2(descuentoPct),
+        precio_final: precioFinal,
         subtotal: subtotalLinea,
       });
     }
 
-    // 2) ISV ya incluido en el precio
-    const subtotal = Number((total / IVA_FACTOR).toFixed(2));
-    const impuesto = Number((total - subtotal).toFixed(2));
-    const total_con_impuesto = Number(total.toFixed(2));
+    // =========================
+    // 2) ISV ya incluido en el precio (desglose)
+    // =========================
+    const subtotal = round2(total / IVA_FACTOR);
+    const impuesto = round2(total - subtotal);
+    const total_con_impuesto = round2(total);
 
+    // =========================
     // 3) Insertar venta
+    // =========================
     const mp = toStr(metodo_pago).toLowerCase();
-    const efectivoNum = Number(efectivo) || 0;
-    const cambioNum = Number(cambio) || 0;
+    const efectivoNum = round2(efectivo);
+    const cambioNum = round2(cambio);
 
     const [ventaResult] = await connection.query(
       `INSERT INTO ventas (
@@ -150,7 +176,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         usuario_id, caja_id, metodo_pago, efectivo, cambio
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        subtotal,
+        subtotal, // OJO: tu columna "total" parece ser sin impuesto (subtotal)
         impuesto,
         total_con_impuesto,
         usuario_id,
@@ -163,13 +189,24 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     const venta_id = ventaResult.insertId;
 
+    // =========================
     // 4) Insertar detalle + actualizar stock
+    // =========================
     for (const d of detalleVenta) {
       await connection.query(
         `INSERT INTO detalle_ventas (
-          venta_id, producto_id, cantidad, precio_unitario, subtotal
-        ) VALUES (?, ?, ?, ?, ?)`,
-        [venta_id, d.producto_id, d.cantidad, d.precio_unitario, d.subtotal]
+          venta_id, producto_id, cantidad,
+          precio_unitario, descuento_pct, precio_final, subtotal
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          venta_id,
+          d.producto_id,
+          d.cantidad,
+          d.precio_unitario,
+          d.descuento_pct,
+          d.precio_final,
+          d.subtotal,
+        ]
       );
 
       await connection.query(
@@ -178,7 +215,9 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       );
     }
 
-    // 5) Registrar cliente si aplica (por RTN)
+    // =========================
+    // 5) Registrar/actualizar cliente si aplica (por RTN)
+    // =========================
     const rtn = toStr(cliente_rtn);
     if (rtn) {
       const nombreCliente = toStr(cliente_nombre);
@@ -202,7 +241,9 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       }
     }
 
+    // =========================
     // 6) Obtener CAI activo
+    // =========================
     const [caiRows] = await connection.query(
       "SELECT * FROM cai WHERE activo = 1 LIMIT 1"
     );
@@ -216,10 +257,11 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     const siguiente = Number(cai.correlativo_actual) + 1;
     const correlativo = String(siguiente).padStart(8, "0");
-
     const numeroFactura = `${cai.sucursal}-${cai.punto_emision}-${cai.tipo_documento}-${correlativo}`;
 
+    // =========================
     // 7) Insertar factura
+    // =========================
     const [facturaResult] = await connection.query(
       `INSERT INTO facturas (
         numero_factura, venta_id, cai_id, total_factura,
@@ -242,13 +284,17 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     const factura_id = facturaResult.insertId;
 
-    // 8) Vincular venta con factura
-    await connection.query("UPDATE ventas SET factura_id = ? WHERE id = ?", [
-      factura_id,
-      venta_id,
-    ]);
+    // =========================
+    // 8) Vincular venta con factura + guardar CAI string en ventas (tu columna "cai")
+    // =========================
+    await connection.query(
+      "UPDATE ventas SET factura_id = ?, cai = ? WHERE id = ?",
+      [factura_id, numeroFactura, venta_id]
+    );
 
+    // =========================
     // 9) Actualizar correlativo CAI
+    // =========================
     await connection.query(
       "UPDATE cai SET correlativo_actual = ? WHERE id = ?",
       [siguiente, cai.id]
@@ -256,7 +302,6 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     await connection.commit();
 
-    // restantes calculado con el nuevo correlativo ya guardado
     const restantes = Number(cai.rango_fin) - siguiente;
 
     let alerta = null;
@@ -272,17 +317,30 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       alerta,
     });
   } catch (error) {
-    await connection.rollback();
+    try {
+      await connection.rollback();
+    } catch {}
+
     console.error("❌ Error en registrar venta:", error.message);
-    // ✅ si el error es de caja, que sea 400 para UX y control
-    if (
-      String(error.message || "")
-        .toLowerCase()
-        .includes("no hay caja abierta")
-    ) {
-      return res.status(400).json({ message: error.message });
+
+    const msg = toStr(error.message);
+
+    if (msg.toLowerCase().includes("no hay caja abierta")) {
+      return res.status(400).json({ message: msg });
     }
-    return res.status(500).json({ message: error.message });
+    if (
+      msg.toLowerCase().includes("stock insuficiente") ||
+      msg.toLowerCase().includes("producto inválido") ||
+      msg.toLowerCase().includes("cantidad inválida") ||
+      msg.toLowerCase().includes("no hay cai activo") ||
+      msg.toLowerCase().includes("cai agotado")
+    ) {
+      return res.status(400).json({ message: msg });
+    }
+
+    return res
+      .status(500)
+      .json({ message: msg || "Error al registrar venta." });
   } finally {
     connection.release();
   }
@@ -295,8 +353,8 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 ===================================================== */
 router.get("/", requireRoles("admin", "cajero"), async (req, res) => {
   try {
-    const rol = req.user.rol;
-    const userId = req.user.id;
+    const rol = req.user?.rol;
+    const userId = req.user?.id;
 
     let sql = `
       SELECT v.*, f.numero_factura

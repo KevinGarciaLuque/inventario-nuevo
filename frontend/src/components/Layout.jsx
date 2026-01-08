@@ -3,7 +3,8 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
 import InventoryPage from "../pages/InventoryPage";
-import AddProductPage from "../pages/AddProductPage";
+import AddProductPage from "../pages/AddProduct/AddProductPage";
+
 import CategoriesPage from "../pages/CategoriesPage";
 import LocationsPage from "../pages/LocationsPage";
 import ReportsPage from "../pages/ReportsPage";
@@ -11,10 +12,10 @@ import UsersPage from "../pages/UsersPage";
 import ClientesPage from "../pages/ClientesPage";
 import MovimientosPage from "../pages/MovimientosPage";
 import RegistrarMovimientoPage from "../pages/RegistrarMovimientoPage";
-import RegistrarVentaPage from "../pages/RegistrarVentaPage";
+import RegistrarVentaPage from "../pages/RegistrarVenta/RegistrarVentaPage";
 import CaiPage from "../pages/CaiPage";
 import FacturasPage from "../pages/FacturasPage";
-import UnidadesMedidaPage from "../pages/UnidadesMedidaPage";
+import UnidadesMedidaPage from "../pages/UnidadesMedida/UnidadesMedidaPage";
 
 // ✅ CAJA
 import AperturaCajaPage from "../pages/Caja/AperturaCajaPage";

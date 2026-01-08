@@ -1,0 +1,261 @@
+1) utils/ventaUtils.js (helpers puros)
+
+✅ Todo lo que no depende de estados React:
+
+getImgSrc() (con API_BASE_URL + FILES_BASE_URL)
+
+limpiarCodigo() (trim + upper)
+
+(opcional) calcularTotales(carrito) si luego quieres centralizar subtotal/impuesto/total
+
+(opcional) armarPayloadVenta({ carrito, user, venta })
+
+📌 Regla: si no usa useState/useEffect, va aquí.
+
+2) hooks/useVenta.js (toda la lógica y estados)
+
+Aquí se va casi todo lo que hoy hace tu página excepto el JSX.
+
+A) Estados que se mudan al hook
+
+productos, carrito, buscar, inputBuscarRef
+
+cajaLoading, cajaAbierta, cajaInfo, msgCaja
+
+cai, modalSinCai, caiErrorMostradoRef
+
+scanner bufferRef y scannerTimeout
+
+toast
+
+usarRTN, clientes, clientesLoading, filtroCliente
+
+modalCliente, formularioCliente
+
+modal (venta exitosa + dataRecibo)
+
+feedbackModal
+
+venta (método pago, efectivo, cambio, datos cliente)
+
+refreshCaiTrigger, resetPagoTrigger
+
+B) Funciones/acciones que se mudan al hook
+
+mostrarToast
+
+handleCambio
+
+cargarProductos
+
+consultarCajaEstado
+
+consultarCai
+
+agregarProductoAlCarrito
+
+limpiarInputBuscar
+
+handleBuscarCodigo
+
+handleBuscarNombre
+
+buscarYAgregar
+
+quitarProducto
+
+modificarCantidad
+
+cargarClientes
+
+handleGuardarCliente
+
+handleCerrarModalCliente
+
+registrarVenta
+
+imprimirRecibo
+
+C) useEffect/useMemo que se mudan al hook
+
+useEffect de montaje (caja + cai + productos)
+
+useEffect del scanner (keypress)
+
+useEffect de cargar clientes al activar RTN
+
+clientesFiltrados (useMemo)
+
+total, impuesto, subtotal (useMemo)
+
+📌 Salida del hook: devuelve un objeto con todo lo que la UI necesita (estados + handlers).
+
+3) components/VentasHeader.jsx
+
+Este archivo se encarga del encabezado y la parte superior:
+
+✅ Incluye:
+
+El título “Módulo de Ventas”
+
+Switch “Usar cliente con RTN”
+
+CardCaiDisponible al lado derecho
+
+📌 Props típicas:
+
+usarRTN, setUsarRTN
+
+refreshCaiTrigger
+
+4) components/ClientesSection.jsx
+
+✅ Incluye TODO el bloque:
+
+Título “Clientes”
+
+Buscador por nombre/RTN
+
+Botón “Agregar Cliente”
+
+Tabla (scroll)
+
+Inputs de nombre/RTN/dirección que llenan venta
+
+📌 Props típicas:
+
+usarRTN
+
+clientesLoading, clientesFiltrados
+
+filtroCliente, setFiltroCliente
+
+venta, setVenta
+
+setModalCliente(true) (abrir modal)
+
+5) components/BuscadorProducto.jsx
+
+✅ Incluye:
+
+“Buscar Producto”
+
+Form + InputGroup
+
+datalist sugerencias
+
+Botón Agregar + botón limpiar
+
+Usa inputBuscarRef, buscar, setBuscar, buscarYAgregar, limpiarInputBuscar, productos
+
+6) components/CarritoVenta.jsx
+
+✅ Incluye:
+
+“Carrito de Venta”
+
+El contenedor con scroll y la tabla
+
+Render de filas con imagen usando getImgSrc
+
+Cantidad editable
+
+Botón quitar
+
+📌 Props típicas:
+
+carrito
+
+modificarCantidad, quitarProducto
+
+getImgSrc (desde utils)
+
+7) components/TotalesVenta.jsx
+
+✅ Incluye:
+
+Columna izquierda: MetodosPagos
+
+Columna derecha: subtotal / ISV / total
+
+Botón “Registrar Venta”
+
+📌 Props típicas:
+
+total, subtotal, impuesto
+
+handleCambio
+
+resetPagoTrigger
+
+registrarVenta
+
+8) components/ModalesVenta.jsx
+
+✅ Mete aquí todos los modales:
+
+Modal venta exitosa (imprimir/cerrar)
+
+Modal agregar cliente
+
+Modal sin CAI
+
+Modal feedback (error/advertencia)
+
+Toast (si quieres dejarlo aquí también)
+
+📌 Props típicas:
+
+modal, setModal, imprimirRecibo
+
+modalCliente, handleCerrarModalCliente, formularioCliente, setFormularioCliente, handleGuardarCliente
+
+modalSinCai, setModalSinCai
+
+feedbackModal, setFeedbackModal
+
+toast
+
+9) ¿Qué queda en RegistrarVentaPage.jsx?
+
+Solo esto, bien corto:
+
+✅
+
+const { user } = useUser();
+
+const pos = useVenta({ user, onChangePage });
+
+Si pos.cajaLoading → muestra loader (o un componente)
+
+Si !pos.cajaAbierta → muestra vista caja cerrada (puede ir dentro de VentasHeader o lo dejamos dentro del page)
+
+Render normal usando componentes:
+
+<VentasHeader />
+
+<ClientesSection />
+
+<BuscadorProducto />
+
+<CarritoVenta />
+
+<TotalesVenta />
+
+<ModalesVenta />
+
+📌 Importante: la “vista caja cerrada” te sugiero dejarla en el Page por ahora (o crearla luego como extra), para no agregar otro archivo.
+
+Orden de migración (para no perderte)
+
+Crear carpetas + archivos vacíos
+
+Mover ventaUtils.js (getImgSrc + limpiarCodigo)
+
+Crear useVenta.js y mover estados + lógica (sin JSX)
+
+Partir UI en 5 componentes (Header, Clientes, Buscador, Carrito, Totales)
+
+Mover modales a ModalesVenta.jsx
+
+Dejar RegistrarVentaPage.jsx como orquestador

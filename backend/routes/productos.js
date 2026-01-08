@@ -6,6 +6,12 @@ const db = require("../db");
 // ========================
 // Helpers
 // ========================
+const clampPct = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+};
+
 const toNullIfEmpty = (v) => {
   if (v === undefined || v === null) return null;
   const s = String(v).trim();
@@ -24,8 +30,15 @@ const parseDateOrNull = (v) => {
 };
 
 const toNumberOrNull = (v) => {
-  if (v === undefined || v === null || v === "") return null;
-  const n = Number(v);
+  if (v === undefined || v === null) return null;
+
+  const s = String(v).trim();
+  if (s === "") return null;
+
+  // ✅ Soporta coma decimal: "5,5" -> "5.5"
+  const normalized = s.replace(",", ".");
+  const n = Number(normalized);
+
   return Number.isFinite(n) ? n : null;
 };
 
@@ -33,6 +46,19 @@ const mustBePositiveInt = (v) => {
   const n = Number(v);
   if (!Number.isInteger(n) || n <= 0) return null;
   return n;
+};
+
+// ✅ Lee descuento desde varios nombres
+const leerDescuentoPct = (body) => {
+  const raw =
+    body?.descuento ??
+    body?.descuento_pct ??
+    body?.descuentoPorcentaje ??
+    body?.porcentaje_descuento ??
+    0;
+
+  const n = toNumberOrNull(raw);
+  return clampPct(n ?? 0);
 };
 
 // Valida unidad: existe y está activa (si viene)
@@ -47,7 +73,7 @@ const validarUnidadActiva = async (unidadId) => {
 };
 
 // ========================
-// Obtener productos (filtro por nombre opcional) + JOIN unidad
+// Obtener productos + JOIN unidad
 // ========================
 router.get("/", async (req, res) => {
   try {
@@ -77,14 +103,15 @@ router.get("/", async (req, res) => {
     query += " ORDER BY p.id DESC";
 
     const [rows] = await db.query(query, params);
-    res.json(rows);
+    return res.json(rows);
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener los productos", error });
+    console.error("❌ Error GET /productos:", error);
+    return res.status(500).json({ message: "Error al obtener los productos" });
   }
 });
 
 // ========================
-// Buscar producto por código exacto (para escáner) + JOIN unidad
+// Buscar producto por código exacto + JOIN unidad
 // ========================
 router.get("/buscar", async (req, res) => {
   try {
@@ -113,17 +140,23 @@ router.get("/buscar", async (req, res) => {
       [codigoFinal]
     );
 
-    res.json(rows); // tu frontend espera array
+    return res.json(rows); // frontend espera array
   } catch (error) {
-    res.status(500).json({ message: "Error al buscar producto", error });
+    console.error("❌ Error GET /productos/buscar:", error);
+    return res.status(500).json({ message: "Error al buscar producto" });
   }
 });
 
 // ========================
 // Agregar producto (con bitácora) + medidas DB
+// ✅ ultra-blindado para que NO se vaya 0 por payload
 // ========================
 router.post("/", async (req, res) => {
   try {
+    // ✅ DEBUG DEFINITIVO: aquí verás si llega descuento o no
+    console.log("🔥 HIT POST /productos");
+    console.log("🔥 BODY COMPLETO:", req.body);
+
     const {
       codigo,
       nombre,
@@ -134,7 +167,11 @@ router.post("/", async (req, res) => {
       ubicacion_id,
       stock,
       stock_minimo,
+
+      // ✅ precios
       precio,
+      precio_costo,
+
       imagen,
 
       // ✅ medidas
@@ -157,11 +194,10 @@ router.post("/", async (req, res) => {
     const fechaVencFinal = parseDateOrNull(fecha_vencimiento);
     const imagenFinal = toNullIfEmpty(imagen);
 
-    // Medidas
-    const contenidoFinal = toNumberOrNull(contenido_medida); // DECIMAL
-    const unidadIdFinal = mustBePositiveInt(unidad_medida_id); // FK INT
+    // ✅ Medidas
+    const contenidoFinal = toNumberOrNull(contenido_medida);
+    const unidadIdFinal = mustBePositiveInt(unidad_medida_id);
 
-    // ✅ consistencia: si hay una, debe haber la otra
     const tieneUnidad = unidadIdFinal !== null;
     const tieneContenido = contenidoFinal !== null;
 
@@ -172,7 +208,6 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // ✅ validar unidad activa
     if (unidadIdFinal) {
       const okUnidad = await validarUnidadActiva(unidadIdFinal);
       if (!okUnidad) {
@@ -183,14 +218,42 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ✅ Precios
+    const precioVenta = toNumberOrNull(precio);
+    const costo = toNumberOrNull(precio_costo); // puede ser NULL
+
+    if (precioVenta === null || precioVenta < 0) {
+      return res.status(400).json({ message: "Precio inválido" });
+    }
+    if (costo !== null && costo < 0) {
+      return res.status(400).json({ message: "Precio de costo inválido" });
+    }
+
+    // ✅ Descuento (blindado) — si no llega en body, te quedará claro en logs
+    //    IMPORTANTE: aquí lo leo tanto por helper como directo para detectar fallas
+    const rawDesc =
+      req.body?.descuento ??
+      req.body?.descuento_pct ??
+      req.body?.descuentoPorcentaje ??
+      req.body?.porcentaje_descuento ??
+      0;
+
+    let desc = toNumberOrNull(rawDesc);
+    desc = Number.isFinite(desc) ? desc : 0;
+    desc = Math.max(0, Math.min(100, desc));
+
+    console.log("🔥 rawDesc recibido:", rawDesc);
+    console.log("🔥 desc final a insertar:", desc);
+
     await db.query(
       `INSERT INTO productos (
         codigo, nombre, lote, fecha_vencimiento,
         descripcion, categoria_id, ubicacion_id,
-        stock, stock_minimo, precio, imagen,
+        stock, stock_minimo,
+        precio, precio_costo, descuento,
+        imagen,
         contenido_medida, unidad_medida_id
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigoFinal,
         nombreFinal,
@@ -201,7 +264,11 @@ router.post("/", async (req, res) => {
         toNumberOrNull(ubicacion_id),
         toNumberOrNull(stock) ?? 0,
         toNumberOrNull(stock_minimo) ?? 1,
-        toNumberOrNull(precio) ?? 0,
+
+        precioVenta,
+        costo,
+        desc, // ✅ aquí va el descuento REAL
+
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
@@ -219,9 +286,14 @@ router.post("/", async (req, res) => {
       );
     }
 
-    res.json({ message: "Producto agregado correctamente" });
+    return res.json({ message: "Producto agregado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al agregar producto", error });
+    console.error("❌ Error al agregar producto:", error);
+    return res.status(500).json({
+      message: "Error al agregar producto",
+      code: error?.code,
+      sqlMessage: error?.sqlMessage,
+    });
   }
 });
 
@@ -243,7 +315,11 @@ router.put("/:id", async (req, res) => {
       ubicacion_id,
       stock,
       stock_minimo,
+
+      // ✅ precios
       precio,
+      precio_costo,
+
       imagen,
 
       // ✅ medidas
@@ -266,10 +342,10 @@ router.put("/:id", async (req, res) => {
     const fechaVencFinal = parseDateOrNull(fecha_vencimiento);
     const imagenFinal = toNullIfEmpty(imagen);
 
+    // ✅ Medidas
     const contenidoFinal = toNumberOrNull(contenido_medida);
     const unidadIdFinal = mustBePositiveInt(unidad_medida_id);
 
-    // ✅ consistencia
     const tieneUnidad = unidadIdFinal !== null;
     const tieneContenido = contenidoFinal !== null;
 
@@ -280,7 +356,6 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    // ✅ validar unidad activa
     if (unidadIdFinal) {
       const okUnidad = await validarUnidadActiva(unidadIdFinal);
       if (!okUnidad) {
@@ -290,6 +365,29 @@ router.put("/:id", async (req, res) => {
         });
       }
     }
+
+    // ✅ Precios
+    const precioVenta = toNumberOrNull(precio);
+    const costo = toNumberOrNull(precio_costo); // puede ser NULL
+
+    if (precioVenta === null || precioVenta < 0) {
+      return res.status(400).json({ message: "Precio inválido" });
+    }
+    if (costo !== null && costo < 0) {
+      return res.status(400).json({ message: "Precio de costo inválido" });
+    }
+
+    // ✅ Descuento (blindado)
+    const rawDesc =
+      req.body?.descuento ??
+      req.body?.descuento_pct ??
+      req.body?.descuentoPorcentaje ??
+      req.body?.porcentaje_descuento ??
+      0;
+
+    let desc = toNumberOrNull(rawDesc);
+    desc = Number.isFinite(desc) ? desc : 0;
+    desc = Math.max(0, Math.min(100, desc));
 
     await db.query(
       `UPDATE productos SET
@@ -303,6 +401,8 @@ router.put("/:id", async (req, res) => {
         stock=?,
         stock_minimo=?,
         precio=?,
+        precio_costo=?,
+        descuento=?,
         imagen=?,
         contenido_medida=?,
         unidad_medida_id=?
@@ -317,7 +417,9 @@ router.put("/:id", async (req, res) => {
         toNumberOrNull(ubicacion_id),
         toNumberOrNull(stock) ?? 0,
         toNumberOrNull(stock_minimo) ?? 1,
-        toNumberOrNull(precio) ?? 0,
+        precioVenta,
+        costo,
+        desc,
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
@@ -336,9 +438,14 @@ router.put("/:id", async (req, res) => {
       );
     }
 
-    res.json({ message: "Producto actualizado correctamente" });
+    return res.json({ message: "Producto actualizado correctamente" });
   } catch (error) {
-    res.status(500).json({ message: "Error al actualizar producto", error });
+    console.error("❌ Error al actualizar producto:", error);
+    return res.status(500).json({
+      message: "Error al actualizar producto",
+      code: error?.code,
+      sqlMessage: error?.sqlMessage,
+    });
   }
 });
 
@@ -375,7 +482,7 @@ router.delete("/:id", async (req, res) => {
       );
     }
 
-    res.json({ message: "Producto eliminado correctamente" });
+    return res.json({ message: "Producto eliminado correctamente" });
   } catch (error) {
     let msg = "Error al eliminar producto";
     if (error?.code === "ER_ROW_IS_REFERENCED_2") {
@@ -383,7 +490,8 @@ router.delete("/:id", async (req, res) => {
         "No se pudo eliminar el producto porque tiene registros relacionados (ventas, movimientos, etc.)";
       return res.status(409).json({ message: msg });
     }
-    res.status(500).json({ message: msg, error });
+    console.error("❌ Error DELETE /productos:", error);
+    return res.status(500).json({ message: msg });
   }
 });
 
