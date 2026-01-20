@@ -1,3 +1,4 @@
+
 // server.js (PROD + LOCAL + RAILWAY) - COMPLETO Y CORREGIDO
 const express = require("express");
 const cors = require("cors");
@@ -32,31 +33,42 @@ process.on("unhandledRejection", (reason) => {
 
 /* ===========================
    CORS (LOCAL + PRODUCCIÓN)
-   - Railway puede servir con varios dominios
-   - Permite FRONTEND_URL si lo seteas en Railway
+   - FIX para preflight OPTIONS
+   - Permite tu dominio: https://sistemaposthn.com
 =========================== */
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  process.env.FRONTEND_URL, // ✅ pon aquí tu dominio frontend en Railway/Hostinger si aplica
+  "https://sistemaposthn.com",
+  "https://www.sistemaposthn.com",
+  process.env.FRONTEND_URL, // ✅ opcional (puedes setearlo en Railway)
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // Postman/curl
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Permite requests sin origin (Postman/curl)
+    if (!origin) return cb(null, true);
 
-      // ✅ permite tus orígenes permitidos
-      if (allowedOrigins.includes(origin)) return cb(null, true);
+    // ✅ permite orígenes explícitos
+    if (allowedOrigins.includes(origin)) return cb(null, true);
 
-      // ✅ opcional: permitir cualquier subdominio *.up.railway.app (útil si cambia)
-      if (origin.endsWith(".up.railway.app")) return cb(null, true);
+    // ✅ opcional: permitir subdominios de Railway si cambian
+    if (origin.endsWith(".up.railway.app")) return cb(null, true);
 
-      return cb(new Error("No permitido por CORS: " + origin));
-    },
-    credentials: false, // ✅ en tu app usas Bearer token, no cookies
-  })
-);
+    return cb(new Error("No permitido por CORS: " + origin));
+  },
+  credentials: false, // ✅ tu app usa Bearer token, no cookies
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+// ✅ Aplica CORS a TODA la app
+app.use(cors(corsOptions));
+
+// ✅ IMPORTANTE: responde preflight (OPTIONS) para evitar el error que tienes
+app.options(/.*/, cors(corsOptions));
+
 
 /* ===========================
    Parsers
@@ -114,20 +126,33 @@ app.use("/api/facturas", auth, require("./routes/facturas"));
 app.use("/api/clientes", auth, require("./routes/clientes"));
 app.use("/api/unidades", auth, require("./routes/unidades"));
 app.use("/api/caja", auth, require("./routes/caja"));
+app.use("/api/impuestos", auth, require("./routes/impuestos"));
+app.use("/api/promociones", auth, require("./routes/promociones"));
+app.use(
+  "/api/promocion_productos",
+  auth,
+  require("./routes/promocion_productos")
+);
 
 /* ===========================
    404 (al final)
 =========================== */
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({ message: "Ruta no encontrada", path: req.originalUrl });
+  res.status(404).json({
+    message: "Ruta no encontrada",
+    path: req.originalUrl,
+  });
 });
 
 /* ===========================
    Error handler
 =========================== */
 app.use((err, req, res, next) => {
+  // Si el error viene de CORS, responde 403 en lugar de 500
+  if (err && typeof err.message === "string" && err.message.startsWith("No permitido por CORS")) {
+    return res.status(403).json({ message: err.message });
+  }
+
   console.error("❌ Error middleware:", err.message || err);
   res.status(500).json({ message: err.message || "Error del servidor" });
 });
@@ -139,20 +164,17 @@ const PORT = Number(process.env.PORT) || 3000;
 
 console.log("✅ Iniciando backend...");
 console.log("📌 PORT:", PORT);
-console.log(
-  "📌 DB:",
-  process.env.DB_HOST,
-  process.env.DB_PORT,
-  process.env.DB_NAME
-);
+console.log("📌 Allowed Origins:", allowedOrigins);
+console.log("📌 DB:", process.env.DB_HOST, process.env.DB_PORT, process.env.DB_NAME);
 
 const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Backend corriendo en http://127.0.0.1:${PORT}`);
+  console.log(`✅ Backend corriendo en http://0.0.0.0:${PORT}`);
 });
 
 server.on("error", (e) => {
   console.error("❌ Error al levantar servidor:", e.message);
 });
+
 
 //////////////////////////////////////Trabajar Localmente///////////////////////////////////////////
 /*// server.js (PROD + LOCAL) - COMPLETO Y CORREGIDO

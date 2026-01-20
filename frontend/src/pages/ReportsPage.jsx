@@ -260,7 +260,7 @@ export default function ReportsPage() {
     <div className="container py-4 reportes-responsive-root">
       <h2 className="mb-4 text-center">
         <i className="bi bi-bar-chart-fill text-warning me-2"></i>
-        Reportes
+        Reportes de Inventario
       </h2>
       <div className="row g-2 mb-4 justify-content-end">
         <div className="col-6 col-md-auto">
@@ -268,11 +268,11 @@ export default function ReportsPage() {
             <i className="bi bi-file-earmark-excel me-1"></i> Inventario Excel
           </button>
         </div>
-        <div className="col-6 col-md-auto">
+        {/* <div className="col-6 col-md-auto">
           <button className="btn btn-primary w-100" onClick={exportPDF}>
             <i className="bi bi-file-earmark-pdf me-1"></i> Inventario PDF
           </button>
-        </div>
+        </div>*/}
       </div>
 
       {/* KPIs resumen */}

@@ -72,6 +72,58 @@ const validarUnidadActiva = async (unidadId) => {
   return !!rows[0].activo;
 };
 
+
+router.get("/:id", async (req, res) => {
+  try {
+    const id = mustBePositiveInt(req.params.id);
+    if (!id) return res.status(400).json({ message: "ID inválido" });
+
+    const query = `
+      SELECT 
+        p.*,
+
+        -- Categoría
+        c.nombre AS categoria,
+
+        -- Ubicación
+        u.nombre AS ubicacion,
+
+        -- Unidad de medida
+        um.nombre AS unidad_nombre,
+        um.abreviatura AS unidad_abreviatura,
+        um.tipo AS unidad_tipo,
+
+        -- ✅ Impuesto
+        i.id AS impuesto_id,
+        i.nombre AS impuesto_nombre,
+        i.porcentaje AS impuesto_porcentaje
+
+      FROM productos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
+      LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
+      LEFT JOIN impuestos i ON p.impuesto_id = i.id
+      WHERE p.id = ?
+      LIMIT 1
+    `;
+
+    const [rows] = await db.query(query, [id]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error("❌ Error GET /productos/:id:", error);
+    return res.status(500).json({
+      message: "Error al obtener el producto",
+      code: error?.code,
+      sqlMessage: error?.sqlMessage,
+    });
+  }
+});
+
 // ========================
 // Obtener productos + JOIN unidad
 // ========================
@@ -82,17 +134,31 @@ router.get("/", async (req, res) => {
     let query = `
       SELECT 
         p.*,
+
+        -- Categoría
         c.nombre AS categoria,
+
+        -- Ubicación
         u.nombre AS ubicacion,
+
+        -- Unidad de medida
         um.nombre AS unidad_nombre,
         um.abreviatura AS unidad_abreviatura,
-        um.tipo AS unidad_tipo
+        um.tipo AS unidad_tipo,
+
+        -- ✅ Impuesto
+        i.id AS impuesto_id,
+        i.nombre AS impuesto_nombre,
+        i.porcentaje AS impuesto_porcentaje
+
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id
       LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
       LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
+      LEFT JOIN impuestos i ON p.impuesto_id = i.id
       WHERE 1
     `;
+
     const params = [];
 
     if (nombre) {
@@ -103,12 +169,18 @@ router.get("/", async (req, res) => {
     query += " ORDER BY p.id DESC";
 
     const [rows] = await db.query(query, params);
+
     return res.json(rows);
   } catch (error) {
     console.error("❌ Error GET /productos:", error);
-    return res.status(500).json({ message: "Error al obtener los productos" });
+    return res.status(500).json({
+      message: "Error al obtener los productos",
+      code: error?.code,
+      sqlMessage: error?.sqlMessage,
+    });
   }
 });
+
 
 // ========================
 // Buscar producto por código exacto + JOIN unidad
@@ -153,7 +225,7 @@ router.get("/buscar", async (req, res) => {
 // ========================
 router.post("/", async (req, res) => {
   try {
-    // ✅ DEBUG DEFINITIVO: aquí verás si llega descuento o no
+    // ✅ DEBUG DEFINITIVO
     console.log("🔥 HIT POST /productos");
     console.log("🔥 BODY COMPLETO:", req.body);
 
@@ -165,6 +237,10 @@ router.post("/", async (req, res) => {
       descripcion,
       categoria_id,
       ubicacion_id,
+
+      // ✅ impuesto
+      impuesto_id,
+
       stock,
       stock_minimo,
 
@@ -229,8 +305,28 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Precio de costo inválido" });
     }
 
-    // ✅ Descuento (blindado) — si no llega en body, te quedará claro en logs
-    //    IMPORTANTE: aquí lo leo tanto por helper como directo para detectar fallas
+    // ✅ Impuesto (nuevo)
+    // - lo dejamos NULL si no viene, pero si lo mandas validamos que exista y esté activo
+    const impuestoIdFinal = toNumberOrNull(impuesto_id);
+
+    if (impuestoIdFinal !== null) {
+      const [imp] = await db.query(
+        "SELECT id, activo FROM impuestos WHERE id = ? LIMIT 1",
+        [impuestoIdFinal]
+      );
+      if (!imp.length) {
+        return res
+          .status(400)
+          .json({ message: "El impuesto seleccionado no existe." });
+      }
+      if (Number(imp[0].activo) !== 1) {
+        return res
+          .status(400)
+          .json({ message: "El impuesto seleccionado está desactivado." });
+      }
+    }
+
+    // ✅ Descuento (blindado)
     const rawDesc =
       req.body?.descuento ??
       req.body?.descuento_pct ??
@@ -244,16 +340,18 @@ router.post("/", async (req, res) => {
 
     console.log("🔥 rawDesc recibido:", rawDesc);
     console.log("🔥 desc final a insertar:", desc);
+    console.log("🔥 impuestoIdFinal:", impuestoIdFinal);
 
     await db.query(
       `INSERT INTO productos (
         codigo, nombre, lote, fecha_vencimiento,
         descripcion, categoria_id, ubicacion_id,
+        impuesto_id,
         stock, stock_minimo,
         precio, precio_costo, descuento,
         imagen,
         contenido_medida, unidad_medida_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigoFinal,
         nombreFinal,
@@ -262,12 +360,15 @@ router.post("/", async (req, res) => {
         toNullIfEmpty(descripcion),
         toNumberOrNull(categoria_id),
         toNumberOrNull(ubicacion_id),
+
+        impuestoIdFinal, // ✅ NUEVO
+
         toNumberOrNull(stock) ?? 0,
         toNumberOrNull(stock_minimo) ?? 1,
 
         precioVenta,
         costo,
-        desc, // ✅ aquí va el descuento REAL
+        desc,
 
         imagenFinal,
         contenidoFinal,
@@ -297,6 +398,7 @@ router.post("/", async (req, res) => {
   }
 });
 
+
 // ========================
 // Editar producto (con bitácora) + medidas DB
 // ========================
@@ -313,6 +415,10 @@ router.put("/:id", async (req, res) => {
       descripcion,
       categoria_id,
       ubicacion_id,
+
+      // ✅ impuesto
+      impuesto_id,
+
       stock,
       stock_minimo,
 
@@ -377,6 +483,29 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ message: "Precio de costo inválido" });
     }
 
+    // ✅ Impuesto (nuevo)
+    const impuestoIdFinal = toNumberOrNull(impuesto_id);
+
+    // si viene impuesto_id, lo validamos
+    if (impuestoIdFinal !== null) {
+      const [imp] = await db.query(
+        "SELECT id, activo FROM impuestos WHERE id = ? LIMIT 1",
+        [impuestoIdFinal]
+      );
+
+      if (!imp.length) {
+        return res
+          .status(400)
+          .json({ message: "El impuesto seleccionado no existe." });
+      }
+
+      if (Number(imp[0].activo) !== 1) {
+        return res
+          .status(400)
+          .json({ message: "El impuesto seleccionado está desactivado." });
+      }
+    }
+
     // ✅ Descuento (blindado)
     const rawDesc =
       req.body?.descuento ??
@@ -389,6 +518,15 @@ router.put("/:id", async (req, res) => {
     desc = Number.isFinite(desc) ? desc : 0;
     desc = Math.max(0, Math.min(100, desc));
 
+    // ✅ Verifica existencia (opcional pero pro)
+    const [existe] = await db.query(
+      "SELECT id FROM productos WHERE id = ? LIMIT 1",
+      [id]
+    );
+    if (!existe.length) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
     await db.query(
       `UPDATE productos SET
         codigo=?,
@@ -398,6 +536,7 @@ router.put("/:id", async (req, res) => {
         descripcion=?,
         categoria_id=?,
         ubicacion_id=?,
+        impuesto_id=?,
         stock=?,
         stock_minimo=?,
         precio=?,
@@ -415,6 +554,9 @@ router.put("/:id", async (req, res) => {
         toNullIfEmpty(descripcion),
         toNumberOrNull(categoria_id),
         toNumberOrNull(ubicacion_id),
+
+        impuestoIdFinal, // ✅ NUEVO
+
         toNumberOrNull(stock) ?? 0,
         toNumberOrNull(stock_minimo) ?? 1,
         precioVenta,
@@ -448,6 +590,7 @@ router.put("/:id", async (req, res) => {
     });
   }
 });
+
 
 // ========================
 // Eliminar producto (con bitácora)

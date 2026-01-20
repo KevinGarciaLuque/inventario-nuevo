@@ -29,8 +29,23 @@ import Soporte from "../components/Soporte";
 ===================================================== */
 const MENU_BY_ROLE = {
   admin: [
+    // ✅ Dashboard NO será accordion (se renderiza fijo arriba)
     {
-      title: "Ventas",
+      topItems: [
+        { key: "dashboard", label: "DASHBOARD", icon: <FaChartBar /> },
+      ],
+    },
+
+    {
+      title: "INVENTARIO",
+      items: [
+        { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
+        { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
+      ],
+    },
+
+    {
+      title: "REGISTRAR VENTAS",
       items: [
         { key: "ventas", label: "Registrar Venta", icon: <FaCashRegister /> },
         { key: "movimientos", label: "Movimientos", icon: <FaExchangeAlt /> },
@@ -41,8 +56,9 @@ const MENU_BY_ROLE = {
         },
       ],
     },
+
     {
-      title: "Caja",
+      title: "CIERRES DE CAJA",
       items: [
         {
           key: "caja-apertura",
@@ -61,22 +77,9 @@ const MENU_BY_ROLE = {
         },
       ],
     },
+
     {
-      title: "Inventario",
-      items: [
-        { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
-        { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
-        { key: "categories", label: "Categorías", icon: <FaTags /> },
-        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
-        {
-          key: "unidades",
-          label: "Unidades de Medida",
-          icon: <FaRulerCombined />,
-        },
-      ],
-    },
-    {
-      title: "Facturación",
+      title: "FACTURACIÓN",
       items: [
         {
           key: "facturas",
@@ -86,20 +89,35 @@ const MENU_BY_ROLE = {
         { key: "cai", label: "Control de CAI", icon: <FaKey /> },
       ],
     },
+
     {
-      title: "Gestión",
+      title: "GESTIÓN USUARIOS",
       items: [
         { key: "users", label: "Usuarios", icon: <FaUserFriends /> },
         { key: "clientes", label: "Clientes", icon: <FaUser /> },
-        { key: "reports", label: "Reportes", icon: <FaChartBar /> },
         { key: "bitacora", label: "Bitácora", icon: <FaFilter /> },
+      ],
+    },
+
+    {
+      title: "MANTENIMIENTO",
+      items: [
+        { key: "categories", label: "Categorías", icon: <FaTags /> },
+        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
+        {
+          key: "unidades",
+          label: "Unidades de Medida",
+          icon: <FaRulerCombined />,
+        },
+        { key: "impuestos", label: "Impuestos", icon: <FaFilter /> },
+        { key: "promociones", label: "Promociones", icon: <FaTags /> },
       ],
     },
   ],
 
   usuario: [
     {
-      title: "Ventas",
+      title: "VENTAS",
       items: [
         { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
         { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
@@ -107,28 +125,31 @@ const MENU_BY_ROLE = {
       ],
     },
     {
-      title: "Inventario",
+      title: "INVENTARIO",
       items: [
-        { key: "categories", label: "Categorías", icon: <FaTags /> },
-        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
         {
           key: "registrar-movimiento",
           label: "Registrar Movimiento",
           icon: <FaHistory />,
         },
         { key: "movimientos", label: "Movimientos", icon: <FaExchangeAlt /> },
+      ],
+    },
+    {
+      title: "MANTENIMIENTO",
+      items: [
+        { key: "categories", label: "Categorías", icon: <FaTags /> },
+        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
       ],
     },
   ],
 
   almacen: [
     {
-      title: "Inventario",
+      title: "INVENTARIO",
       items: [
         { key: "inventory", label: "Inventario", icon: <FaBoxes /> },
         { key: "add-product", label: "Añadir Producto", icon: <FaPlus /> },
-        { key: "categories", label: "Categorías", icon: <FaTags /> },
-        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
         {
           key: "registrar-movimiento",
           label: "Registrar Movimiento",
@@ -137,11 +158,26 @@ const MENU_BY_ROLE = {
         { key: "movimientos", label: "Movimientos", icon: <FaExchangeAlt /> },
       ],
     },
+    {
+      title: "MANTENIMIENTO",
+      items: [
+        { key: "categories", label: "Categorías", icon: <FaTags /> },
+        { key: "locations", label: "Ubicaciones", icon: <FaMapMarkerAlt /> },
+        {
+          key: "unidades",
+          label: "Unidades de Medida",
+          icon: <FaRulerCombined />,
+        },
+        { key: "impuestos", label: "Impuestos", icon: <FaFilter /> },
+        { key: "promociones", label: "Promociones", icon: <FaTags /> },
+      ],
+    },
+    
   ],
 
   cajero: [
     {
-      title: "Caja",
+      title: "CIERRES DE CAJA",
       items: [
         {
           key: "caja-apertura",
@@ -183,6 +219,17 @@ export default function Sidebar({
     return MENU_BY_ROLE[user.rol] || MENU_BY_ROLE.usuario;
   }, [user]);
 
+  // ✅ items fijos arriba (sin accordion)
+  const topItems = useMemo(() => {
+    const first = sections.find((s) => Array.isArray(s.topItems));
+    return first?.topItems || [];
+  }, [sections]);
+
+  // ✅ secciones normales (accordion)
+  const accordionSections = useMemo(() => {
+    return sections.filter((s) => s.title && Array.isArray(s.items));
+  }, [sections]);
+
   const handleMenuClick = (key) => {
     onChangePage(key);
 
@@ -194,8 +241,28 @@ export default function Sidebar({
 
   // ✅ lista plana (para modo colapsado)
   const flatItems = useMemo(() => {
-    return sections.flatMap((s) => s.items);
-  }, [sections]);
+    const normal = accordionSections.flatMap((s) => s.items);
+    return [...topItems, ...normal];
+  }, [accordionSections, topItems]);
+
+  const RenderMenuButton = ({ item, collapsed }) => (
+    <button
+      key={item.key}
+      onClick={() => handleMenuClick(item.key)}
+      type="button"
+      className={`sidebar-link d-flex align-items-center w-100 border-0 bg-transparent ${
+        collapsed ? "px-2 py-2 justify-content-center" : "px-3 py-2"
+      } ${
+        currentPage === item.key
+          ? "text-warning bg-warning bg-opacity-10"
+          : "text-light"
+      }`}
+      title={collapsed ? item.label : undefined}
+    >
+      <span className={collapsed ? "fs-5" : "me-3 fs-5"}>{item.icon}</span>
+      {!collapsed && item.label}
+    </button>
+  );
 
   return (
     <div
@@ -225,111 +292,104 @@ export default function Sidebar({
 
       {/* MENU */}
       <nav className="flex-grow-1 py-2">
-        {/* ✅ MODO NORMAL (expandido): secciones colapsables */}
+        {/* ✅ MODO NORMAL */}
         {!isCollapsed && (
-          <div className="accordion accordion-flush" id="sidebarAccordion">
-            {sections.map((sec, idx) => {
-              const collapseId = `sidebar-sec-${idx}`;
-              const headingId = `sidebar-heading-${idx}`;
+          <>
+            {/* ✅ TOP LINK (Dashboard) - SIEMPRE visible, NO accordion */}
+            {topItems.length > 0 && (
+              <div className="mb-2">
+                {topItems.map((item) => (
+                  <RenderMenuButton
+                    key={item.key}
+                    item={item}
+                    collapsed={false}
+                  />
+                ))}
+              </div>
+            )}
 
-              // ✅ abrir el grupo que contiene la página actual
-              const contieneActual = sec.items.some(
-                (it) => it.key === currentPage
-              );
+            {/* ✅ ACCORDION normal */}
+            <div className="accordion accordion-flush" id="sidebarAccordion">
+              {accordionSections.map((sec, idx) => {
+                const collapseId = `sidebar-sec-${idx}`;
+                const headingId = `sidebar-heading-${idx}`;
 
-              return (
-                <div
-                  className="accordion-item bg-dark border-0"
-                  key={sec.title}
-                >
-                  <h2 className="accordion-header" id={headingId}>
-                    <button
-                      className={`accordion-button ${
-                        contieneActual ? "" : "collapsed"
-                      } bg-dark text-light px-3 py-2`}
-                      type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target={`#${collapseId}`}
-                      aria-expanded={contieneActual ? "true" : "false"}
-                      aria-controls={collapseId}
-                      style={{
-                        boxShadow: "none",
-                        fontSize: "0.85rem",
-                        opacity: 0.9,
-                      }}
-                    >
-                      {sec.title}
-                    </button>
-                  </h2>
+                const contieneActual = sec.items.some(
+                  (it) => it.key === currentPage
+                );
 
+                return (
                   <div
-                    id={collapseId}
-                    className={`accordion-collapse collapse ${
-                      contieneActual ? "show" : ""
-                    }`}
-                    aria-labelledby={headingId}
-                    data-bs-parent="#sidebarAccordion"
+                    className="accordion-item bg-dark border-0"
+                    key={sec.title}
                   >
-                    <div className="accordion-body p-0">
-                      {sec.items.map((item) => (
-                        <button
-                          key={item.key}
-                          onClick={() => handleMenuClick(item.key)}
-                          type="button"
-                          className={`sidebar-link d-flex align-items-center w-100 border-0 bg-transparent px-3 py-2 ${
-                            currentPage === item.key
-                              ? "text-warning bg-warning bg-opacity-10"
-                              : "text-light"
-                          }`}
-                        >
-                          <span className="me-3 fs-5">{item.icon}</span>
-                          {item.label}
-                        </button>
-                      ))}
+                    <h2 className="accordion-header" id={headingId}>
+                      <button
+                        className={`accordion-button ${
+                          contieneActual ? "" : "collapsed"
+                        } bg-dark text-light px-3 py-2`}
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target={`#${collapseId}`}
+                        aria-expanded={contieneActual ? "true" : "false"}
+                        aria-controls={collapseId}
+                        style={{
+                          boxShadow: "none",
+                          fontSize: "0.85rem",
+                          opacity: 0.9,
+                        }}
+                      >
+                        {sec.title}
+                      </button>
+                    </h2>
+
+                    <div
+                      id={collapseId}
+                      className={`accordion-collapse collapse ${
+                        contieneActual ? "show" : ""
+                      }`}
+                      aria-labelledby={headingId}
+                      data-bs-parent="#sidebarAccordion"
+                    >
+                      <div className="accordion-body p-0">
+                        {sec.items.map((item) => (
+                          <RenderMenuButton
+                            key={item.key}
+                            item={item}
+                            collapsed={false}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
-        {/* ✅ MODO COLAPSADO: solo íconos (mismo estilo que ya usas) */}
+        {/* ✅ MODO COLAPSADO: solo íconos */}
         {isCollapsed && (
           <div className="pt-2">
             {flatItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleMenuClick(item.key)}
-                type="button"
-                className={`sidebar-link d-flex align-items-center w-100 border-0 bg-transparent px-2 py-2 justify-content-center ${
-                  currentPage === item.key
-                    ? "text-warning bg-warning bg-opacity-10"
-                    : "text-light"
-                }`}
-                title={item.label}
-              >
-                <span className="fs-5">{item.icon}</span>
-              </button>
+              <RenderMenuButton key={item.key} item={item} collapsed />
             ))}
           </div>
         )}
       </nav>
 
       {/* SOPORTE */}
-      <div className="px-4 py-2 border-top text-center">
+      <div className="px-9 py-4 border-top text-center">
         <button
           type="button"
           className="btn btn-outline-info btn-sm w-100"
           onClick={() => soporteRef.current?.abrirModal?.()}
         >
-          <MdSupportAgent className="me-2" /> Ayuda / Soporte
+          <MdSupportAgent className="me-2" />Soporte
         </button>
         <Soporte ref={soporteRef} />
       </div>
 
-      {/* ✅ Mini estilo SOLO para quitar el "chevron" del accordion y que se vea limpio.
-          (No toca tus clases, es opcional, pero se ve más elegante) */}
       <style>{`
         .accordion-button::after { display: none !important; }
         .accordion-button:not(.collapsed) { color: #fff !important; }

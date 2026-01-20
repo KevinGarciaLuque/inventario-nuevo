@@ -17,6 +17,28 @@ const clampPct = (v) => {
 };
 
 /* =====================================================
+   Helpers: Fechas (vigencia promociones)
+===================================================== */
+const isDateInRange = (hoy, inicio, fin) => {
+  // hoy es Date()
+  // inicio/fin pueden venir como Date o string 'YYYY-MM-DD'
+  const dHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+  const toDateOnly = (d) => {
+    if (!d) return null;
+    const x = new Date(d);
+    return new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  };
+
+  const dIni = toDateOnly(inicio);
+  const dFin = toDateOnly(fin);
+
+  if (dIni && dHoy < dIni) return false;
+  if (dFin && dHoy > dFin) return false;
+  return true;
+};
+
+/* =====================================================
    Middleware de rol (req.user viene del auth global)
 ===================================================== */
 const requireRoles =
@@ -52,11 +74,75 @@ const validarCajaAbierta = async (connection, req) => {
 };
 
 /* =====================================================
+   ✅ Cargar promoción combo vigente + activa
+===================================================== */
+const cargarComboVigente = async (connection, promocion_id) => {
+  const [promoRows] = await connection.query(
+    `
+    SELECT id, nombre, tipo, valor, precio_combo, fecha_inicio, fecha_fin, activo
+    FROM promociones
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [promocion_id]
+  );
+
+  if (!promoRows.length) {
+    throw new Error(`Promoción/Combo no encontrada (ID ${promocion_id}).`);
+  }
+
+  const promo = promoRows[0];
+
+  if (String(promo.tipo).toUpperCase() !== "COMBO") {
+    throw new Error(`La promoción "${promo.nombre}" no es tipo COMBO.`);
+  }
+
+  if (Number(promo.activo) !== 1) {
+    throw new Error(`El combo "${promo.nombre}" está inactivo.`);
+  }
+
+  const hoy = new Date();
+  if (!isDateInRange(hoy, promo.fecha_inicio, promo.fecha_fin)) {
+    throw new Error(`El combo "${promo.nombre}" no está vigente.`);
+  }
+
+  const precioCombo = Number(promo.precio_combo);
+  if (!Number.isFinite(precioCombo) || precioCombo <= 0) {
+    throw new Error(`Precio inválido en el combo "${promo.nombre}".`);
+  }
+
+  // Componentes del combo
+  const [compRows] = await connection.query(
+    `
+    SELECT
+      pp.producto_id,
+      pp.cantidad,
+      pp.es_regalo,
+      p.nombre,
+      p.stock,
+      p.precio
+    FROM promocion_productos pp
+    JOIN productos p ON p.id = pp.producto_id
+    WHERE pp.promocion_id = ?
+      AND pp.activo = 1
+    `,
+    [promocion_id]
+  );
+
+  if (!compRows.length) {
+    throw new Error(`El combo "${promo.nombre}" no tiene productos asignados.`);
+  }
+
+  return { promo, precioCombo: round2(precioCombo), componentes: compRows };
+};
+
+/* =====================================================
    Registrar venta + factura
    - Solo admin o cajero
    - usuario_id se toma del token (req.user.id)
    - ✅ Bloquea si no hay caja abierta
-   - ✅ Descuento recalculado desde BD y guardado en detalle_ventas
+   - ✅ Recalcula precios de productos desde BD
+   - ✅ SOPORTA COMBOS (promocion_id) que rebajan inventario por componentes
 ===================================================== */
 router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
   const {
@@ -94,66 +180,198 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const caja_id = cajaEstado.caja.id;
 
     // =========================
-    // 1) Validar stock y calcular totales (con descuento desde BD)
+    // 1) Validar stock y calcular totales
+    //    - Productos: precio/descuento desde BD
+    //    - Combos: precio_combo desde promociones + stock por componentes
     // =========================
     let total = 0; // total CON impuesto incluido (tu precio ya incluye ISV)
-    const detalleVenta = [];
+    const detalleVenta = []; // líneas para insertar en detalle_ventas
+    const stockOps = new Map(); // producto_id -> cantidadTotalADescontar (incluye combos)
 
     for (const item of productos) {
-      const producto_id = Number(item.producto_id);
       const cantidad = Number(item.cantidad);
 
-      if (!Number.isInteger(producto_id) || producto_id <= 0) {
-        throw new Error("Producto inválido en el carrito.");
-      }
       if (!Number.isInteger(cantidad) || cantidad <= 0) {
         throw new Error("Cantidad inválida en el carrito.");
       }
 
-      // ✅ Traer precio, stock y descuento desde BD (SEGURIDAD)
-      const [productoRows] = await connection.query(
-        `SELECT id, nombre, precio, descuento, stock
-         FROM productos
-         WHERE id = ?
-         LIMIT 1`,
-        [producto_id]
-      );
+      const producto_id =
+        item.producto_id != null ? Number(item.producto_id) : null;
+      const promocion_id =
+        item.promocion_id != null ? Number(item.promocion_id) : null;
 
-      if (!productoRows.length) {
-        throw new Error(`Producto no encontrado (ID ${producto_id}).`);
-      }
+      const esProducto = Number.isInteger(producto_id) && producto_id > 0;
+      const esCombo = Number.isInteger(promocion_id) && promocion_id > 0;
 
-      const producto = productoRows[0];
-
-      const precioBase = Number(producto.precio);
-      const stockActual = Number(producto.stock);
-      const descuentoPct = clampPct(producto.descuento);
-
-      if (!Number.isFinite(precioBase)) {
-        throw new Error(`Precio inválido para el producto ID ${producto_id}`);
-      }
-      if (!Number.isFinite(stockActual)) {
-        throw new Error(`Stock inválido para el producto ID ${producto_id}`);
-      }
-      if (stockActual < cantidad) {
+      // ✅ Debe venir uno u otro
+      if (esProducto && esCombo) {
         throw new Error(
-          `Stock insuficiente para "${producto.nombre}". Stock: ${stockActual}`
+          "Item inválido: no puede traer producto_id y promocion_id a la vez."
+        );
+      }
+      if (!esProducto && !esCombo) {
+        throw new Error(
+          "Item inválido: debe traer producto_id (producto) o promocion_id (combo)."
         );
       }
 
-      const precioFinal = round2(precioBase * (1 - descuentoPct / 100));
-      const subtotalLinea = round2(precioFinal * cantidad);
+      // =========================
+      // A) Producto normal
+      // =========================
+      if (esProducto) {
+        const [productoRows] = await connection.query(
+          `SELECT id, nombre, precio, descuento, stock
+           FROM productos
+           WHERE id = ?
+           LIMIT 1`,
+          [producto_id]
+        );
 
-      total = round2(total + subtotalLinea);
+        if (!productoRows.length) {
+          throw new Error(`Producto no encontrado (ID ${producto_id}).`);
+        }
 
-      detalleVenta.push({
-        producto_id,
-        cantidad,
-        precio_unitario: round2(precioBase),
-        descuento_pct: round2(descuentoPct),
-        precio_final: precioFinal,
-        subtotal: subtotalLinea,
-      });
+        const producto = productoRows[0];
+
+        const precioBase = Number(producto.precio);
+        const stockActual = Number(producto.stock);
+        const descuentoPct = clampPct(producto.descuento);
+
+        if (!Number.isFinite(precioBase)) {
+          throw new Error(`Precio inválido para el producto ID ${producto_id}`);
+        }
+        if (!Number.isFinite(stockActual)) {
+          throw new Error(`Stock inválido para el producto ID ${producto_id}`);
+        }
+        if (stockActual < cantidad) {
+          throw new Error(
+            `Stock insuficiente para "${producto.nombre}". Stock: ${stockActual}`
+          );
+        }
+
+        const precioFinal = round2(precioBase * (1 - descuentoPct / 100));
+        const subtotalLinea = round2(precioFinal * cantidad);
+
+        total = round2(total + subtotalLinea);
+
+        detalleVenta.push({
+          tipo: "producto",
+          producto_id,
+          promocion_id: null,
+          cantidad,
+          precio_unitario: round2(precioBase),
+          descuento_pct: round2(descuentoPct),
+          precio_final: precioFinal,
+          subtotal: subtotalLinea,
+          label: producto.nombre,
+        });
+
+        // acumular stock
+        stockOps.set(producto_id, (stockOps.get(producto_id) || 0) + cantidad);
+        continue;
+      }
+
+      // =========================
+      // B) Combo
+      // =========================
+      if (esCombo) {
+        const { promo, precioCombo, componentes } = await cargarComboVigente(
+          connection,
+          promocion_id
+        );
+
+        // 1) Validar stock por componentes (multiplicado por cantidad de combos)
+        for (const c of componentes) {
+          const pid = Number(c.producto_id);
+          const cantPorCombo = Number(c.cantidad) || 0;
+          const stockActual = Number(c.stock);
+
+          if (!Number.isInteger(pid) || pid <= 0) {
+            throw new Error(`Combo "${promo.nombre}": producto_id inválido.`);
+          }
+          if (!Number.isFinite(cantPorCombo) || cantPorCombo <= 0) {
+            throw new Error(
+              `Combo "${promo.nombre}": cantidad inválida en componente.`
+            );
+          }
+          if (!Number.isFinite(stockActual)) {
+            throw new Error(
+              `Combo "${promo.nombre}": stock inválido en "${c.nombre}".`
+            );
+          }
+
+          const requerido = cantPorCombo * cantidad;
+
+          // validación usando stock actual (sin considerar otras líneas todavía)
+          if (stockActual < requerido) {
+            throw new Error(
+              `Stock insuficiente para combo "${promo.nombre}". Falta stock de "${c.nombre}". Stock: ${stockActual}`
+            );
+          }
+        }
+
+        // 2) Acumular descuentos de stock por componentes (para validar contra otras líneas y descontar al final)
+        for (const c of componentes) {
+          const pid = Number(c.producto_id);
+          const cantPorCombo = Number(c.cantidad) || 0;
+          const requerido = cantPorCombo * cantidad;
+          stockOps.set(pid, (stockOps.get(pid) || 0) + requerido);
+        }
+
+        // 3) Registrar línea del combo (como un ítem vendido)
+        const subtotalLinea = round2(precioCombo * cantidad);
+        total = round2(total + subtotalLinea);
+
+        detalleVenta.push({
+          tipo: "combo",
+          producto_id: null,
+          promocion_id,
+          cantidad,
+          precio_unitario: precioCombo, // precio del combo
+          descuento_pct: 0,
+          precio_final: precioCombo,
+          subtotal: subtotalLinea,
+          label: promo.nombre,
+        });
+
+        continue;
+      }
+    }
+
+    // ✅ Validación final de stock cruzada (productos + combos juntos)
+    // Esto evita: "producto suelto + combo" que juntos dejan stock negativo.
+    if (stockOps.size > 0) {
+      const ids = Array.from(stockOps.keys());
+      const placeholders = ids.map(() => "?").join(",");
+
+      const [stocksRows] = await connection.query(
+        `SELECT id, nombre, stock FROM productos WHERE id IN (${placeholders})`,
+        ids
+      );
+
+      const stockMap = new Map(
+        stocksRows.map((r) => [
+          Number(r.id),
+          { nombre: r.nombre, stock: Number(r.stock) },
+        ])
+      );
+
+      for (const [pid, requeridoTotal] of stockOps.entries()) {
+        const info = stockMap.get(pid);
+        if (!info) {
+          throw new Error(
+            `Producto no encontrado (ID ${pid}) al validar stock.`
+          );
+        }
+        if (!Number.isFinite(info.stock)) {
+          throw new Error(`Stock inválido para "${info.nombre}".`);
+        }
+        if (info.stock < requeridoTotal) {
+          throw new Error(
+            `Stock insuficiente para "${info.nombre}". Requerido: ${requeridoTotal}, Stock: ${info.stock}`
+          );
+        }
+      }
     }
 
     // =========================
@@ -176,7 +394,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         usuario_id, caja_id, metodo_pago, efectivo, cambio
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        subtotal, // OJO: tu columna "total" parece ser sin impuesto (subtotal)
+        subtotal, // "total" = subtotal sin impuesto (según tu diseño actual)
         impuesto,
         total_con_impuesto,
         usuario_id,
@@ -190,17 +408,20 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const venta_id = ventaResult.insertId;
 
     // =========================
-    // 4) Insertar detalle + actualizar stock
+    // 4) Insertar detalle
     // =========================
     for (const d of detalleVenta) {
+      // Nota: tu tabla ya venía usando estas columnas (precio_unitario, descuento_pct, precio_final, subtotal).
+      // Si por alguna razón las ocultas en el DESCRIBE, igual existen; si no existieran, tu sistema anterior ya fallaría.
       await connection.query(
         `INSERT INTO detalle_ventas (
-          venta_id, producto_id, cantidad,
+          venta_id, producto_id, promocion_id, cantidad,
           precio_unitario, descuento_pct, precio_final, subtotal
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           venta_id,
           d.producto_id,
+          d.promocion_id,
           d.cantidad,
           d.precio_unitario,
           d.descuento_pct,
@@ -208,15 +429,20 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
           d.subtotal,
         ]
       );
+    }
 
+    // =========================
+    // 5) Actualizar stock (una sola pasada, con todo acumulado)
+    // =========================
+    for (const [pid, qty] of stockOps.entries()) {
       await connection.query(
         "UPDATE productos SET stock = stock - ? WHERE id = ?",
-        [d.cantidad, d.producto_id]
+        [qty, pid]
       );
     }
 
     // =========================
-    // 5) Registrar/actualizar cliente si aplica (por RTN)
+    // 6) Registrar/actualizar cliente si aplica (por RTN)
     // =========================
     const rtn = toStr(cliente_rtn);
     if (rtn) {
@@ -242,7 +468,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     }
 
     // =========================
-    // 6) Obtener CAI activo
+    // 7) Obtener CAI activo
     // =========================
     const [caiRows] = await connection.query(
       "SELECT * FROM cai WHERE activo = 1 LIMIT 1"
@@ -260,7 +486,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const numeroFactura = `${cai.sucursal}-${cai.punto_emision}-${cai.tipo_documento}-${correlativo}`;
 
     // =========================
-    // 7) Insertar factura
+    // 8) Insertar factura
     // =========================
     const [facturaResult] = await connection.query(
       `INSERT INTO facturas (
@@ -285,7 +511,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const factura_id = facturaResult.insertId;
 
     // =========================
-    // 8) Vincular venta con factura + guardar CAI string en ventas (tu columna "cai")
+    // 9) Vincular venta con factura + guardar CAI string en ventas (tu columna "cai")
     // =========================
     await connection.query(
       "UPDATE ventas SET factura_id = ?, cai = ? WHERE id = ?",
@@ -293,7 +519,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     );
 
     // =========================
-    // 9) Actualizar correlativo CAI
+    // 10) Actualizar correlativo CAI
     // =========================
     await connection.query(
       "UPDATE cai SET correlativo_actual = ? WHERE id = ?",
@@ -333,7 +559,8 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       msg.toLowerCase().includes("producto inválido") ||
       msg.toLowerCase().includes("cantidad inválida") ||
       msg.toLowerCase().includes("no hay cai activo") ||
-      msg.toLowerCase().includes("cai agotado")
+      msg.toLowerCase().includes("cai agotado") ||
+      msg.toLowerCase().includes("combo")
     ) {
       return res.status(400).json({ message: msg });
     }

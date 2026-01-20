@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
@@ -22,12 +22,24 @@ import AperturaCajaPage from "../pages/Caja/AperturaCajaPage";
 import CierreCajaPage from "../pages/Caja/CierreCajaPage";
 import HistorialCierresPage from "../pages/Caja/HistorialCierresPage";
 
+// ✅ MANTENIMIENTO
+import ImpuestosPage from "../pages/Mantenimiento/ImpuestosPage";
+import PromocionesPage from "../pages/Promociones/PromocionesPage";
+
+
 import ProductModal from "./ProductModal";
 import BitacoraPage from "./BitacoraPage";
 
 import "../styles/Layout.css";
 
+// ✅ Si ya tenés UserContext, esto hará que el admin inicie en Dashboard.
+// Si en tu proyecto el hook se llama diferente, cambialo aquí.
+import { useUser } from "../context/UserContext";
+
 export default function Layout({ onLogout }) {
+  const { user } = useUser();
+
+  // ✅ Por defecto NO amarramos a "inventory", lo decide el rol
   const [currentPage, setCurrentPage] = useState("inventory");
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -38,6 +50,25 @@ export default function Layout({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+
+  // ✅ Para NO re-setear currentPage y evitar loops
+  const yaInicializoRef = useRef(false);
+
+  // ✅ Cuando existe el usuario, define pantalla inicial por rol
+  useEffect(() => {
+    if (!user) return;
+    if (yaInicializoRef.current) return;
+
+    if (user.rol === "admin") {
+      setCurrentPage("dashboard"); // ✅ Dashboard primero para admin
+    } else if (user.rol === "cajero") {
+      setCurrentPage("caja-apertura"); // ✅ recomendado para cajero
+    } else {
+      setCurrentPage("inventory"); // ✅ default general
+    }
+
+    yaInicializoRef.current = true;
+  }, [user]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -76,6 +107,93 @@ export default function Layout({ onLogout }) {
       setSidebarOpen((v) => !v);
     } else {
       setSidebarCollapsed((v) => !v);
+    }
+  };
+
+  /* =====================================================
+     ✅ Render de páginas centralizado
+===================================================== */
+  const renderPage = () => {
+    switch (currentPage) {
+      // ✅ Dashboard (admin) -> usa tu ReportsPage como Dashboard
+      case "dashboard":
+        return <ReportsPage />;
+
+      case "inventory":
+        return <InventoryPage onView={setSelectedProduct} />;
+
+      case "add-product":
+        return <AddProductPage />;
+
+      // ✅ Mantenimiento (catálogos)
+      case "categories":
+        return <CategoriesPage />;
+
+      case "locations":
+        return <LocationsPage />;
+
+      case "unidades":
+        return <UnidadesMedidaPage />;
+
+      // ✅ Mantenimiento (nuevos módulos)
+      case "impuestos":
+        return <ImpuestosPage />;
+
+      case "promociones":
+        return <PromocionesPage />;
+
+      // ✅ Si algún rol todavía usa "reports", lo dejamos funcional
+      case "reports":
+        return <ReportsPage />;
+
+      // ✅ Gestión
+      case "users":
+        return <UsersPage />;
+
+      case "clientes":
+        return <ClientesPage />;
+
+      case "bitacora":
+        return <BitacoraPage />;
+
+      // ✅ Movimientos
+      case "movimientos":
+        return <MovimientosPage />;
+
+      case "registrar-movimiento":
+        return <RegistrarMovimientoPage />;
+
+      // ✅ Ventas
+      case "ventas":
+        return <RegistrarVentaPage onChangePage={setCurrentPage} />;
+
+      // ✅ Facturación
+      case "cai":
+        return <CaiPage />;
+
+      case "facturas":
+        return <FacturasPage />;
+
+      // ✅ Caja
+      case "caja-apertura":
+        return <AperturaCajaPage onChangePage={setCurrentPage} />;
+
+      case "caja-cierre":
+        return <CierreCajaPage onChangePage={setCurrentPage} />;
+
+      case "caja-historial":
+        return <HistorialCierresPage onChangePage={setCurrentPage} />;
+
+      default:
+        return (
+          <div>
+            <h5 className="mb-2">Página no encontrada</h5>
+            <p className="text-muted mb-0">
+              La opción <code>{currentPage}</code> no está configurada en
+              Layout.
+            </p>
+          </div>
+        );
     }
   };
 
@@ -130,40 +248,7 @@ export default function Layout({ onLogout }) {
         <main className="flex-grow-1 p-4 overflow-auto main-content-inner">
           <div className="container-fluid py-3">
             <div className="card shadow-sm main-card-responsive">
-              <div className="card-body p-4">
-                {currentPage === "inventory" && (
-                  <InventoryPage onView={setSelectedProduct} />
-                )}
-                {currentPage === "add-product" && <AddProductPage />}
-                {currentPage === "categories" && <CategoriesPage />}
-                {currentPage === "locations" && <LocationsPage />}
-                {currentPage === "reports" && <ReportsPage />}
-                {currentPage === "users" && <UsersPage />}
-                {currentPage === "clientes" && <ClientesPage />}
-                {currentPage === "bitacora" && <BitacoraPage />}
-                {currentPage === "movimientos" && <MovimientosPage />}
-                {currentPage === "registrar-movimiento" && (
-                  <RegistrarMovimientoPage />
-                )}
-                {currentPage === "ventas" && (
-                  <RegistrarVentaPage onChangePage={setCurrentPage} />
-                )}
-
-                {currentPage === "cai" && <CaiPage />}
-                {currentPage === "facturas" && <FacturasPage />}
-                {currentPage === "unidades" && <UnidadesMedidaPage />}
-
-                {/* ✅ CAJA */}
-                {currentPage === "caja-apertura" && (
-                  <AperturaCajaPage onChangePage={setCurrentPage} />
-                )}
-                {currentPage === "caja-cierre" && (
-                  <CierreCajaPage onChangePage={setCurrentPage} />
-                )}
-                {currentPage === "caja-historial" && (
-                  <HistorialCierresPage onChangePage={setCurrentPage} />
-                )}
-              </div>
+              <div className="card-body p-4">{renderPage()}</div>
             </div>
           </div>
         </main>
