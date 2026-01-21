@@ -17,6 +17,7 @@ import {
   FaKey,
   FaUser,
   FaRulerCombined,
+  FaPercentage,
 } from "react-icons/fa";
 import { MdSupportAgent } from "react-icons/md";
 
@@ -110,7 +111,9 @@ const MENU_BY_ROLE = {
           icon: <FaRulerCombined />,
         },
         { key: "impuestos", label: "Impuestos", icon: <FaFilter /> },
+        { key: "descuentos", label: "Descuentos", icon: <FaPercentage /> },
         { key: "promociones", label: "Promociones", icon: <FaTags /> },
+        { key: "backup", label: "Backup BD", icon: <FaHistory /> },
       ],
     },
   ],
@@ -172,7 +175,6 @@ const MENU_BY_ROLE = {
         { key: "promociones", label: "Promociones", icon: <FaTags /> },
       ],
     },
-    
   ],
 
   cajero: [

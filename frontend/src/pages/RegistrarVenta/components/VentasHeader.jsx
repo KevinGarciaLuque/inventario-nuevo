@@ -1,6 +1,6 @@
 import { FormCheck } from "react-bootstrap";
 import { FaBoxOpen } from "react-icons/fa";
-import CardCaiDisponible from "../../../components/CardCaiDisponible";
+import CardCaiDisponible from "../../ControlCAI/CardCaiDisponible";
 
 export default function VentasHeader({
   usarRTN,

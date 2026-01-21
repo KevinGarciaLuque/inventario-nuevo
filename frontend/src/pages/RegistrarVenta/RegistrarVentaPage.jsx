@@ -1,3 +1,4 @@
+// frontend/src/pages/RegistrarVenta/RegistrarVentaPage.jsx
 import { Button, Spinner } from "react-bootstrap";
 import { FaBoxOpen } from "react-icons/fa";
 import { useUser } from "../../context/UserContext";
@@ -14,7 +15,6 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
   const { user } = useUser();
   const v = useVenta({ user });
 
-  // ✅ BLOQUEO UI SI ESTÁ CARGANDO CAJA
   if (v.cajaLoading) {
     return (
       <div className="container py-4">
@@ -26,7 +26,6 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
     );
   }
 
-  // ✅ BLOQUEO SI CAJA NO ABIERTA
   if (!v.cajaAbierta) {
     return (
       <div className="container py-4">
@@ -73,7 +72,6 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
           </div>
         </div>
 
-        {/* Modales (sin CAI / feedback / etc.) */}
         <ModalesVenta
           modal={v.modal}
           setModal={v.setModal}
@@ -93,7 +91,6 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
     );
   }
 
-  // ✅ RENDER NORMAL (CAJA ABIERTA)
   return (
     <div className="container py-4">
       <VentasHeader
@@ -111,6 +108,13 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
         setModalCliente={v.setModalCliente}
         venta={v.venta}
         setVenta={v.setVenta}
+        // ✅ si lo sigues usando en clientes, ok (no estorba)
+        tipoCliente={v.tipoCliente}
+        setTipoCliente={v.setTipoCliente}
+        descuentos={v.descuentos}
+        descuentosLoading={v.descuentosLoading}
+        descuentoSeleccionadoId={v.descuentoSeleccionadoId}
+        setDescuentoSeleccionadoId={v.setDescuentoSeleccionadoId}
       />
 
       <BuscadorProducto
@@ -130,10 +134,20 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
 
       <TotalesVenta
         total={v.total}
+        totalConDescCliente={v.totalConDescCliente}
         subtotal={v.subtotal}
         impuesto={v.impuesto}
         subtotalBruto={v.subtotalBruto}
         descuentoTotal={v.descuentoTotal}
+        descuentoClienteMonto={v.descuentoClienteMonto}
+        descuentoClienteNombre={v.descuentoClienteObj?.nombre || ""}
+        // ✅ IMPORTANTES: para que el select aparezca en el cuadro negro
+        tipoCliente={v.tipoCliente}
+        setTipoCliente={v.setTipoCliente}
+        descuentos={v.descuentos}
+        descuentosLoading={v.descuentosLoading}
+        descuentoSeleccionadoId={v.descuentoSeleccionadoId}
+        setDescuentoSeleccionadoId={v.setDescuentoSeleccionadoId}
         handleCambio={v.handleCambio}
         resetPagoTrigger={v.resetPagoTrigger}
         registrarVenta={v.registrarVenta}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card, Modal, Spinner } from "react-bootstrap";
 import { BsExclamationTriangleFill } from "react-icons/bs";
 import { FaFileInvoiceDollar } from "react-icons/fa";
-import api from "../api/axios";
+import api from "../../api/axios";
 
 export default function CardCaiDisponible() {
   const [disponible, setDisponible] = useState(null);
@@ -80,8 +80,8 @@ export default function CardCaiDisponible() {
     disponible <= 10
       ? "text-danger"
       : disponible <= 50
-      ? "text-warning"
-      : "text-success";
+        ? "text-warning"
+        : "text-success";
 
   return (
     <>

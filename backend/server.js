@@ -63,11 +63,23 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+
+
 // ✅ Aplica CORS a TODA la app
 app.use(cors(corsOptions));
 
 // ✅ IMPORTANTE: responde preflight (OPTIONS) para evitar el error que tienes
 app.options(/.*/, cors(corsOptions));
+
+const backupRoutes = require("./routes/backup");
+
+const descuentosRoutes = require("./routes/descuentos");
+
+
+app.use("/api/descuentos", descuentosRoutes);
+
+
+app.use("/api/backup", backupRoutes);
 
 
 /* ===========================
@@ -133,6 +145,8 @@ app.use(
   auth,
   require("./routes/promocion_productos")
 );
+
+
 
 /* ===========================
    404 (al final)

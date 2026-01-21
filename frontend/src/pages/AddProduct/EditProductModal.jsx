@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Form, Modal } from "react-bootstrap";
 import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
-import api from "../api/axios";
+import api from "../../api/axios";
 
 const API_URL = "http://localhost:3000"; // Cambia si usas .env
 
@@ -51,9 +51,9 @@ export default function EditProductModal({
           ? product.imagen.startsWith("http")
             ? product.imagen
             : product.imagen.startsWith("/uploads")
-            ? API_URL + product.imagen
-            : API_URL + "/uploads/" + product.imagen
-          : null
+              ? API_URL + product.imagen
+              : API_URL + "/uploads/" + product.imagen
+          : null,
       );
       setImagenFile(null);
     }

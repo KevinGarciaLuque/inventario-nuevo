@@ -1,21 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
-import InventoryPage from "../pages/InventoryPage";
 import AddProductPage from "../pages/AddProduct/AddProductPage";
+import InventoryPage from "../pages/InventoryPage";
 
+import CaiPage from "../pages/CaiPage";
 import CategoriesPage from "../pages/CategoriesPage";
+import ClientesPage from "../pages/Clientes/ClientesPage";
+import FacturasPage from "../pages/FacturasPage";
 import LocationsPage from "../pages/LocationsPage";
-import ReportsPage from "../pages/ReportsPage";
-import UsersPage from "../pages/UsersPage";
-import ClientesPage from "../pages/ClientesPage";
 import MovimientosPage from "../pages/MovimientosPage";
 import RegistrarMovimientoPage from "../pages/RegistrarMovimientoPage";
 import RegistrarVentaPage from "../pages/RegistrarVenta/RegistrarVentaPage";
-import CaiPage from "../pages/CaiPage";
-import FacturasPage from "../pages/FacturasPage";
+import ReportsPage from "../pages/ReportsPage";
 import UnidadesMedidaPage from "../pages/UnidadesMedida/UnidadesMedidaPage";
+import UsersPage from "../pages/UsersPage";
 
 // ✅ CAJA
 import AperturaCajaPage from "../pages/Caja/AperturaCajaPage";
@@ -23,12 +23,13 @@ import CierreCajaPage from "../pages/Caja/CierreCajaPage";
 import HistorialCierresPage from "../pages/Caja/HistorialCierresPage";
 
 // ✅ MANTENIMIENTO
+import BackupBDPage from "../pages/Mantenimiento/BackupBDPage";
+import DescuentosPage from "../pages/Mantenimiento/DescuentosPage";
 import ImpuestosPage from "../pages/Mantenimiento/ImpuestosPage";
 import PromocionesPage from "../pages/Promociones/PromocionesPage";
 
-
-import ProductModal from "./ProductModal";
 import BitacoraPage from "./BitacoraPage";
+import ProductModal from "./ProductModal";
 
 import "../styles/Layout.css";
 
@@ -139,8 +140,14 @@ export default function Layout({ onLogout }) {
       case "impuestos":
         return <ImpuestosPage />;
 
+      case "descuentos":
+        return <DescuentosPage />;
+
       case "promociones":
         return <PromocionesPage />;
+
+      case "backup":
+        return <BackupBDPage />;
 
       // ✅ Si algún rol todavía usa "reports", lo dejamos funcional
       case "reports":

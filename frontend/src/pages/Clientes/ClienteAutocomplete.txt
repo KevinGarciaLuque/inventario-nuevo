@@ -1,0 +1,284 @@
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  FormControl,
+  InputGroup,
+} from "react-bootstrap";
+import api from "../../api/axios";
+
+export default function ClienteManager() {
+  const [clientes, setClientes] = useState([]);
+  const [filtro, setFiltro] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const [modalShow, setModalShow] = useState(false);
+  const [modoEditar, setModoEditar] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+
+  const [formulario, setFormulario] = useState({
+    nombre: "",
+    rtn: "",
+    telefono: "",
+    direccion: "",
+  });
+
+  const obtenerClientes = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/clientes");
+      setClientes(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("❌ Error al obtener clientes:", err);
+      setClientes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    obtenerClientes();
+  }, []);
+
+  const abrirNuevo = () => {
+    setModoEditar(false);
+    setClienteSeleccionado(null);
+    setFormulario({ nombre: "", rtn: "", telefono: "", direccion: "" });
+    setModalShow(true);
+  };
+
+  const editarCliente = (cliente) => {
+    setModoEditar(true);
+    setClienteSeleccionado(cliente);
+
+    setFormulario({
+      nombre: cliente?.nombre || "",
+      rtn: cliente?.rtn || "",
+      telefono: cliente?.telefono || "",
+      direccion: cliente?.direccion || "",
+    });
+
+    setModalShow(true);
+  };
+
+  const cerrarModal = () => {
+    setModalShow(false);
+    setModoEditar(false);
+    setClienteSeleccionado(null);
+    setFormulario({ nombre: "", rtn: "", telefono: "", direccion: "" });
+  };
+
+  const handleGuardar = async () => {
+    try {
+      if (!String(formulario.nombre || "").trim()) {
+        alert("El nombre es obligatorio");
+        return;
+      }
+
+      if (modoEditar && clienteSeleccionado?.id) {
+        await api.put(`/clientes/${clienteSeleccionado.id}`, formulario);
+      } else {
+        await api.post("/clientes", formulario);
+      }
+
+      cerrarModal();
+      obtenerClientes();
+    } catch (err) {
+      console.error("❌ Error guardando cliente:", err);
+      alert(err?.response?.data?.message || "Error guardando cliente");
+    }
+  };
+
+  const eliminarCliente = async (id) => {
+    const ok = window.confirm("¿Seguro que deseas eliminar este cliente?");
+    if (!ok) return;
+
+    try {
+      await api.delete(`/clientes/${id}`);
+      obtenerClientes();
+    } catch (err) {
+      console.error("❌ Error eliminando cliente:", err);
+      alert(err?.response?.data?.message || "No se pudo eliminar el cliente");
+    }
+  };
+
+  const toggleActivo = async (id) => {
+    try {
+      await api.patch(`/clientes/toggle/${id}`);
+      obtenerClientes();
+    } catch (err) {
+      console.error("❌ Error cambiando estado:", err);
+      alert("No se pudo actualizar el estado");
+    }
+  };
+
+  const clientesFiltrados = useMemo(() => {
+    const f = String(filtro || "")
+      .toLowerCase()
+      .trim();
+    if (!f) return clientes;
+
+    return clientes.filter((c) => {
+      const nombre = String(c?.nombre || "").toLowerCase();
+      const rtn = String(c?.rtn || "").toLowerCase();
+      const tel = String(c?.telefono || "").toLowerCase();
+      return nombre.includes(f) || rtn.includes(f) || tel.includes(f);
+    });
+  }, [clientes, filtro]);
+
+  return (
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-2">
+        <h4 className="m-0">Clientes</h4>
+        <Button variant="success" onClick={abrirNuevo}>
+          Nuevo Cliente
+        </Button>
+      </div>
+
+      <InputGroup className="mb-3">
+        <FormControl
+          placeholder="Buscar por nombre, RTN o teléfono"
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+        />
+      </InputGroup>
+
+      <div className="bg-white border rounded" style={{ overflowX: "auto" }}>
+        <Table
+          striped
+          bordered
+          hover
+          responsive
+          className="mb-0"
+          style={{ minWidth: 720 }}
+        >
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>RTN</th>
+              <th>Teléfono</th>
+              <th>Dirección</th>
+              <th>Activo</th>
+              <th style={{ width: 160 }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="text-center py-4 text-muted">
+                  Cargando...
+                </td>
+              </tr>
+            ) : clientesFiltrados.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-4 text-muted">
+                  No hay clientes para mostrar.
+                </td>
+              </tr>
+            ) : (
+              clientesFiltrados.map((cliente) => (
+                <tr key={cliente.id}>
+                  <td>{cliente.nombre}</td>
+                  <td>{cliente.rtn || "-"}</td>
+                  <td>{cliente.telefono || "-"}</td>
+                  <td>{cliente.direccion || "-"}</td>
+                  <td>
+                    <Form.Check
+                      type="switch"
+                      checked={Boolean(cliente.activo)}
+                      onChange={() => toggleActivo(cliente.id)}
+                      label={cliente.activo ? "Activo" : "Inactivo"}
+                    />
+                  </td>
+                  <td>
+                    <Button
+                      variant="warning"
+                      size="sm"
+                      onClick={() => editarCliente(cliente)}
+                      className="me-2"
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => eliminarCliente(cliente.id)}
+                    >
+                      Eliminar
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
+      </div>
+
+      <Modal show={modalShow} onHide={cerrarModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {modoEditar ? "Editar Cliente" : "Nuevo Cliente"}
+          </Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>Nombre</Form.Label>
+            <FormControl
+              value={formulario.nombre}
+              onChange={(e) =>
+                setFormulario((p) => ({ ...p, nombre: e.target.value }))
+              }
+              placeholder="Nombre del cliente"
+              autoFocus
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>RTN</Form.Label>
+            <FormControl
+              value={formulario.rtn}
+              onChange={(e) =>
+                setFormulario((p) => ({ ...p, rtn: e.target.value }))
+              }
+              placeholder="RTN (opcional)"
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Teléfono</Form.Label>
+            <FormControl
+              value={formulario.telefono}
+              onChange={(e) =>
+                setFormulario((p) => ({ ...p, telefono: e.target.value }))
+              }
+              placeholder="Teléfono (opcional)"
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Dirección</Form.Label>
+            <FormControl
+              value={formulario.direccion}
+              onChange={(e) =>
+                setFormulario((p) => ({ ...p, direccion: e.target.value }))
+              }
+              placeholder="Dirección (opcional)"
+            />
+          </Form.Group>
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Button variant="secondary" onClick={cerrarModal}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={handleGuardar}>
+            Guardar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+}

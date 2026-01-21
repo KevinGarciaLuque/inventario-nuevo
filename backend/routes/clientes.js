@@ -1,105 +1,189 @@
+// backend/routes/clientes.js
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// 🔍 Buscar clientes por nombre o RTN
+// Helper: normaliza strings
+const s = (v) => String(v ?? "").trim();
+
+// 🔍 Buscar clientes por nombre / RTN / teléfono
 router.get("/buscar", async (req, res) => {
-  const termino = req.query.q || "";
+  const termino = s(req.query.q);
   try {
-    const [clientes] = await db.query(
-      `SELECT * FROM clientes WHERE nombre LIKE ? OR rtn LIKE ?`,
-      [`%${termino}%`, `%${termino}%`]
+    const like = `%${termino}%`;
+
+    const [rows] = await db.query(
+      `
+      SELECT id, nombre, rtn, telefono, direccion, activo
+      FROM clientes
+      WHERE nombre LIKE ? OR rtn LIKE ? OR telefono LIKE ?
+      ORDER BY nombre
+      `,
+      [like, like, like],
     );
-    res.json(clientes);
+
+    return res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error al buscar clientes" });
+    console.error("❌ /clientes/buscar:", err);
+    return res.status(500).json({ message: "Error al buscar clientes" });
   }
 });
 
 // 📋 Listar todos los clientes
 router.get("/", async (req, res) => {
   try {
-    const [clientes] = await db.query("SELECT * FROM clientes ORDER BY nombre");
-    res.json(clientes);
+    const [rows] = await db.query(
+      `
+      SELECT id, nombre, rtn, telefono, direccion, activo
+      FROM clientes
+      ORDER BY nombre
+      `,
+    );
+    return res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error al obtener los clientes" });
+    console.error("❌ GET /clientes:", err);
+    return res.status(500).json({ message: "Error al obtener los clientes" });
   }
 });
 
 // ➕ Crear cliente nuevo
 router.post("/", async (req, res) => {
-  const { nombre, rtn, direccion } = req.body;
+  const nombre = s(req.body.nombre);
+  const rtn = s(req.body.rtn);
+  const telefono = s(req.body.telefono);
+  const direccion = s(req.body.direccion);
+
+  if (!nombre) {
+    return res.status(400).json({ message: "El nombre es obligatorio" });
+  }
+
   try {
-    const [existe] = await db.query("SELECT id FROM clientes WHERE rtn = ?", [
-      rtn,
-    ]);
-    if (existe.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "Ya existe un cliente con ese RTN" });
+    // Si el RTN viene vacío, lo guardamos como NULL (más limpio)
+    const rtnValue = rtn ? rtn : null;
+
+    // Validar RTN duplicado solo si viene RTN
+    if (rtnValue) {
+      const [existe] = await db.query(
+        "SELECT id FROM clientes WHERE rtn = ? LIMIT 1",
+        [rtnValue],
+      );
+      if (existe.length > 0) {
+        return res
+          .status(400)
+          .json({ message: "Ya existe un cliente con ese RTN" });
+      }
     }
 
-    const [resultado] = await db.query(
-      "INSERT INTO clientes (nombre, rtn, direccion) VALUES (?, ?, ?)",
-      [nombre, rtn, direccion]
+    const [result] = await db.query(
+      `
+      INSERT INTO clientes (nombre, rtn, telefono, direccion, activo)
+      VALUES (?, ?, ?, ?, 1)
+      `,
+      [nombre, rtnValue, telefono || null, direccion || null],
     );
-    res.json({ id: resultado.insertId, nombre, rtn, direccion });
+
+    return res.json({
+      id: result.insertId,
+      nombre,
+      rtn: rtnValue,
+      telefono: telefono || "",
+      direccion: direccion || "",
+      activo: 1,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error al crear cliente" });
+    console.error("❌ POST /clientes:", err);
+    return res.status(500).json({ message: "Error al crear cliente" });
   }
 });
 
 // ✏️ Editar cliente
 router.put("/:id", async (req, res) => {
-  const { nombre, rtn, direccion } = req.body;
-  try {
-    const [resultado] = await db.query(
-      "UPDATE clientes SET nombre = ?, rtn = ?, direccion = ? WHERE id = ?",
-      [nombre, rtn, direccion, req.params.id]
-    );
-    res.json({ message: "Cliente actualizado correctamente" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error al actualizar cliente" });
-  }
-});
+  const id = req.params.id;
 
-// ❌ Eliminar cliente completamente (solo si deseas eliminación real)
-router.delete("/:id", async (req, res) => {
+  const nombre = s(req.body.nombre);
+  const rtn = s(req.body.rtn);
+  const telefono = s(req.body.telefono);
+  const direccion = s(req.body.direccion);
+
+  if (!nombre) {
+    return res.status(400).json({ message: "El nombre es obligatorio" });
+  }
+
   try {
-    await db.query("DELETE FROM clientes WHERE id = ?", [req.params.id]);
-    res.json({ message: "Cliente eliminado correctamente" });
+    const rtnValue = rtn ? rtn : null;
+
+    // Validar RTN duplicado (solo si viene RTN)
+    if (rtnValue) {
+      const [existe] = await db.query(
+        "SELECT id FROM clientes WHERE rtn = ? AND id <> ? LIMIT 1",
+        [rtnValue, id],
+      );
+      if (existe.length > 0) {
+        return res
+          .status(400)
+          .json({ message: "Ya existe otro cliente con ese RTN" });
+      }
+    }
+
+    await db.query(
+      `
+      UPDATE clientes
+      SET nombre = ?, rtn = ?, telefono = ?, direccion = ?
+      WHERE id = ?
+      `,
+      [nombre, rtnValue, telefono || null, direccion || null, id],
+    );
+
+    return res.json({ message: "Cliente actualizado correctamente" });
   } catch (err) {
-    res.status(500).json({ message: "Error al eliminar cliente" });
+    console.error("❌ PUT /clientes/:id:", err);
+    return res.status(500).json({ message: "Error al actualizar cliente" });
   }
 });
 
 // 🔄 Activar / Desactivar cliente
 router.patch("/toggle/:id", async (req, res) => {
+  const id = req.params.id;
+
   try {
-    const [cliente] = await db.query(
-      "SELECT activo FROM clientes WHERE id = ?",
-      [req.params.id]
+    const [rows] = await db.query(
+      "SELECT activo FROM clientes WHERE id = ? LIMIT 1",
+      [id],
     );
-    if (cliente.length === 0) {
+
+    if (rows.length === 0) {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const nuevoEstado = cliente[0].activo ? 0 : 1;
+    const nuevoEstado = rows[0].activo ? 0 : 1;
 
     await db.query("UPDATE clientes SET activo = ? WHERE id = ?", [
       nuevoEstado,
-      req.params.id,
+      id,
     ]);
-    res.json({
+
+    return res.json({
       message: `Cliente ${nuevoEstado ? "activado" : "desactivado"}`,
+      activo: nuevoEstado,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error al actualizar estado del cliente" });
+    console.error("❌ PATCH /clientes/toggle/:id:", err);
+    return res
+      .status(500)
+      .json({ message: "Error al actualizar estado del cliente" });
+  }
+});
+
+// ❌ Eliminar cliente (si deseas eliminación real)
+router.delete("/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    await db.query("DELETE FROM clientes WHERE id = ?", [id]);
+    return res.json({ message: "Cliente eliminado correctamente" });
+  } catch (err) {
+    console.error("❌ DELETE /clientes/:id:", err);
+    return res.status(500).json({ message: "Error al eliminar cliente" });
   }
 });
 

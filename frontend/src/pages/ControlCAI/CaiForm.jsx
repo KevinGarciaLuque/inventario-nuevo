@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { Button, Card, Form } from "react-bootstrap";
 import api from "../../api/axios";
-import { Form, Button, Card } from "react-bootstrap";
-import ToastAlert from "./ToastAlert";
+import ToastAlert from "../../components/ToastAlert";
 
 export default function CaiForm({ onSuccess }) {
   const [form, setForm] = useState({

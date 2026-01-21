@@ -1,3 +1,4 @@
+// frontend/src/pages/RegistrarVenta/hooks/useVenta.js
 import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../../../api/axios";
 import generarReciboPDF from "../../../utils/generarReciboPDF";
@@ -12,7 +13,7 @@ export default function useVenta({ user }) {
   const [buscar, setBuscar] = useState("");
   const inputBuscarRef = useRef(null);
 
-  // ✅ CAJA: bloqueo de ventas si no está abierta
+  // ✅ CAJA
   const [cajaLoading, setCajaLoading] = useState(true);
   const [cajaAbierta, setCajaAbierta] = useState(false);
   const [cajaInfo, setCajaInfo] = useState(null);
@@ -40,6 +41,7 @@ export default function useVenta({ user }) {
   const [formularioCliente, setFormularioCliente] = useState({
     nombre: "",
     rtn: "",
+    telefono: "", // ✅ NUEVO
     direccion: "",
   });
 
@@ -52,7 +54,7 @@ export default function useVenta({ user }) {
     dataRecibo: null,
   });
 
-  // Modal feedback (errores / advertencias)
+  // Modal feedback
   const [feedbackModal, setFeedbackModal] = useState({
     show: false,
     success: true,
@@ -66,11 +68,28 @@ export default function useVenta({ user }) {
     cambio: 0,
     cliente_nombre: "",
     cliente_rtn: "",
+    cliente_telefono: "", // ✅ NUEVO
     cliente_direccion: "",
   });
 
   const [refreshCaiTrigger, setRefreshCaiTrigger] = useState(0);
   const [resetPagoTrigger, setResetPagoTrigger] = useState(0);
+
+  // =======================
+  // ✅ DESCUENTOS POR CLIENTE
+  // =======================
+  const TIPOS_CON_DESCUENTO = [
+    "tercera_edad",
+    "cuarta_edad",
+    "discapacitado",
+    "empleado",
+    "preferencial",
+  ];
+
+  const [tipoCliente, setTipoCliente] = useState("");
+  const [descuentos, setDescuentos] = useState([]);
+  const [descuentosLoading, setDescuentosLoading] = useState(false);
+  const [descuentoSeleccionadoId, setDescuentoSeleccionadoId] = useState("");
 
   const mostrarToast = (message) => {
     setToast({ show: true, message });
@@ -95,7 +114,7 @@ export default function useVenta({ user }) {
     setProductos(res.data || []);
   };
 
-  // ✅ Consultar estado de caja (bloqueo estándar POS)
+  // ✅ Consultar caja
   const consultarCajaEstado = async () => {
     try {
       setCajaLoading(true);
@@ -105,6 +124,7 @@ export default function useVenta({ user }) {
       const abierta = res.data?.abierta === true;
 
       setCajaAbierta(abierta);
+      setCaiErrorMostradoRefSafe(); // no-op safe
       setCajaInfo(res.data?.caja || null);
 
       if (!abierta) setMsgCaja("Debes abrir caja antes de registrar ventas.");
@@ -116,6 +136,9 @@ export default function useVenta({ user }) {
       setCajaLoading(false);
     }
   };
+
+  // helper no-op para evitar warning si se edita luego
+  const setCaiErrorMostradoRefSafe = () => {};
 
   const consultarCai = async () => {
     try {
@@ -143,22 +166,17 @@ export default function useVenta({ user }) {
   const agregarProductoAlCarrito = (producto) => {
     setCarrito((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
-
       const stockProd = Number(producto.stock ?? 0);
 
-      // ✅ Descuento del producto (0-100)
       const descuentoPct = Math.max(
         0,
-        Math.min(100, Number(producto.descuento || 0))
+        Math.min(100, Number(producto.descuento || 0)),
       );
 
-
-      // ✅ Precio base
       const precioUnitario = Number(producto.precio ?? 0);
 
-      // ✅ Precio final
       const precioFinal = Number(
-        (precioUnitario * (1 - descuentoPct / 100)).toFixed(2)
+        (precioUnitario * (1 - descuentoPct / 100)).toFixed(2),
       );
 
       if (existe) {
@@ -172,14 +190,12 @@ export default function useVenta({ user }) {
 
           const nuevaCantidad = Number(p.cantidad) + 1;
           const subtotalLinea = Number(
-            (precioFinal * nuevaCantidad).toFixed(2)
+            (precioFinal * nuevaCantidad).toFixed(2),
           );
 
           return {
             ...p,
             cantidad: nuevaCantidad,
-
-            // ✅ campos clave para UI/recibo
             precio_unitario: precioUnitario,
             descuento_pct: descuentoPct,
             precio_final: precioFinal,
@@ -198,8 +214,6 @@ export default function useVenta({ user }) {
         {
           ...producto,
           cantidad: 1,
-
-          // ✅ campos clave para UI/recibo
           precio_unitario: precioUnitario,
           descuento_pct: descuentoPct,
           precio_final: precioFinal,
@@ -220,7 +234,7 @@ export default function useVenta({ user }) {
 
     try {
       const res = await api.get(
-        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`
+        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`,
       );
 
       if (Array.isArray(res.data) && res.data.length > 0) {
@@ -241,7 +255,7 @@ export default function useVenta({ user }) {
     if (!nombre) return false;
 
     const prod = productos.find(
-      (p) => (p.nombre || "").toLowerCase() === nombre
+      (p) => (p.nombre || "").toLowerCase() === nombre,
     );
 
     if (prod) {
@@ -269,7 +283,7 @@ export default function useVenta({ user }) {
     if (!okNombre) mostrarToast("Producto no encontrado");
   };
 
-  // Escáner por teclado (PC)
+  // Escáner por teclado
   useEffect(() => {
     const handleKeyPress = (e) => {
       const tag = e.target?.tagName;
@@ -310,7 +324,7 @@ export default function useVenta({ user }) {
         const nuevaCantidad = Math.max(1, Math.min(cant, stock || cant));
 
         const precioFinal = Number(
-          p.precio_final ?? p.precio_unitario ?? p.precio ?? 0
+          p.precio_final ?? p.precio_unitario ?? p.precio ?? 0,
         );
         const subtotalLinea = Number((precioFinal * nuevaCantidad).toFixed(2));
 
@@ -319,7 +333,7 @@ export default function useVenta({ user }) {
           cantidad: nuevaCantidad,
           subtotal_linea: subtotalLinea,
         };
-      })
+      }),
     );
   };
 
@@ -343,24 +357,91 @@ export default function useVenta({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usarRTN]);
 
-  const clientesFiltrados = useMemo(() => {
+  // ✅ CORRECCIÓN: nombre distinto para no chocar con el return
+  const clientesFiltradosMemo = useMemo(() => {
     const f = (filtroCliente || "").toLowerCase();
     return clientes.filter((c) =>
-      `${c.nombre || ""} ${c.rtn || ""}`.toLowerCase().includes(f)
+      `${c.nombre || ""} ${c.rtn || ""}`.toLowerCase().includes(f),
     );
   }, [clientes, filtroCliente]);
 
+  // ✅ GUARDAR CLIENTE + SELECCIONAR AUTOMÁTICO
   const handleGuardarCliente = async () => {
-    if (!formularioCliente.nombre.trim()) {
+    const payload = {
+      nombre: (formularioCliente.nombre || "").trim(),
+      rtn: (formularioCliente.rtn || "").trim(),
+      telefono: (formularioCliente.telefono || "").trim(),
+      direccion: (formularioCliente.direccion || "").trim(),
+    };
+
+    if (!payload.nombre) {
       mostrarToast("El nombre es obligatorio");
       return;
     }
+
     try {
-      await api.post("/clientes", formularioCliente);
+      const res = await api.post("/clientes", payload);
+
+      // Intentar obtener cliente creado desde respuesta (si tu backend lo devuelve)
+      const creado =
+        res?.data?.cliente ||
+        (res?.data && typeof res.data === "object" ? res.data : null);
+
+      // cerrar modal y limpiar
       setModalCliente(false);
-      setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
-      cargarClientes();
-      mostrarToast("Cliente agregado");
+      setFormularioCliente({
+        nombre: "",
+        rtn: "",
+        telefono: "",
+        direccion: "",
+      });
+
+      // refrescar lista
+      await cargarClientes();
+
+      // Seleccionar automático (fallback si backend no devolvió el cliente)
+      const rtnNuevo = payload.rtn;
+      const nombreNuevo = payload.nombre.toLowerCase();
+      const dirNuevo = payload.direccion.toLowerCase();
+
+      const seleccionado =
+        creado ||
+        clientes.find((c) => String(c.rtn || "").trim() === rtnNuevo) ||
+        clientes.find((c) => {
+          const n = String(c.nombre || "")
+            .trim()
+            .toLowerCase();
+          const d = String(c.direccion || "")
+            .trim()
+            .toLowerCase();
+          return n === nombreNuevo && d === dirNuevo;
+        }) ||
+        null;
+
+      const finalCliente = seleccionado || {
+        nombre: payload.nombre,
+        rtn: payload.rtn,
+        telefono: payload.telefono,
+        direccion: payload.direccion,
+      };
+
+      setVenta((prev) => ({
+        ...prev,
+        cliente_nombre: finalCliente.nombre || "",
+        cliente_rtn: finalCliente.rtn || "",
+        cliente_telefono: finalCliente.telefono || payload.telefono || "",
+        cliente_direccion: finalCliente.direccion || "",
+      }));
+
+      // si tu backend manda tipo_cliente y aplica, guárdalo; si no, limpiar
+      if (setTipoCliente) {
+        const t = finalCliente?.tipo_cliente || "";
+        if (t && TIPOS_CON_DESCUENTO.includes(t)) setTipoCliente(t);
+        else setTipoCliente("");
+      }
+
+      setFiltroCliente("");
+      mostrarToast("Cliente agregado y seleccionado ✅");
     } catch (err) {
       console.error(err);
       mostrarToast("Error al agregar cliente");
@@ -369,52 +450,120 @@ export default function useVenta({ user }) {
 
   const handleCerrarModalCliente = () => {
     setModalCliente(false);
-    setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
+    setFormularioCliente({ nombre: "", rtn: "", telefono: "", direccion: "" });
   };
 
   // =======================
-  // TOTALES (✅ con descuento)
+  // ✅ CARGAR DESCUENTOS POR TIPO
   // =======================
-  // =======================
-  // TOTALES (✅ con descuento)
-  // =======================
-const round2 = (n) => Number((Number(n) || 0).toFixed(2));
+  const cargarDescuentosPorTipo = async (tipo) => {
+    if (!tipo) {
+      setDescuentos([]);
+      return;
+    }
 
-const subtotalBruto = useMemo(() => {
-  return round2(
-    carrito.reduce((acc, item) => {
-      const precioBase = Number(item.precio ?? item.precio_unitario ?? 0) || 0;
-      const cantidad = Number(item.cantidad ?? 0) || 0;
-      return acc + cantidad * precioBase;
-    }, 0)
+    setDescuentosLoading(true);
+    try {
+      const res = await api.get(`/descuentos?tipo=${encodeURIComponent(tipo)}`);
+      setDescuentos(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error(e);
+      setDescuentos([]);
+    } finally {
+      setDescuentosLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!TIPOS_CON_DESCUENTO.includes(tipoCliente)) {
+      setDescuentos([]);
+      setDescuentoSeleccionadoId("");
+      return;
+    }
+
+    setDescuentoSeleccionadoId("");
+    cargarDescuentosPorTipo(tipoCliente);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipoCliente]);
+
+  const descuentoClienteObj = useMemo(() => {
+    if (!descuentoSeleccionadoId) return null;
+    return (
+      descuentos.find(
+        (d) => String(d.id) === String(descuentoSeleccionadoId),
+      ) || null
+    );
+  }, [descuentoSeleccionadoId, descuentos]);
+
+  // =======================
+  // TOTALES
+  // =======================
+  const round2 = (n) => Number((Number(n) || 0).toFixed(2));
+
+  const subtotalBruto = useMemo(() => {
+    return round2(
+      carrito.reduce((acc, item) => {
+        const precioBase =
+          Number(item.precio ?? item.precio_unitario ?? 0) || 0;
+        const cantidad = Number(item.cantidad ?? 0) || 0;
+        return acc + cantidad * precioBase;
+      }, 0),
+    );
+  }, [carrito]);
+
+  const descuentoTotal = useMemo(() => {
+    return round2(
+      carrito.reduce((acc, item) => {
+        const cant = Number(item.cantidad ?? 0) || 0;
+        const precioBase = Number(item.precio ?? 0) || 0;
+        const precioFinal = Number(item.precio_final ?? precioBase) || 0;
+        return acc + cant * Math.max(0, precioBase - precioFinal);
+      }, 0),
+    );
+  }, [carrito]);
+
+  const total = useMemo(() => {
+    return round2(
+      carrito.reduce((acc, item) => {
+        const cant = Number(item.cantidad ?? 0) || 0;
+        const pf = Number(item.precio_final ?? item.precio ?? 0) || 0;
+        return acc + cant * pf;
+      }, 0),
+    );
+  }, [carrito]);
+
+  const descuentoClienteMonto = useMemo(() => {
+    if (!descuentoClienteObj) return 0;
+
+    const base = Number(total || 0);
+    const porcentaje = Number(descuentoClienteObj.porcentaje ?? 0) || 0;
+    const monto = Number(descuentoClienteObj.monto ?? 0) || 0;
+
+    let desc = 0;
+    if (porcentaje > 0) desc = base * (porcentaje / 100);
+    else desc = monto;
+
+    return round2(Math.max(0, Math.min(base, desc)));
+  }, [descuentoClienteObj, total]);
+
+  const totalConDescCliente = useMemo(() => {
+    return round2(
+      Math.max(0, Number(total || 0) - Number(descuentoClienteMonto || 0)),
+    );
+  }, [total, descuentoClienteMonto]);
+
+  const impuesto = useMemo(
+    () => round2((totalConDescCliente / IVA_FACTOR) * 0.15),
+    [totalConDescCliente],
   );
-}, [carrito]);
 
-const descuentoTotal = useMemo(() => {
-  return round2(
-    carrito.reduce((acc, item) => {
-      const cant = Number(item.cantidad ?? 0) || 0;
-      const precioBase = Number(item.precio ?? 0) || 0;
-      const precioFinal = Number(item.precio_final ?? precioBase) || 0;
-      return acc + cant * Math.max(0, precioBase - precioFinal);
-    }, 0)
+  const subtotal = useMemo(
+    () => round2(totalConDescCliente - impuesto),
+    [totalConDescCliente, impuesto],
   );
-}, [carrito]);
 
-const total = useMemo(() => {
-  return round2(
-    carrito.reduce((acc, item) => {
-      const cant = Number(item.cantidad ?? 0) || 0;
-      const pf = Number(item.precio_final ?? item.precio ?? 0) || 0;
-      return acc + cant * pf;
-    }, 0)
-  );
-}, [carrito]);
-
-const impuesto = useMemo(() => round2((total / 1.15) * 0.15), [total]);
-const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
   // =======================
-  // VENTA Y FACTURA
+  // VENTA
   // =======================
   const registrarVenta = async () => {
     try {
@@ -437,7 +586,10 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
         return;
       }
 
-      if (venta.metodo_pago === "efectivo" && Number(venta.efectivo) < total) {
+      if (
+        venta.metodo_pago === "efectivo" &&
+        Number(venta.efectivo) < totalConDescCliente
+      ) {
         setFeedbackModal({
           show: true,
           success: false,
@@ -446,7 +598,6 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
         return;
       }
 
-      // ✅ (recomendado) backend calcula precio_final/desc desde BD
       const productosPayload = carrito.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
@@ -457,10 +608,15 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
         productos: productosPayload,
         cliente_nombre: venta.cliente_nombre,
         cliente_rtn: venta.cliente_rtn,
+        cliente_telefono: venta.cliente_telefono,
         cliente_direccion: venta.cliente_direccion,
         metodo_pago: venta.metodo_pago,
         efectivo: venta.efectivo,
         cambio: venta.cambio,
+
+        tipo_cliente: tipoCliente || null,
+        descuento_cliente_id: descuentoSeleccionadoId || null,
+        descuento_cliente_monto: descuentoClienteMonto || 0,
       });
 
       const dataRecibo = {
@@ -470,11 +626,17 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
         descuentoTotal,
         subtotal,
         impuesto,
-        total,
+        total: totalConDescCliente,
+
+        totalSinDescCliente: total,
+        descuentoCliente: descuentoClienteMonto,
+        descuentoClienteNombre: descuentoClienteObj?.nombre || "",
+
         user,
         cai: cai || {},
         cliente_nombre: venta.cliente_nombre,
         cliente_rtn: venta.cliente_rtn,
+        cliente_telefono: venta.cliente_telefono,
         cliente_direccion: venta.cliente_direccion,
         metodoPago: venta.metodo_pago,
         efectivo: venta.efectivo,
@@ -491,6 +653,7 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
 
       setRefreshCaiTrigger((prev) => prev + 1);
 
+      // reset
       setCarrito([]);
       setVenta({
         metodo_pago: "efectivo",
@@ -498,11 +661,21 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
         cambio: 0,
         cliente_nombre: "",
         cliente_rtn: "",
+        cliente_telefono: "",
         cliente_direccion: "",
       });
 
+      setTipoCliente("");
+      setDescuentos([]);
+      setDescuentoSeleccionadoId("");
+
       limpiarInputBuscar();
-      setFormularioCliente({ nombre: "", rtn: "", direccion: "" });
+      setFormularioCliente({
+        nombre: "",
+        rtn: "",
+        telefono: "",
+        direccion: "",
+      });
       setResetPagoTrigger((prev) => prev + 1);
     } catch (error) {
       console.error("❌ Error al registrar venta:", error);
@@ -554,7 +727,7 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
     usarRTN,
     setUsarRTN,
     clientesLoading,
-    clientesFiltrados,
+    clientesFiltrados: clientesFiltradosMemo,
     filtroCliente,
     setFiltroCliente,
     venta,
@@ -567,11 +740,21 @@ const subtotal = useMemo(() => round2(total - impuesto), [total, impuesto]);
     handleGuardarCliente,
     handleCerrarModalCliente,
 
-    // totales ✅
+    // descuentos por cliente
+    tipoCliente,
+    setTipoCliente,
+    descuentos,
+    descuentosLoading,
+    descuentoSeleccionadoId,
+    setDescuentoSeleccionadoId,
+    descuentoClienteObj,
+    descuentoClienteMonto,
+
+    // totales
     subtotalBruto,
     descuentoTotal,
-
     total,
+    totalConDescCliente,
     impuesto,
     subtotal,
 

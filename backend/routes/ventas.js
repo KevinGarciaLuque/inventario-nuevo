@@ -66,7 +66,7 @@ const validarCajaAbierta = async (connection, req) => {
     ORDER BY fecha_apertura DESC
     LIMIT 1
     `,
-    [usuario_id]
+    [usuario_id],
   );
 
   if (!rows.length) return { ok: false, caja: null };
@@ -84,7 +84,7 @@ const cargarComboVigente = async (connection, promocion_id) => {
     WHERE id = ?
     LIMIT 1
     `,
-    [promocion_id]
+    [promocion_id],
   );
 
   if (!promoRows.length) {
@@ -126,7 +126,7 @@ const cargarComboVigente = async (connection, promocion_id) => {
     WHERE pp.promocion_id = ?
       AND pp.activo = 1
     `,
-    [promocion_id]
+    [promocion_id],
   );
 
   if (!compRows.length) {
@@ -137,12 +137,168 @@ const cargarComboVigente = async (connection, promocion_id) => {
 };
 
 /* =====================================================
+   Helpers: Descuentos (nuevo)
+===================================================== */
+const normalizeEnum = (v) =>
+  String(v ?? "")
+    .trim()
+    .toUpperCase();
+const money = (n) => (Number.isFinite(Number(n)) ? Number(n) : 0);
+
+const calcMontoDescuento = ({ tipo, valor, base }) => {
+  const t = normalizeEnum(tipo);
+  const v = money(valor);
+  const b = money(base);
+
+  if (b <= 0) return 0;
+
+  if (t === "PORCENTAJE") {
+    const pct = clampPct(v);
+    return round2(b * (pct / 100));
+  }
+
+  // MONTO_FIJO
+  return round2(Math.min(v, b));
+};
+
+const cargarDescuentosAplicables = async (
+  connection,
+  { edad, productoIds, categoriaIds },
+) => {
+  const edadNum = Number.isFinite(Number(edad)) ? Number(edad) : null;
+  const prod = Array.isArray(productoIds)
+    ? productoIds.map(Number).filter((x) => Number.isFinite(x) && x > 0)
+    : [];
+  const cat = Array.isArray(categoriaIds)
+    ? categoriaIds.map(Number).filter((x) => Number.isFinite(x) && x > 0)
+    : [];
+
+  let sql = `
+    SELECT d.*
+    FROM descuentos d
+    WHERE d.activo = 1
+      AND (d.fecha_inicio IS NULL OR d.fecha_inicio <= CURDATE())
+      AND (d.fecha_fin IS NULL OR d.fecha_fin >= CURDATE())
+  `;
+  const params = [];
+
+  if (edadNum !== null) {
+    sql += `
+      AND (
+        (d.edad_min IS NULL AND d.edad_max IS NULL)
+        OR ((d.edad_min IS NULL OR d.edad_min <= ?) AND (d.edad_max IS NULL OR d.edad_max >= ?))
+      )
+    `;
+    params.push(edadNum, edadNum);
+  }
+
+  sql += ` ORDER BY d.prioridad ASC, d.id ASC`;
+
+  const [rows] = await connection.query(sql, params);
+  if (!rows.length) return [];
+
+  const aplicables = [];
+
+  for (const d of rows) {
+    const alcance = normalizeEnum(d.alcance);
+
+    if (alcance === "VENTA") {
+      aplicables.push(d);
+      continue;
+    }
+
+    if (alcance === "PRODUCTO") {
+      if (!prod.length) continue;
+      const [rel] = await connection.query(
+        `SELECT 1
+         FROM descuento_productos
+         WHERE id_descuento = ?
+           AND id_producto IN (${prod.map(() => "?").join(",")})
+         LIMIT 1`,
+        [d.id, ...prod],
+      );
+      if (rel.length) aplicables.push(d);
+      continue;
+    }
+
+    if (alcance === "CATEGORIA") {
+      if (!cat.length) continue;
+      const [rel] = await connection.query(
+        `SELECT 1
+         FROM descuento_categorias
+         WHERE id_descuento = ?
+           AND id_categoria IN (${cat.map(() => "?").join(",")})
+         LIMIT 1`,
+        [d.id, ...cat],
+      );
+      if (rel.length) aplicables.push(d);
+      continue;
+    }
+  }
+
+  return aplicables;
+};
+
+const aplicarDescuentos = ({ totalConImpuestoBruto, descuentos }) => {
+  let totalCI = round2(totalConImpuestoBruto); // total con impuesto (bruto)
+  const applied = [];
+
+  for (const d of descuentos) {
+    const aplicaSobre = normalizeEnum(d.aplica_sobre || "SUBTOTAL");
+    const tipo = normalizeEnum(d.tipo || "PORCENTAJE");
+    const valor = money(d.valor);
+    const acumulable = Number(d.acumulable) === 1;
+
+    const base =
+      aplicaSobre === "TOTAL" ? totalCI : round2(totalCI / IVA_FACTOR);
+
+    const monto = calcMontoDescuento({ tipo, valor, base });
+    if (monto <= 0) continue;
+
+    if (aplicaSobre === "TOTAL") {
+      totalCI = round2(Math.max(0, totalCI - monto));
+    } else {
+      const sub = round2(totalCI / IVA_FACTOR);
+      const sub2 = round2(Math.max(0, sub - monto));
+      totalCI = round2(sub2 * IVA_FACTOR);
+    }
+
+    applied.push({
+      id_descuento: d.id,
+      nombre_descuento: d.nombre,
+      tipo,
+      valor,
+      aplica_sobre: aplicaSobre,
+      monto_descontado: round2(monto),
+      acumulable,
+      prioridad: Number(d.prioridad) || 100,
+    });
+
+    if (!acumulable) break;
+  }
+
+  const subtotal = round2(totalCI / IVA_FACTOR);
+  const impuesto = round2(totalCI - subtotal);
+
+  return {
+    subtotal,
+    impuesto,
+    total_con_impuesto: totalCI,
+    descuentos_aplicados: applied,
+    total_descuento: round2(
+      applied.reduce((a, x) => a + x.monto_descontado, 0),
+    ),
+  };
+};
+
+/* =====================================================
    Registrar venta + factura
    - Solo admin o cajero
    - usuario_id se toma del token (req.user.id)
    - ✅ Bloquea si no hay caja abierta
    - ✅ Recalcula precios de productos desde BD
    - ✅ SOPORTA COMBOS (promocion_id) que rebajan inventario por componentes
+   - ✅ DESCUENTOS (módulo nuevo) por prioridad / acumulable
 ===================================================== */
 router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
   const {
@@ -153,6 +309,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     metodo_pago = "efectivo",
     efectivo = 0,
     cambio = 0,
+    edad_cliente = null, // ✅ NUEVO (opcional)
   } = req.body || {};
 
   if (!Array.isArray(productos) || productos.length === 0) {
@@ -206,12 +363,12 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       // ✅ Debe venir uno u otro
       if (esProducto && esCombo) {
         throw new Error(
-          "Item inválido: no puede traer producto_id y promocion_id a la vez."
+          "Item inválido: no puede traer producto_id y promocion_id a la vez.",
         );
       }
       if (!esProducto && !esCombo) {
         throw new Error(
-          "Item inválido: debe traer producto_id (producto) o promocion_id (combo)."
+          "Item inválido: debe traer producto_id (producto) o promocion_id (combo).",
         );
       }
 
@@ -224,7 +381,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
            FROM productos
            WHERE id = ?
            LIMIT 1`,
-          [producto_id]
+          [producto_id],
         );
 
         if (!productoRows.length) {
@@ -245,7 +402,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         }
         if (stockActual < cantidad) {
           throw new Error(
-            `Stock insuficiente para "${producto.nombre}". Stock: ${stockActual}`
+            `Stock insuficiente para "${producto.nombre}". Stock: ${stockActual}`,
           );
         }
 
@@ -277,7 +434,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       if (esCombo) {
         const { promo, precioCombo, componentes } = await cargarComboVigente(
           connection,
-          promocion_id
+          promocion_id,
         );
 
         // 1) Validar stock por componentes (multiplicado por cantidad de combos)
@@ -291,26 +448,25 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
           }
           if (!Number.isFinite(cantPorCombo) || cantPorCombo <= 0) {
             throw new Error(
-              `Combo "${promo.nombre}": cantidad inválida en componente.`
+              `Combo "${promo.nombre}": cantidad inválida en componente.`,
             );
           }
           if (!Number.isFinite(stockActual)) {
             throw new Error(
-              `Combo "${promo.nombre}": stock inválido en "${c.nombre}".`
+              `Combo "${promo.nombre}": stock inválido en "${c.nombre}".`,
             );
           }
 
           const requerido = cantPorCombo * cantidad;
 
-          // validación usando stock actual (sin considerar otras líneas todavía)
           if (stockActual < requerido) {
             throw new Error(
-              `Stock insuficiente para combo "${promo.nombre}". Falta stock de "${c.nombre}". Stock: ${stockActual}`
+              `Stock insuficiente para combo "${promo.nombre}". Falta stock de "${c.nombre}". Stock: ${stockActual}`,
             );
           }
         }
 
-        // 2) Acumular descuentos de stock por componentes (para validar contra otras líneas y descontar al final)
+        // 2) Acumular descuento de stock por componentes
         for (const c of componentes) {
           const pid = Number(c.producto_id);
           const cantPorCombo = Number(c.cantidad) || 0;
@@ -318,7 +474,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
           stockOps.set(pid, (stockOps.get(pid) || 0) + requerido);
         }
 
-        // 3) Registrar línea del combo (como un ítem vendido)
+        // 3) Registrar línea del combo
         const subtotalLinea = round2(precioCombo * cantidad);
         total = round2(total + subtotalLinea);
 
@@ -327,7 +483,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
           producto_id: null,
           promocion_id,
           cantidad,
-          precio_unitario: precioCombo, // precio del combo
+          precio_unitario: precioCombo,
           descuento_pct: 0,
           precio_final: precioCombo,
           subtotal: subtotalLinea,
@@ -338,48 +494,76 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       }
     }
 
-    // ✅ Validación final de stock cruzada (productos + combos juntos)
-    // Esto evita: "producto suelto + combo" que juntos dejan stock negativo.
+    // ✅ Validación final de stock cruzada
     if (stockOps.size > 0) {
       const ids = Array.from(stockOps.keys());
       const placeholders = ids.map(() => "?").join(",");
 
       const [stocksRows] = await connection.query(
         `SELECT id, nombre, stock FROM productos WHERE id IN (${placeholders})`,
-        ids
+        ids,
       );
 
       const stockMap = new Map(
         stocksRows.map((r) => [
           Number(r.id),
           { nombre: r.nombre, stock: Number(r.stock) },
-        ])
+        ]),
       );
 
       for (const [pid, requeridoTotal] of stockOps.entries()) {
         const info = stockMap.get(pid);
-        if (!info) {
+        if (!info)
           throw new Error(
-            `Producto no encontrado (ID ${pid}) al validar stock.`
+            `Producto no encontrado (ID ${pid}) al validar stock.`,
           );
-        }
-        if (!Number.isFinite(info.stock)) {
+        if (!Number.isFinite(info.stock))
           throw new Error(`Stock inválido para "${info.nombre}".`);
-        }
         if (info.stock < requeridoTotal) {
           throw new Error(
-            `Stock insuficiente para "${info.nombre}". Requerido: ${requeridoTotal}, Stock: ${info.stock}`
+            `Stock insuficiente para "${info.nombre}". Requerido: ${requeridoTotal}, Stock: ${info.stock}`,
           );
         }
       }
     }
 
     // =========================
-    // 2) ISV ya incluido en el precio (desglose)
+    // 2) DESCUENTOS (nuevo)
     // =========================
-    const subtotal = round2(total / IVA_FACTOR);
-    const impuesto = round2(total - subtotal);
-    const total_con_impuesto = round2(total);
+    const productoIdsCarrito = Array.from(stockOps.keys());
+
+    // categorias de los productos del carrito
+    let categoriaIdsCarrito = [];
+    if (productoIdsCarrito.length) {
+      const placeholders = productoIdsCarrito.map(() => "?").join(",");
+      const [catRows] = await connection.query(
+        `SELECT DISTINCT categoria_id
+         FROM productos
+         WHERE id IN (${placeholders}) AND categoria_id IS NOT NULL`,
+        productoIdsCarrito,
+      );
+      categoriaIdsCarrito = catRows
+        .map((r) => Number(r.categoria_id))
+        .filter(Boolean);
+    }
+
+    const descuentosAplicables = await cargarDescuentosAplicables(connection, {
+      edad: edad_cliente,
+      productoIds: productoIdsCarrito,
+      categoriaIds: categoriaIdsCarrito,
+    });
+
+    const totalesConDescuento = aplicarDescuentos({
+      totalConImpuestoBruto: total, // total con ISV incluido
+      descuentos: descuentosAplicables,
+    });
+
+    const subtotal = totalesConDescuento.subtotal;
+    const impuesto = totalesConDescuento.impuesto;
+    const total_con_impuesto = totalesConDescuento.total_con_impuesto;
+
+    const descuentos_aplicados = totalesConDescuento.descuentos_aplicados || [];
+    const total_descuento = totalesConDescuento.total_descuento || 0;
 
     // =========================
     // 3) Insertar venta
@@ -402,17 +586,37 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         mp,
         mp === "efectivo" ? efectivoNum : 0,
         mp === "efectivo" ? cambioNum : 0,
-      ]
+      ],
     );
 
     const venta_id = ventaResult.insertId;
 
     // =========================
+    // 3.1) Guardar auditoría de descuentos aplicados (nuevo)
+    // =========================
+    if (descuentos_aplicados.length) {
+      for (const d of descuentos_aplicados) {
+        await connection.query(
+          `INSERT INTO venta_descuentos
+            (id_venta, id_descuento, nombre_descuento, tipo, valor, monto_descontado, creado_por)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            venta_id,
+            d.id_descuento,
+            d.nombre_descuento,
+            d.tipo,
+            d.valor,
+            d.monto_descontado,
+            usuario_id,
+          ],
+        );
+      }
+    }
+
+    // =========================
     // 4) Insertar detalle
     // =========================
     for (const d of detalleVenta) {
-      // Nota: tu tabla ya venía usando estas columnas (precio_unitario, descuento_pct, precio_final, subtotal).
-      // Si por alguna razón las ocultas en el DESCRIBE, igual existen; si no existieran, tu sistema anterior ya fallaría.
       await connection.query(
         `INSERT INTO detalle_ventas (
           venta_id, producto_id, promocion_id, cantidad,
@@ -427,17 +631,17 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
           d.descuento_pct,
           d.precio_final,
           d.subtotal,
-        ]
+        ],
       );
     }
 
     // =========================
-    // 5) Actualizar stock (una sola pasada, con todo acumulado)
+    // 5) Actualizar stock
     // =========================
     for (const [pid, qty] of stockOps.entries()) {
       await connection.query(
         "UPDATE productos SET stock = stock - ? WHERE id = ?",
-        [qty, pid]
+        [qty, pid],
       );
     }
 
@@ -451,18 +655,18 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
       const [clienteExistente] = await connection.query(
         "SELECT id FROM clientes WHERE rtn = ? LIMIT 1",
-        [rtn]
+        [rtn],
       );
 
       if (!clienteExistente.length) {
         await connection.query(
           "INSERT INTO clientes (nombre, rtn, direccion) VALUES (?, ?, ?)",
-          [nombreCliente, rtn, dirCliente]
+          [nombreCliente, rtn, dirCliente],
         );
       } else {
         await connection.query(
           "UPDATE clientes SET nombre = ?, direccion = ? WHERE rtn = ?",
-          [nombreCliente, dirCliente, rtn]
+          [nombreCliente, dirCliente, rtn],
         );
       }
     }
@@ -471,7 +675,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     // 7) Obtener CAI activo
     // =========================
     const [caiRows] = await connection.query(
-      "SELECT * FROM cai WHERE activo = 1 LIMIT 1"
+      "SELECT * FROM cai WHERE activo = 1 LIMIT 1",
     );
     if (!caiRows.length) throw new Error("No hay CAI activo configurado");
 
@@ -505,17 +709,17 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         mp,
         mp === "efectivo" ? efectivoNum : 0,
         mp === "efectivo" ? cambioNum : 0,
-      ]
+      ],
     );
 
     const factura_id = facturaResult.insertId;
 
     // =========================
-    // 9) Vincular venta con factura + guardar CAI string en ventas (tu columna "cai")
+    // 9) Vincular venta con factura + guardar CAI string en ventas (columna "cai")
     // =========================
     await connection.query(
       "UPDATE ventas SET factura_id = ?, cai = ? WHERE id = ?",
-      [factura_id, numeroFactura, venta_id]
+      [factura_id, numeroFactura, venta_id],
     );
 
     // =========================
@@ -523,7 +727,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     // =========================
     await connection.query(
       "UPDATE cai SET correlativo_actual = ? WHERE id = ?",
-      [siguiente, cai.id]
+      [siguiente, cai.id],
     );
 
     await connection.commit();
@@ -541,6 +745,8 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       factura_id,
       numeroFactura,
       alerta,
+      descuentos_aplicados,
+      total_descuento,
     });
   } catch (error) {
     try {

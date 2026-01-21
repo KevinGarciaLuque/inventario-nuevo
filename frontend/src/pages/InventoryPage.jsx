@@ -4,8 +4,8 @@ import { CheckCircleFill, Trash, XCircleFill } from "react-bootstrap-icons";
 import { FaBroom } from "react-icons/fa";
 import api from "../api/axios";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
-import EditProductModal from "../components/EditProductModal";
 import { useUser } from "../context/UserContext";
+import EditProductModal from "./AddProduct/EditProductModal";
 
 const API_URL = "http://localhost:3000";
 
@@ -113,7 +113,7 @@ export default function InventoryPage({ onView }) {
 
   const beep = () => {
     const audio = new Audio(
-      "https://assets.mixkit.co/sfx/download/mixkit-positive-interface-beep-221.mp3"
+      "https://assets.mixkit.co/sfx/download/mixkit-positive-interface-beep-221.mp3",
     );
     audio.play();
   };
@@ -145,7 +145,7 @@ export default function InventoryPage({ onView }) {
     if (!id) return;
     try {
       const response = await api.delete(
-        `/productos/${id}?usuario_id=${usuario_id}`
+        `/productos/${id}?usuario_id=${usuario_id}`,
       );
       if (response.data?.message) {
         setToast({
@@ -172,7 +172,7 @@ export default function InventoryPage({ onView }) {
     if (toast.show) {
       const timer = setTimeout(
         () => setToast((t) => ({ ...t, show: false })),
-        3000
+        3000,
       );
       return () => clearTimeout(timer);
     }
@@ -188,8 +188,8 @@ export default function InventoryPage({ onView }) {
       (stockFilter === ""
         ? true
         : stockFilter === "bajo"
-        ? item.stock <= (item.stock_minimo || 1)
-        : item.stock > (item.stock_minimo || 1))
+          ? item.stock <= (item.stock_minimo || 1)
+          : item.stock > (item.stock_minimo || 1)),
   );
 
   // Render

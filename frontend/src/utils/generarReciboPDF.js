@@ -1,29 +1,45 @@
+// frontend/src/utils/generarReciboPDF.js
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoImage from "../assets/logo.png";
 
 /**
  * ✅ Recibo/Factura 80mm (ISV incluido en precios)
- * - Muestra descuento real por línea (si viene en carrito: descuento_pct y precio_final)
- * - Calcula y muestra Descuentos/Rebajas (total descuento aplicado)
- * - Mantiene subtotal/impuesto/total que ya calculas en backend (NO recalcula mal)
+ * - NO recalcula subtotal/impuesto/total (usa lo que ya calculaste)
+ * - Soporta descuentos por producto (precio_unitario / precio_final)
+ * - Soporta descuento por cliente (descuentoCliente) si lo envías
  * - Soporta COPIA
  * - Método de pago efectivo/tarjeta
+ * - Cliente: nombre, RTN, teléfono, dirección
  */
 const generarReciboPDF = ({
   numeroFactura,
   carrito = [],
+
+  // totales ya calculados (del hook/backend)
   subtotal = 0,
   impuesto = 0,
   total = 0,
+
+  // extras opcionales
+  subtotalBruto = 0,
+  descuentoTotal = 0, // descuento productos (si lo envías)
+  totalSinDescCliente = null,
+  descuentoCliente = 0,
+  descuentoClienteNombre = "",
+
   user,
   cai = {},
+
   cliente_nombre,
   cliente_rtn,
+  cliente_telefono, // ✅ NUEVO
   cliente_direccion,
+
   metodoPago = "efectivo",
   efectivo = 0,
   cambio = 0,
+
   esCopia = false,
 }) => {
   const formatoLempiras = (valor) =>
@@ -35,26 +51,43 @@ const generarReciboPDF = ({
   const round2 = (n) => Number((Number(n) || 0).toFixed(2));
   const safeNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-  // ✅ Totales (no recalculamos impuesto/subtotal aquí; ya vienen del backend)
+  // ✅ Totales (no recalculamos impuesto/subtotal aquí; ya vienen listos)
   const totalNumerico = round2(safeNum(total));
   const subtotalNumerico = round2(safeNum(subtotal));
   const impuestoNumerico = round2(safeNum(impuesto));
 
-  // ✅ Descuento total del carrito (si viene info por línea: precio_unitario, precio_final, cantidad)
-  const descuentoTotal = round2(
+  // ✅ Descuento por producto (si NO lo mandas, lo calculamos desde carrito)
+  const descuentoProductosCalculado = round2(
     carrito.reduce((acc, item) => {
       const cant = safeNum(item.cantidad);
       const pu = safeNum(item.precio_unitario ?? item.precio); // base
       const pf = safeNum(item.precio_final ?? item.precio); // final con desc
-      const descLinea = cant * Math.max(0, pu - pf);
-      return acc + descLinea;
-    }, 0)
+      return acc + cant * Math.max(0, pu - pf);
+    }, 0),
   );
 
-  // ✅ Altura dinámica (más estable)
-  const alturaBase = 170; // encabezado + totales + textos
-  const alturaFila = 8; // alto aprox por fila
-  const alturaTotal = alturaBase + carrito.length * alturaFila + 60;
+  const descuentoProductosFinal =
+    round2(safeNum(descuentoTotal)) > 0
+      ? round2(safeNum(descuentoTotal))
+      : descuentoProductosCalculado;
+
+  const descuentoClienteFinal = round2(safeNum(descuentoCliente));
+
+  // ✅ Descuento total a mostrar
+  const descuentosRebajas = round2(
+    Math.max(0, descuentoProductosFinal + descuentoClienteFinal),
+  );
+
+  // ✅ Para “Total antes de desc cliente” si lo quieres mostrar
+  const totalAntesDescCliente =
+    totalSinDescCliente != null
+      ? round2(safeNum(totalSinDescCliente))
+      : round2(totalNumerico + descuentoClienteFinal);
+
+  // ✅ Altura dinámica del ticket
+  const alturaBase = 185;
+  const alturaFila = 8;
+  const alturaTotal = alturaBase + carrito.length * alturaFila + 70;
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -66,15 +99,19 @@ const generarReciboPDF = ({
   const margenIzq = 10;
   const margenDer = 70;
 
-  const img = new Image();
-  img.src = logoImage;
-
-  img.onload = () => {
+  const renderRecibo = (conLogo) => {
     // ==========================
     // LOGO
     // ==========================
-    doc.addImage(img, "PNG", 10, posY, 60, 28);
-    posY += 32;
+    if (conLogo) {
+      try {
+        doc.addImage(conLogo, "PNG", 10, posY, 60, 28);
+        posY += 32;
+      } catch {
+        // si falla addImage, seguimos sin logo
+        posY += 2;
+      }
+    }
 
     // ==========================
     // ENCABEZADO
@@ -105,7 +142,7 @@ const generarReciboPDF = ({
     doc.text(
       `Rango: ${cai.rango_inicio || "-"} - ${cai.rango_fin || "-"}`,
       margenIzq,
-      posY
+      posY,
     );
     posY += 4;
     doc.text(`Autorizado: ${cai.fecha_autorizacion || "-"}`, margenIzq, posY);
@@ -122,7 +159,7 @@ const generarReciboPDF = ({
 
     if (esCopia) {
       doc.setFontSize(9);
-      doc.setTextColor(255, 0, 0);
+      doc.setTextColor(220, 53, 69); // rojo bootstrap
       doc.text("COPIA", 40, posY, { align: "center" });
       doc.setTextColor(0, 0, 0);
       posY += 5;
@@ -142,7 +179,7 @@ const generarReciboPDF = ({
     doc.text(
       `Cliente: ${cliente_nombre || "Consumidor Final"}`,
       margenIzq,
-      posY
+      posY,
     );
     posY += 4;
 
@@ -151,11 +188,15 @@ const generarReciboPDF = ({
       posY += 4;
     }
 
+    if (cliente_telefono) {
+      doc.text(`Tel: ${cliente_telefono}`, margenIzq, posY);
+      posY += 4;
+    }
+
     if (cliente_direccion) {
-      // Ajuste multi-línea para dirección
       const lineasDir = doc.splitTextToSize(
         `Dirección: ${cliente_direccion}`,
-        58
+        58,
       );
       lineasDir.forEach((ln) => {
         doc.text(ln, margenIzq, posY);
@@ -168,18 +209,16 @@ const generarReciboPDF = ({
 
     // ==========================
     // DETALLE (TABLA)
-    // ✅ Usa precio_final si existe (para reflejar descuento real)
-    // ✅ Muestra desc% si viene
     // ==========================
     const body = carrito.map((item) => {
       const cant = safeNum(item.cantidad);
       const codigo = item.codigo || "-";
-      const descPct = safeNum(item.descuento_pct ?? item.descuento ?? 0);
+
       const pu = safeNum(item.precio_unitario ?? item.precio);
       const pf = safeNum(item.precio_final ?? item.precio);
+
       const totalLinea = round2(cant * pf);
 
-      // Descripción corta (80mm)
       const nombre = String(item.nombre || item.descripcion || "").trim();
       const descCorta = nombre.length > 14 ? `${nombre.slice(0, 14)}…` : nombre;
 
@@ -214,7 +253,7 @@ const generarReciboPDF = ({
     posY += 5;
 
     // ==========================
-    // TOTALES (manteniendo lógica: ISV incluido en precio)
+    // TOTALES (ISV incluido)
     // ==========================
     doc.setFont("helvetica", "normal").setFontSize(8);
 
@@ -236,12 +275,30 @@ const generarReciboPDF = ({
     doc.text(formatoLempiras(0), margenDer, posY, { align: "right" });
     posY += 4;
 
-    // ✅ Aquí sí reflejamos descuentos reales si los hay
+    // ✅ Descuentos/Rebajas (productos + cliente)
     doc.text("Descuentos/Rebajas:", margenIzq, posY);
-    doc.text(formatoLempiras(descuentoTotal), margenDer, posY, {
+    doc.text(formatoLempiras(descuentosRebajas), margenDer, posY, {
       align: "right",
     });
     posY += 4;
+
+    // ✅ Si hubo descuento por cliente, lo mostramos con nombre (opcional)
+    if (descuentoClienteFinal > 0) {
+      const label = descuentoClienteNombre?.trim()
+        ? `Desc. cliente (${descuentoClienteNombre}):`
+        : "Desc. cliente:";
+      doc.text(label, margenIzq, posY);
+      doc.text(formatoLempiras(descuentoClienteFinal), margenDer, posY, {
+        align: "right",
+      });
+      posY += 4;
+
+      doc.text("Total antes desc. cliente:", margenIzq, posY);
+      doc.text(formatoLempiras(totalAntesDescCliente), margenDer, posY, {
+        align: "right",
+      });
+      posY += 4;
+    }
 
     doc.text("Subtotal General:", margenIzq, posY);
     doc.text(formatoLempiras(subtotalNumerico), margenDer, posY, {
@@ -275,7 +332,7 @@ const generarReciboPDF = ({
     doc.text(
       `Método de pago: ${metodo === "tarjeta" ? "Tarjeta" : "Efectivo"}`,
       margenIzq,
-      posY
+      posY,
     );
     posY += 4;
 
@@ -283,12 +340,12 @@ const generarReciboPDF = ({
       doc.text(
         `Pago en efectivo: ${formatoLempiras(efectivo)}`,
         margenIzq,
-        posY
+        posY,
       );
       posY += 4;
       doc.text(`Cambio entregado: ${formatoLempiras(cambio)}`, margenIzq, posY);
       posY += 4;
-    } else if (metodo === "tarjeta") {
+    } else {
       doc.text("Pago realizado con tarjeta", margenIzq, posY);
       posY += 4;
     }
@@ -325,23 +382,30 @@ const generarReciboPDF = ({
       align: "center",
     });
     posY += 4;
+
     doc.setFont("helvetica", "bold").setFontSize(9);
     doc.text("EXÍJALA", 40, posY, { align: "center" });
 
     window.open(doc.output("bloburl"), "_blank");
   };
 
-  // ⚠️ Por si el logo falla al cargar, generamos sin imagen
+  // ==========================
+  // CARGA LOGO con fallback
+  // ==========================
+  const img = new Image();
+  img.src = logoImage;
+
+  img.onload = () => {
+    renderRecibo(img);
+  };
+
   img.onerror = () => {
     console.warn("⚠️ No se pudo cargar el logo, generando recibo sin imagen.");
-    // Truco: setear una imagen vacía y disparar onload lógico
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("Sistema Inventario", 40, posY, { align: "center" });
-    window.open(doc.output("bloburl"), "_blank");
+    renderRecibo(null);
   };
 };
 
-// Convertidor a letras (sin cambios)
+// Convertidor a letras
 const convertirNumeroALetras = (numero) => {
   const unidades = [
     "",
@@ -383,7 +447,7 @@ const convertirNumeroALetras = (numero) => {
 
   const centenas = [
     "",
-    "ciento", // 👈 CLAVE: ya no usamos “cien” aquí
+    "ciento",
     "doscientos",
     "trescientos",
     "cuatrocientos",
@@ -396,7 +460,7 @@ const convertirNumeroALetras = (numero) => {
 
   const convertir = (n) => {
     if (n === 0) return "cero";
-    if (n === 100) return "cien"; // 👈 caso especial correcto
+    if (n === 100) return "cien";
 
     let letras = "";
 
@@ -429,8 +493,8 @@ const convertirNumeroALetras = (numero) => {
     return letras.trim();
   };
 
-  const parteEntera = Math.floor(numero);
-  const parteDecimal = Math.round((numero - parteEntera) * 100);
+  const parteEntera = Math.floor(Number(numero) || 0);
+  const parteDecimal = Math.round(((Number(numero) || 0) - parteEntera) * 100);
 
   let resultado = `${convertir(parteEntera)} Lempiras`;
 
