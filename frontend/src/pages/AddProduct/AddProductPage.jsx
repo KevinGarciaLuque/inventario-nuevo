@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
@@ -8,6 +8,14 @@ export default function AddProductPage() {
   const [ubicaciones, setUbicaciones] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [impuestos, setImpuestos] = useState([]); // ✅ NUEVO
+ 
+
+  const codigoTimerRef = useRef(null);
+
+  const [codigoVerificando, setCodigoVerificando] = useState(false);
+  const [codigoExiste, setCodigoExiste] = useState(false);
+  const [codigoMsg, setCodigoMsg] = useState("");
+
 
   const [form, setForm] = useState({
     codigo: "",
@@ -229,185 +237,261 @@ export default function AddProductPage() {
     setPreview(file ? URL.createObjectURL(file) : null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
 
-    try {
-      // ✅ fecha válida
-      if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
-        alert("Fecha de vencimiento inválida");
-        setLoading(false);
-        return;
-      }
 
-      // ✅ medidas: si usa una, exigir la otra
-      const unidadIdStr = String(form.unidad_medida_id || "").trim();
-      const contenidoStr = String(form.contenido_medida ?? "").trim();
 
-      const tieneUnidad = unidadIdStr !== "";
-      const tieneContenido = contenidoStr !== "";
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-      if (
-        (tieneUnidad && !tieneContenido) ||
-        (!tieneUnidad && tieneContenido)
-      ) {
-        alert(
-          "Si usas medidas, completa Cantidad/Contenido y Unidad de medida."
-        );
-        setLoading(false);
-        return;
-      }
+  try {
+    // ✅ 0) VALIDAR CÓDIGO ÚNICO (antes de todo)
+   const codigoTrim = String(form.codigo || "").trim();
+   const okCodigo = await verificarCodigoUnico(codigoTrim);
+   if (!okCodigo) {
+     setLoading(false);
+     return;
+   }
 
-      if (tieneContenido) {
-        const n = Number(contenidoStr.replace(",", "."));
-        if (!Number.isFinite(n) || n <= 0) {
-          alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
-          setLoading(false);
-          return;
-        }
-      }
 
-      // ✅ Precio venta
-      const pv = Number(String(form.precio ?? "").replace(",", "."));
-      if (!Number.isFinite(pv) || pv < 0) {
-        alert("Precio de venta inválido.");
-        setLoading(false);
-        return;
-      }
 
-      // ✅ Costo (opcional)
-      const costoStr = String(form.precio_costo ?? "").trim();
-      const costoNum =
-        costoStr === "" ? null : Number(costoStr.replace(",", "."));
-      if (costoNum !== null && (!Number.isFinite(costoNum) || costoNum < 0)) {
-        alert("Precio de costo inválido.");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Descuento (opcional)
-      const descStr = String(form.descuento ?? "").trim();
-      const descNum = descStr === "" ? 0 : Number(descStr.replace(",", "."));
-      if (!Number.isFinite(descNum) || descNum < 0 || descNum > 100) {
-        alert("Descuento debe estar entre 0 y 100.");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Impuesto (obligatorio recomendado ERP)
-      const impStr = String(form.impuesto_id || "").trim();
-      const impId = impStr === "" ? null : Number(impStr);
-      if (!impId || !Number.isFinite(impId) || impId <= 0) {
-        alert("Selecciona un impuesto válido.");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Subir imagen si existe
-      let imageUrl = "";
-      if (imagenFile) {
-        const formData = new FormData();
-        formData.append("imagen", imagenFile);
-
-        try {
-          const res = await api.post("/upload", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
-
-          imageUrl = res.data?.path || res.data?.url || "";
-        } catch (err) {
-          alert("Error al subir la imagen");
-          setLoading(false);
-          return;
-        }
-      }
-
-      // ✅ Payload SIN ...form (evita sobreescrituras)
-      const payload = {
-        codigo: String(form.codigo || "").trim(),
-        nombre: String(form.nombre || "").trim(),
-        lote: (form.lote || "").trim() || null,
-        fecha_vencimiento: form.fecha_vencimiento || null,
-        descripcion: String(form.descripcion || "").trim() || null,
-
-        categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
-        ubicacion_id: form.ubicacion_id ? Number(form.ubicacion_id) : null,
-
-        // ✅ impuesto
-        impuesto_id: impId,
-
-        stock: Number(form.stock) || 0,
-        stock_minimo: Number(form.stock_minimo) || 1,
-
-        // ✅ precios
-        precio: pv,
-        precio_costo: costoNum,
-        descuento: descNum,
-
-        // ✅ medidas
-        contenido_medida: tieneContenido
-          ? Number(contenidoStr.replace(",", "."))
-          : null,
-        unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
-
-        imagen: imageUrl || null,
-        usuario_id,
-      };
-
-      console.log("✅ Payload enviado a /productos:", payload);
-
-      await api.post("/productos", payload);
-
-      setShowSuccess(true);
-
-      setForm({
-        codigo: "",
-        nombre: "",
-        lote: "",
-        fecha_vencimiento: "",
-        descripcion: "",
-        categoria_id: "",
-        ubicacion_id: "",
-        impuesto_id: impStr || "", // se reasigna abajo si existe ISV 15%
-        stock: 0,
-        stock_minimo: 1,
-
-        precio_costo: "",
-        precio: "",
-        descuento: "",
-
-        contenido_medida: "",
-        unidad_medida_id: "",
-        imagen: "",
-      });
-
-      // ✅ re-seleccionar impuesto por defecto (ISV 15%) si está disponible
-      setForm((f) => {
-        const isv15 =
-          impuestosOrdenados.find(
-            (x) =>
-              String(x?.nombre || "")
-                .toLowerCase()
-                .includes("15") || Number(x?.porcentaje) === 15
-          ) || null;
-        return { ...f, impuesto_id: isv15 ? String(isv15.id) : "" };
-      });
-
-      setImagenFile(null);
-      if (preview) URL.revokeObjectURL(preview);
-      setPreview(null);
-    } catch (error) {
-      console.error(error);
-      alert(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Error al agregar el producto"
-      );
+    // Si todavía está verificando por debounce, pedimos esperar
+    if (codigoVerificando) {
+      alert("Espera a que termine la validación del código.");
+      setLoading(false);
+      return;
     }
 
+    // Si ya se sabe que existe, cortamos
+    if (codigoExiste) {
+      alert("Ese código ya existe. Usa otro código.");
+      setLoading(false);
+      return;
+    }
+
+    // Si tu verificarCodigoUnico NO retorna boolean, aquí lo dejamos compatible:
+    // - Si retorna boolean => lo usamos
+    // - Si no retorna nada => confiamos en el estado (codigoExiste/codigoMsg)
+    const resOk = await verificarCodigoUnico(codigoTrim);
+    
+
+    // ✅ fecha válida
+    if (form.fecha_vencimiento && isNaN(Date.parse(form.fecha_vencimiento))) {
+      alert("Fecha de vencimiento inválida");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ medidas: si usa una, exigir la otra
+    const unidadIdStr = String(form.unidad_medida_id || "").trim();
+    const contenidoStr = String(form.contenido_medida ?? "").trim();
+
+    const tieneUnidad = unidadIdStr !== "";
+    const tieneContenido = contenidoStr !== "";
+
+    if ((tieneUnidad && !tieneContenido) || (!tieneUnidad && tieneContenido)) {
+      alert("Si usas medidas, completa Cantidad/Contenido y Unidad de medida.");
+      setLoading(false);
+      return;
+    }
+
+    if (tieneContenido) {
+      const n = Number(contenidoStr.replace(",", "."));
+      if (!Number.isFinite(n) || n <= 0) {
+        alert("Cantidad/Contenido debe ser un número válido mayor a 0.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // ✅ Precio venta
+    const pv = Number(String(form.precio ?? "").replace(",", "."));
+    if (!Number.isFinite(pv) || pv < 0) {
+      alert("Precio de venta inválido.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Costo (opcional)
+    const costoStr = String(form.precio_costo ?? "").trim();
+    const costoNum =
+      costoStr === "" ? null : Number(costoStr.replace(",", "."));
+    if (costoNum !== null && (!Number.isFinite(costoNum) || costoNum < 0)) {
+      alert("Precio de costo inválido.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Descuento (opcional)
+    const descStr = String(form.descuento ?? "").trim();
+    const descNum = descStr === "" ? 0 : Number(descStr.replace(",", "."));
+    if (!Number.isFinite(descNum) || descNum < 0 || descNum > 100) {
+      alert("Descuento debe estar entre 0 y 100.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Impuesto (obligatorio recomendado ERP)
+    const impStr = String(form.impuesto_id || "").trim();
+    const impId = impStr === "" ? null : Number(impStr);
+    if (!impId || !Number.isFinite(impId) || impId <= 0) {
+      alert("Selecciona un impuesto válido.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Subir imagen si existe
+    let imageUrl = "";
+    if (imagenFile) {
+      const formData = new FormData();
+      formData.append("imagen", imagenFile);
+
+      try {
+        const res = await api.post("/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        imageUrl = res.data?.path || res.data?.url || "";
+      } catch (err) {
+        alert("Error al subir la imagen");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // ✅ Payload SIN ...form (evita sobreescrituras)
+    const payload = {
+      codigo: codigoTrim,
+      nombre: String(form.nombre || "").trim(),
+      lote: (form.lote || "").trim() || null,
+      fecha_vencimiento: form.fecha_vencimiento || null,
+      descripcion: String(form.descripcion || "").trim() || null,
+
+      categoria_id: form.categoria_id ? Number(form.categoria_id) : null,
+      ubicacion_id: form.ubicacion_id ? Number(form.ubicacion_id) : null,
+
+      // ✅ impuesto
+      impuesto_id: impId,
+
+      stock: Number(form.stock) || 0,
+      stock_minimo: Number(form.stock_minimo) || 1,
+
+      // ✅ precios
+      precio: pv,
+      precio_costo: costoNum,
+      descuento: descNum,
+
+      // ✅ medidas
+      contenido_medida: tieneContenido
+        ? Number(contenidoStr.replace(",", "."))
+        : null,
+      unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+
+      imagen: imageUrl || null,
+      usuario_id,
+    };
+
+    console.log("✅ Payload enviado a /productos:", payload);
+
+    await api.post("/productos", payload);
+
+    setShowSuccess(true);
+
+    // ✅ limpiar validación de código para que no quede "ya existe"
+    setCodigoExiste(false);
+    setCodigoMsg("");
+
+    setForm({
+      codigo: "",
+      nombre: "",
+      lote: "",
+      fecha_vencimiento: "",
+      descripcion: "",
+      categoria_id: "",
+      ubicacion_id: "",
+      impuesto_id: impStr || "", // se reasigna abajo si existe ISV 15%
+      stock: 0,
+      stock_minimo: 1,
+
+      precio_costo: "",
+      precio: "",
+      descuento: "",
+
+      contenido_medida: "",
+      unidad_medida_id: "",
+      imagen: "",
+    });
+
+    // ✅ re-seleccionar impuesto por defecto (ISV 15%) si está disponible
+    setForm((f) => {
+      const isv15 =
+        impuestosOrdenados.find(
+          (x) =>
+            String(x?.nombre || "")
+              .toLowerCase()
+              .includes("15") || Number(x?.porcentaje) === 15,
+        ) || null;
+      return { ...f, impuesto_id: isv15 ? String(isv15.id) : "" };
+    });
+
+    setImagenFile(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+  } catch (error) {
+    console.error(error);
+    alert(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Error al agregar el producto",
+    );
+  } finally {
     setLoading(false);
-  };
+  }
+};
+
+
+
+const verificarCodigoUnico = async (codigoRaw) => {
+  const codigo = String(codigoRaw || "").trim();
+
+  // si está vacío, limpiamos estados y no validamos
+  if (!codigo) {
+    setCodigoExiste(false);
+    setCodigoMsg("");
+    return true;
+  }
+
+  setCodigoVerificando(true);
+
+  try {
+    // ✅ OJO: este endpoint devuelve 200 si existe, 404 si NO existe
+    await api.get(`/productos/by-codigo/${encodeURIComponent(codigo)}`);
+
+    // Si llegó aquí, fue 200 => YA EXISTE
+    setCodigoExiste(true);
+    setCodigoMsg("⚠️ Este código ya existe.");
+    return false;
+  } catch (err) {
+    const status = err?.response?.status;
+
+    // ✅ 404 = Producto NO encontrado => código DISPONIBLE
+    if (status === 404) {
+      setCodigoExiste(false);
+      setCodigoMsg("✅ Código disponible.");
+      return true;
+    }
+
+    // ❌ otros errores (500, network, CORS, etc.)
+    console.error("Error validando código:", err);
+    setCodigoExiste(false);
+    setCodigoMsg("⚠️ No se pudo validar el código.");
+    return false;
+  } finally {
+    setCodigoVerificando(false);
+  }
+};
+
+
 
   return (
     <section className="container py-4">
@@ -432,13 +516,34 @@ export default function AddProductPage() {
       >
         <div className="col-md-4 col-12">
           <label className="form-label">Código</label>
+
           <input
             className="form-control"
             name="codigo"
             value={form.codigo}
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e);
+
+              const val = e.target.value;
+
+              // debounce
+              if (codigoTimerRef.current) clearTimeout(codigoTimerRef.current);
+              codigoTimerRef.current = setTimeout(() => {
+                verificarCodigoUnico(val);
+              }, 350);
+            }}
+            onBlur={(e) => verificarCodigoUnico(e.target.value)}
             required
           />
+
+          {/* Mensajito debajo */}
+          {codigoVerificando ? (
+            <small className="text-muted">Verificando código...</small>
+          ) : codigoMsg ? (
+            <small className={codigoExiste ? "text-danger" : "text-success"}>
+              {codigoMsg}
+            </small>
+          ) : null}
         </div>
 
         <div className="col-md-4 col-12">
@@ -533,7 +638,7 @@ export default function AddProductPage() {
             <small className="text-muted d-block mt-1">
               Aplicará:{" "}
               <strong>{`${impuestoSeleccionado.nombre} (${Number(
-                impuestoSeleccionado.porcentaje
+                impuestoSeleccionado.porcentaje,
               )}%)`}</strong>
             </small>
           )}
@@ -658,9 +763,7 @@ export default function AddProductPage() {
             step="0.01"
             min="0"
             max="100"
-            className={`form-control ${
-              descuentoEstado.valido ? "" : "is-invalid"
-            }`}
+            className={`form-control ${descuentoEstado.valido ? "" : "is-invalid"}`}
             name="descuento"
             value={form.descuento}
             onChange={handleChange}
@@ -681,9 +784,7 @@ export default function AddProductPage() {
 
           {precioFinalVista !== null && costoNumVista !== null && (
             <small
-              className={`d-block mt-1 ${
-                gananciaVista < 0 ? "text-danger" : "text-muted"
-              }`}
+              className={`d-block mt-1 ${gananciaVista < 0 ? "text-danger" : "text-muted"}`}
             >
               Ganancia estimada: <strong>{`L ${gananciaVista}`}</strong>
               {gananciaVista < 0 ? " (pérdida)" : ""}
@@ -719,6 +820,7 @@ export default function AddProductPage() {
             className="form-control"
             onChange={handleImageChange}
             accept="image/*"
+            capture="environment"
           />
           {preview && (
             <div className="mt-2">
@@ -738,6 +840,8 @@ export default function AddProductPage() {
             className="btn btn-warning w-100"
             disabled={
               loading ||
+              codigoVerificando ||
+              codigoExiste ||
               !descuentoEstado.valido ||
               (form.precio_costo !== "" && costoNumVista === null) ||
               (form.precio !== "" && precioVentaNum === null) ||

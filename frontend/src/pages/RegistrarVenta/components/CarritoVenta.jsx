@@ -51,26 +51,33 @@ export default function CarritoVenta({
           </thead>
 
           <tbody>
-            {carrito.map((item) => {
-              // ✅ Compatibilidad: usa tus campos del hook primero,
-              // y si no existen, cae a los nombres antiguos.
-              const precioBase = n2(item.precio_unitario ?? item.precio);
+            {(carrito || []).map((item, index) => {
+              // ✅ ID robusto (para que funcione con cualquier nombre)
+              const itemId =
+                item.id ??
+                item.producto_id ??
+                item.id_producto ??
+                item.productoId ??
+                item.productoID ??
+                index; // fallback (último recurso)
+
+              // ✅ Precio / descuento compatibles
+              const precioBase = n2(
+                item.precio_unitario ?? item.precio ?? item.precio_venta,
+              );
               const desc = Math.max(
                 0,
-                Math.min(100, n2(item.descuento_pct ?? item.descuento))
+                Math.min(100, n2(item.descuento_pct ?? item.descuento)),
               );
 
               const precioFinal = n2(
-                item.precio_final ?? precioBase * (1 - desc / 100)
+                item.precio_final ?? precioBase * (1 - desc / 100),
               );
-
               const cant = Math.max(1, n2(item.cantidad));
-
-              // ✅ Usa subtotal_linea si viene calculado desde el hook
               const sub = n2(item.subtotal_linea ?? precioFinal * cant);
 
               return (
-                <tr key={item.id}>
+                <tr key={itemId}>
                   <td>
                     <Image
                       src={getImgSrc(item.imagen)}
@@ -82,7 +89,7 @@ export default function CarritoVenta({
                   </td>
 
                   <td>{item.codigo || "-"}</td>
-                  <td className="fw-semibold">{item.nombre}</td>
+                  <td className="fw-semibold">{item.nombre || "-"}</td>
                   <td>{item.categoria || "-"}</td>
                   <td>{item.ubicacion || "-"}</td>
                   <td style={{ maxWidth: 220 }}>{item.descripcion || "-"}</td>
@@ -103,13 +110,13 @@ export default function CarritoVenta({
                     <input
                       type="number"
                       min="1"
-                      value={item.cantidad}
+                      value={cant}
                       className="form-control form-control-sm"
                       onChange={(e) => {
                         const val = Number(e.target.value);
                         modificarCantidad(
-                          item.id,
-                          Number.isFinite(val) ? val : 1
+                          itemId,
+                          Number.isFinite(val) ? val : 1,
                         );
                       }}
                     />
@@ -121,7 +128,7 @@ export default function CarritoVenta({
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => quitarProducto(item.id)}
+                      onClick={() => quitarProducto(itemId)}
                     >
                       <FaTrash />
                     </Button>

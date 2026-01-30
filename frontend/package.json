@@ -16,6 +16,7 @@
     "bootstrap-icons": "^1.13.1",
     "chart.js": "^4.4.9",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.4",
     "numero-a-letras": "^1.0.6",

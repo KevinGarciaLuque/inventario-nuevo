@@ -1,0 +1,193 @@
+import html2canvas from "html2canvas";
+
+/**
+ * Imprime recibo 80mm usando Canvas (imagen HD).
+ * - Márgenes internos: 4mm
+ * - Evita corte del final: padding-bottom + altura natural
+ * - Alta nitidez: scale alto
+ */
+export async function imprimirReciboCanvas(dataRecibo) {
+  // 80mm ancho real - márgenes internos 4mm izq/der => 72mm contenido
+  const ANCHO_MM = 80;
+  const MARGEN_MM = 4;
+
+  // Creamos un contenedor fuera de pantalla
+  const cont = document.createElement("div");
+  cont.style.position = "fixed";
+  cont.style.left = "-10000px";
+  cont.style.top = "0";
+  cont.style.width = `${ANCHO_MM}mm`;
+  cont.style.background = "white";
+  cont.style.color = "black";
+  cont.style.fontFamily = "monospace";
+  cont.style.fontSize = "11px";
+  cont.style.lineHeight = "1.25";
+  cont.style.boxSizing = "border-box";
+  cont.style.padding = `${MARGEN_MM}mm`; // ✅ 4mm a ambos lados
+  cont.style.paddingBottom = `10mm`; // ✅ aire final para NO cortar
+  cont.style.whiteSpace = "normal";
+
+  // HTML del recibo (simple y estable)
+  cont.innerHTML = renderHTMLRecibo(dataRecibo);
+
+  document.body.appendChild(cont);
+
+  // ✅ Escala alta para nitidez (sube si quieres más)
+  const scale = Math.max(3, Math.ceil((window.devicePixelRatio || 1) * 2));
+
+  const canvas = await html2canvas(cont, {
+    scale,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    logging: false,
+  });
+
+  const imgData = canvas.toDataURL("image/png", 1.0);
+  document.body.removeChild(cont);
+
+  // Abrimos ventana de impresión con la imagen
+  const w = window.open("", "_blank");
+  if (!w) {
+    // popup bloqueado
+    const a = document.createElement("a");
+    a.href = imgData;
+    a.download = `recibo_${dataRecibo?.numeroFactura || "ticket"}.png`;
+    a.click();
+    return;
+  }
+
+  w.document.open();
+  w.document.write(`
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Imprimir recibo</title>
+    <style>
+      @page { 
+        size: ${ANCHO_MM}mm auto; 
+        margin: 0; 
+      }
+      html, body { margin: 0; padding: 0; background: white; }
+      img { 
+        width: ${ANCHO_MM}mm; 
+        height: auto; 
+        display: block; 
+      }
+    </style>
+  </head>
+  <body>
+    <img id="ticket" src="${imgData}" />
+    <script>
+      const img = document.getElementById("ticket");
+      img.onload = () => {
+        window.focus();
+        window.print();
+      };
+      window.onafterprint = () => {
+        try { window.close(); } catch(e) {}
+      };
+    </script>
+  </body>
+</html>
+  `);
+  w.document.close();
+}
+
+function money(v) {
+  const n = Number(v || 0);
+  return `L ${n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function safe(v, d = "") {
+  return v === null || v === undefined ? d : String(v);
+}
+
+function renderHTMLRecibo(d = {}) {
+  const fecha = new Date().toLocaleString("es-HN");
+  const carrito = Array.isArray(d.carrito) ? d.carrito : [];
+
+  // detalle simple
+  const items = carrito
+    .map((it) => {
+      const cant = Number(it.cantidad || 0);
+      const nombre = safe(it.nombre || it.descripcion || "Producto");
+      const precio = Number(it.precio_final ?? it.precio ?? 0);
+      const totalLinea = cant * precio;
+
+      return `
+      <div style="display:flex; justify-content:space-between; gap:6px;">
+        <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          ${cant} x ${escapeHtml(nombre)}
+        </div>
+        <div style="min-width:70px; text-align:right;">
+          ${money(totalLinea)}
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+
+  return `
+    <div style="text-align:center; font-weight:700;">Sistema Inventario</div>
+    <div style="text-align:center;">Sucursal Tegucigalpa</div>
+    <div style="text-align:center;">RTN: 0801-1900-10000</div>
+    <div style="text-align:center;">Tel: (504) 9800-0000</div>
+    <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
+
+    <div>CAI: ${escapeHtml(safe(d?.cai?.cai_codigo, "-"))}</div>
+    <div>Rango: ${escapeHtml(safe(d?.cai?.rango_inicio, "-"))} - ${escapeHtml(safe(d?.cai?.rango_fin, "-"))}</div>
+    <div>Vence: ${escapeHtml(safe(d?.cai?.fecha_limite_emision, "-"))}</div>
+
+    <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
+    <div style="text-align:center; font-weight:700;">FACTURA</div>
+    ${d.esCopia ? `<div style="text-align:center; font-weight:700;">COPIA</div>` : ""}
+
+    <div>No. ${escapeHtml(safe(d.numeroFactura, "-"))}</div>
+    <div>Fecha: ${escapeHtml(fecha)}</div>
+    <div>Cajero: ${escapeHtml(safe(d?.user?.nombre, "Sistema"))}</div>
+    <div>Cliente: ${escapeHtml(safe(d.cliente_nombre, "Consumidor Final"))}</div>
+    ${d.cliente_rtn ? `<div>RTN: ${escapeHtml(safe(d.cliente_rtn))}</div>` : ""}
+    ${d.cliente_telefono ? `<div>Tel: ${escapeHtml(safe(d.cliente_telefono))}</div>` : ""}
+    ${d.cliente_direccion ? `<div>Dirección: ${escapeHtml(safe(d.cliente_direccion))}</div>` : ""}
+
+    <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
+    <div style="font-weight:700;">DETALLE</div>
+    ${items || `<div>(Sin productos)</div>`}
+
+    <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
+    <div style="display:flex; justify-content:space-between;">
+      <span>Subtotal:</span><span>${money(d.subtotal)}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between;">
+      <span>ISV:</span><span>${money(d.impuesto)}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-weight:700;">
+      <span>TOTAL:</span><span>${money(d.total)}</span>
+    </div>
+
+    <hr style="border:none; border-top:1px solid #000; margin:6px 0;" />
+    <div>Método: ${escapeHtml(String(d.metodoPago || "efectivo"))}</div>
+    ${
+      String(d.metodoPago || "").toLowerCase() === "efectivo"
+        ? `
+      <div>Recibido: ${money(d.efectivo)}</div>
+      <div>Cambio: ${money(d.cambio)}</div>
+    `
+        : `<div>Pago con tarjeta</div>`
+    }
+
+    <div style="text-align:center; margin-top:10px; font-weight:700;">
+      *** GRACIAS POR SU COMPRA ***
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}

@@ -117,14 +117,7 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
         setDescuentoSeleccionadoId={v.setDescuentoSeleccionadoId}
       />
 
-      <BuscadorProducto
-        productos={v.productos}
-        buscar={v.buscar}
-        setBuscar={v.setBuscar}
-        inputBuscarRef={v.inputBuscarRef}
-        buscarYAgregar={v.buscarYAgregar}
-        limpiarInputBuscar={v.limpiarInputBuscar}
-      />
+      <BuscadorProducto onAgregarProducto={v.agregarProductoAlCarrito} />
 
       <CarritoVenta
         carrito={v.carrito}
@@ -137,11 +130,11 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
         totalConDescCliente={v.totalConDescCliente}
         subtotal={v.subtotal}
         impuesto={v.impuesto}
+        impuestosDetalle={v.impuestosDetalle}
         subtotalBruto={v.subtotalBruto}
         descuentoTotal={v.descuentoTotal}
         descuentoClienteMonto={v.descuentoClienteMonto}
         descuentoClienteNombre={v.descuentoClienteObj?.nombre || ""}
-        // ✅ IMPORTANTES: para que el select aparezca en el cuadro negro
         tipoCliente={v.tipoCliente}
         setTipoCliente={v.setTipoCliente}
         descuentos={v.descuentos}

@@ -27,6 +27,10 @@ export default function InventoryPage({ onView }) {
   const [location, setLocation] = useState("");
   const [stockFilter, setStockFilter] = useState("");
   const [loading, setLoading] = useState(false);
+   const [impuestos, setImpuestos] = useState([]);
+
+   const [unidades, setUnidades] = useState([]);
+
   const [deleteConfirm, setDeleteConfirm] = useState({
     show: false,
     productId: null,
@@ -90,6 +94,27 @@ export default function InventoryPage({ onView }) {
     };
     // eslint-disable-next-line
   }, [codigoBuffer]);
+
+
+  useEffect(() => {
+    const cargarExtras = async () => {
+      try {
+        const [resImp, resUni] = await Promise.all([
+          api.get("/impuestos"),
+          api.get("/unidades-medida"),
+        ]);
+        setImpuestos(Array.isArray(resImp.data) ? resImp.data : []);
+        setUnidades(Array.isArray(resUni.data) ? resUni.data : []);
+      } catch (e) {
+        console.error("Error cargando impuestos/unidades:", e);
+        setImpuestos([]);
+        setUnidades([]);
+      }
+    };
+
+    cargarExtras();
+  }, []);
+
 
   const procesarCodigoEscaneado = async (codigo) => {
     try {
@@ -406,6 +431,9 @@ export default function InventoryPage({ onView }) {
         product={editModal.product}
         categorias={categorias}
         ubicaciones={ubicaciones}
+        impuestos={impuestos} // ✅ NUEVO
+        unidades={unidades} // ✅ NUEVO
+        usuario_id={user?.id} // ✅ opcional (bitácora)
         onClose={() => setEditModal({ show: false, product: null })}
         onUpdated={cargarDatos}
       />

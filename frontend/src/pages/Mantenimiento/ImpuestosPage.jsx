@@ -1,3 +1,4 @@
+// frontend/src/pages/Mantenimiento/ImpuestosPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import {
@@ -282,7 +283,7 @@ export default function ImpuestosPage() {
         <div className="card-body">
           <div className="table-responsive sticky-wrap">
             <table className="table table-hover align-middle mb-0 sticky-table">
-              <thead className="table-dark sticky-thead">
+              <thead className="table-blue sticky-thead">
                 <tr>
                   <th style={{ width: 70 }}>Estado</th>
                   <th>Nombre</th>

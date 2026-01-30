@@ -4,9 +4,15 @@ import api from "../../../api/axios";
 import generarReciboPDF from "../../../utils/generarReciboPDF";
 import { limpiarCodigo } from "../utils/ventaUtils";
 
-const IVA_FACTOR = 1.15;
-
 export default function useVenta({ user }) {
+  // =======================
+  // CONSTANTES
+  // =======================
+  const round2 = (n) => Number((Number(n) || 0).toFixed(2));
+
+  // =======================
+  // ESTADOS PRINCIPALES
+  // =======================
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]);
 
@@ -19,6 +25,7 @@ export default function useVenta({ user }) {
   const [cajaInfo, setCajaInfo] = useState(null);
   const [msgCaja, setMsgCaja] = useState("");
 
+  // ✅ CAI
   const [cai, setCai] = useState(null);
   const [modalSinCai, setModalSinCai] = useState(false);
   const caiErrorMostradoRef = useRef(false);
@@ -41,7 +48,7 @@ export default function useVenta({ user }) {
   const [formularioCliente, setFormularioCliente] = useState({
     nombre: "",
     rtn: "",
-    telefono: "", // ✅ NUEVO
+    telefono: "",
     direccion: "",
   });
 
@@ -68,7 +75,7 @@ export default function useVenta({ user }) {
     cambio: 0,
     cliente_nombre: "",
     cliente_rtn: "",
-    cliente_telefono: "", // ✅ NUEVO
+    cliente_telefono: "",
     cliente_direccion: "",
   });
 
@@ -91,6 +98,29 @@ export default function useVenta({ user }) {
   const [descuentosLoading, setDescuentosLoading] = useState(false);
   const [descuentoSeleccionadoId, setDescuentoSeleccionadoId] = useState("");
 
+  // =======================
+  // ✅ IMPUESTOS (NUEVO)
+  // =======================
+  const [impuestos, setImpuestos] = useState([]);
+  const [impuestosLoading, setImpuestosLoading] = useState(false);
+
+  const cargarImpuestos = async () => {
+    try {
+      setImpuestosLoading(true);
+      const res = await api.get("/impuestos");
+      const rows = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setImpuestos(rows.filter((r) => Number(r.activo ?? 1) === 1));
+    } catch (e) {
+      console.error("No se pudieron cargar impuestos", e);
+      setImpuestos([]);
+    } finally {
+      setImpuestosLoading(false);
+    }
+  };
+
+  // =======================
+  // HELPERS
+  // =======================
   const mostrarToast = (message) => {
     setToast({ show: true, message });
     window.setTimeout(() => setToast({ show: false, message: "" }), 2000);
@@ -124,7 +154,6 @@ export default function useVenta({ user }) {
       const abierta = res.data?.abierta === true;
 
       setCajaAbierta(abierta);
-      setCaiErrorMostradoRefSafe(); // no-op safe
       setCajaInfo(res.data?.caja || null);
 
       if (!abierta) setMsgCaja("Debes abrir caja antes de registrar ventas.");
@@ -136,9 +165,6 @@ export default function useVenta({ user }) {
       setCajaLoading(false);
     }
   };
-
-  // helper no-op para evitar warning si se edita luego
-  const setCaiErrorMostradoRefSafe = () => {};
 
   const consultarCai = async () => {
     try {
@@ -153,10 +179,12 @@ export default function useVenta({ user }) {
     }
   };
 
+  // ✅ CARGAS INICIALES
   useEffect(() => {
     consultarCajaEstado();
     consultarCai();
     cargarProductos();
+    cargarImpuestos(); // ✅ IMPORTANTE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -179,6 +207,12 @@ export default function useVenta({ user }) {
         (precioUnitario * (1 - descuentoPct / 100)).toFixed(2),
       );
 
+      const impuestoId =
+        producto.impuesto_id ??
+        producto.id_impuesto ??
+        producto.impuestoId ??
+        null;
+
       if (existe) {
         if (Number(existe.cantidad) + 1 > stockProd) {
           mostrarToast(`Stock insuficiente. Stock actual: ${stockProd}`);
@@ -200,6 +234,7 @@ export default function useVenta({ user }) {
             descuento_pct: descuentoPct,
             precio_final: precioFinal,
             subtotal_linea: subtotalLinea,
+            impuesto_id: impuestoId, // ✅ CLAVE
           };
         });
       }
@@ -218,6 +253,7 @@ export default function useVenta({ user }) {
           descuento_pct: descuentoPct,
           precio_final: precioFinal,
           subtotal_linea: Number(precioFinal.toFixed(2)),
+          impuesto_id: impuestoId, // ✅ CLAVE
         },
       ];
     });
@@ -234,18 +270,21 @@ export default function useVenta({ user }) {
 
     try {
       const res = await api.get(
-        `/productos/buscar?codigo=${encodeURIComponent(limpio)}`,
+        `/productos/by-codigo/${encodeURIComponent(limpio)}`,
       );
 
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        agregarProductoAlCarrito(res.data[0]);
+      if (res.data) {
+        agregarProductoAlCarrito(res.data);
         limpiarInputBuscar();
         return true;
       }
+
       return false;
     } catch (e) {
-      console.error(e);
-      mostrarToast("Error al buscar producto");
+      if (e?.response?.status !== 404) {
+        console.error(e);
+        mostrarToast("Error al buscar producto");
+      }
       return false;
     }
   };
@@ -357,7 +396,6 @@ export default function useVenta({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usarRTN]);
 
-  // ✅ CORRECCIÓN: nombre distinto para no chocar con el return
   const clientesFiltradosMemo = useMemo(() => {
     const f = (filtroCliente || "").toLowerCase();
     return clientes.filter((c) =>
@@ -365,7 +403,6 @@ export default function useVenta({ user }) {
     );
   }, [clientes, filtroCliente]);
 
-  // ✅ GUARDAR CLIENTE + SELECCIONAR AUTOMÁTICO
   const handleGuardarCliente = async () => {
     const payload = {
       nombre: (formularioCliente.nombre || "").trim(),
@@ -382,12 +419,10 @@ export default function useVenta({ user }) {
     try {
       const res = await api.post("/clientes", payload);
 
-      // Intentar obtener cliente creado desde respuesta (si tu backend lo devuelve)
       const creado =
         res?.data?.cliente ||
         (res?.data && typeof res.data === "object" ? res.data : null);
 
-      // cerrar modal y limpiar
       setModalCliente(false);
       setFormularioCliente({
         nombre: "",
@@ -396,34 +431,9 @@ export default function useVenta({ user }) {
         direccion: "",
       });
 
-      // refrescar lista
       await cargarClientes();
 
-      // Seleccionar automático (fallback si backend no devolvió el cliente)
-      const rtnNuevo = payload.rtn;
-      const nombreNuevo = payload.nombre.toLowerCase();
-      const dirNuevo = payload.direccion.toLowerCase();
-
-      const seleccionado =
-        creado ||
-        clientes.find((c) => String(c.rtn || "").trim() === rtnNuevo) ||
-        clientes.find((c) => {
-          const n = String(c.nombre || "")
-            .trim()
-            .toLowerCase();
-          const d = String(c.direccion || "")
-            .trim()
-            .toLowerCase();
-          return n === nombreNuevo && d === dirNuevo;
-        }) ||
-        null;
-
-      const finalCliente = seleccionado || {
-        nombre: payload.nombre,
-        rtn: payload.rtn,
-        telefono: payload.telefono,
-        direccion: payload.direccion,
-      };
+      const finalCliente = creado || payload;
 
       setVenta((prev) => ({
         ...prev,
@@ -433,12 +443,9 @@ export default function useVenta({ user }) {
         cliente_direccion: finalCliente.direccion || "",
       }));
 
-      // si tu backend manda tipo_cliente y aplica, guárdalo; si no, limpiar
-      if (setTipoCliente) {
-        const t = finalCliente?.tipo_cliente || "";
-        if (t && TIPOS_CON_DESCUENTO.includes(t)) setTipoCliente(t);
-        else setTipoCliente("");
-      }
+      const t = finalCliente?.tipo_cliente || "";
+      if (t && TIPOS_CON_DESCUENTO.includes(t)) setTipoCliente(t);
+      else setTipoCliente("");
 
       setFiltroCliente("");
       mostrarToast("Cliente agregado y seleccionado ✅");
@@ -486,6 +493,18 @@ export default function useVenta({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoCliente]);
 
+
+  useEffect(() => {
+  console.table(
+    carrito.map(i => ({
+      producto: i.nombre,
+      impuesto_id: i.impuesto_id,
+      tasa_aplicada: getTasaItem(i)
+    }))
+  );
+}, [carrito]);
+
+
   const descuentoClienteObj = useMemo(() => {
     if (!descuentoSeleccionadoId) return null;
     return (
@@ -496,10 +515,70 @@ export default function useVenta({ user }) {
   }, [descuentoSeleccionadoId, descuentos]);
 
   // =======================
+  // IMPUESTOS DINÁMICOS (incluidos)
+  // =======================
+  const impuestosMap = useMemo(() => {
+    const arr = Array.isArray(impuestos) ? impuestos : [];
+    const map = {};
+    for (const it of arr) {
+      const id = it?.id;
+      if (id == null) continue;
+      map[id] = {
+        id,
+        nombre: it?.nombre ?? "",
+        porcentaje: Number(it?.porcentaje ?? it?.valor ?? 0) || 0,
+        activo: Number(it?.activo ?? 1) ? 1 : 0,
+      };
+    }
+    return map;
+  }, [impuestos]);
+
+  function extraerImpuestoIncluido(montoConImpuesto, porcentaje) {
+    const m = Number(montoConImpuesto || 0);
+    const p = Number(porcentaje || 0);
+    if (!Number.isFinite(m) || m <= 0) return 0;
+    if (!Number.isFinite(p) || p <= 0) return 0;
+
+    const neto = m / (1 + p / 100);
+    return m - neto;
+  }
+
+function getTasaItem(item) {
+  const impId = item?.impuesto_id ?? item?.id_impuesto ?? item?.impuestoId;
+
+  // 1) impuesto explícito del producto
+  if (impId != null && impuestosMap[impId]) {
+    return Number(impuestosMap[impId].porcentaje || 0) || 0;
+  }
+
+  // 2) fallback por porcentaje directo
+  const p =
+    item?.porcentaje_impuesto ??
+    item?.impuesto_porcentaje ??
+    item?.isv ??
+    item?.iva;
+
+  if (Number(p) > 0) return Number(p);
+
+  // 3) DEFAULT: ISV 15% (para que pan y la mayoría caigan aquí)
+  return 15;
+}
+
+  function getNombreImpuestoItem(item) {
+    const impId = item?.impuesto_id ?? item?.id_impuesto ?? item?.impuestoId;
+    if (impId != null && impuestosMap[impId]) {
+      const nom = impuestosMap[impId]?.nombre;
+      const por = Number(impuestosMap[impId]?.porcentaje || 0) || 0;
+      return nom?.trim() ? nom : por > 0 ? `Impuesto ${por}%` : "Exento";
+    }
+
+    const tasa = getTasaItem(item);
+    return tasa > 0 ? `Impuesto ${tasa}%` : "Exento";
+  }
+
+  // =======================
   // TOTALES
   // =======================
-  const round2 = (n) => Number((Number(n) || 0).toFixed(2));
-
   const subtotalBruto = useMemo(() => {
     return round2(
       carrito.reduce((acc, item) => {
@@ -552,15 +631,46 @@ export default function useVenta({ user }) {
     );
   }, [total, descuentoClienteMonto]);
 
-  const impuesto = useMemo(
-    () => round2((totalConDescCliente / IVA_FACTOR) * 0.15),
-    [totalConDescCliente],
-  );
+  const { impuesto, impuestosDetalle } = useMemo(() => {
+    const totalBase = Number(total || 0);
+    const descCliente = Number(descuentoClienteMonto || 0);
 
-  const subtotal = useMemo(
-    () => round2(totalConDescCliente - impuesto),
-    [totalConDescCliente, impuesto],
-  );
+    let impuestoTotal = 0;
+    const detalle = {};
+
+    for (const item of carrito) {
+      const cant = Number(item.cantidad ?? 0) || 0;
+      const pf = Number(item.precio_final ?? item.precio ?? 0) || 0;
+      const linea = cant * pf;
+
+      if (linea <= 0) continue;
+
+      const proporcion = totalBase > 0 ? linea / totalBase : 0;
+      const descLinea = descCliente > 0 ? descCliente * proporcion : 0;
+
+      const lineaNeta = Math.max(0, linea - descLinea);
+
+      const tasa = getTasaItem(item);
+      const nombre = getNombreImpuestoItem(item);
+
+      const isvLinea = extraerImpuestoIncluido(lineaNeta, tasa);
+
+      impuestoTotal += isvLinea;
+      detalle[nombre] = (detalle[nombre] || 0) + isvLinea;
+    }
+
+    const detalleRound = {};
+    for (const [k, v] of Object.entries(detalle)) detalleRound[k] = round2(v);
+
+    return {
+      impuesto: round2(impuestoTotal),
+      impuestosDetalle: detalleRound,
+    };
+  }, [carrito, total, descuentoClienteMonto, impuestosMap]);
+
+  const subtotal = useMemo(() => {
+    return round2(Number(totalConDescCliente || 0) - Number(impuesto || 0));
+  }, [totalConDescCliente, impuesto]);
 
   // =======================
   // VENTA
@@ -601,6 +711,7 @@ export default function useVenta({ user }) {
       const productosPayload = carrito.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
+        impuesto_id: item.impuesto_id ?? null, // ✅ por si lo quieres registrar
       }));
 
       const { data } = await api.post("/ventas", {
@@ -619,29 +730,49 @@ export default function useVenta({ user }) {
         descuento_cliente_monto: descuentoClienteMonto || 0,
       });
 
-      const dataRecibo = {
-        numeroFactura: data.numeroFactura,
-        carrito,
-        subtotalBruto,
-        descuentoTotal,
-        subtotal,
-        impuesto,
-        total: totalConDescCliente,
+    const dataRecibo = {
+      numeroFactura: data?.numeroFactura || data?.numero_factura || "",
 
-        totalSinDescCliente: total,
-        descuentoCliente: descuentoClienteMonto,
-        descuentoClienteNombre: descuentoClienteObj?.nombre || "",
+      // detalle
+      carrito: Array.isArray(carrito) ? carrito : [],
 
-        user,
-        cai: cai || {},
-        cliente_nombre: venta.cliente_nombre,
-        cliente_rtn: venta.cliente_rtn,
-        cliente_telefono: venta.cliente_telefono,
-        cliente_direccion: venta.cliente_direccion,
-        metodoPago: venta.metodo_pago,
-        efectivo: venta.efectivo,
-        cambio: venta.cambio,
-      };
+      // totales
+      subtotalBruto: Number(subtotalBruto || 0),
+      descuentoTotal: Number(descuentoTotal || 0),
+
+      // ✅ neto + impuestos + total (ya calculados en useVenta)
+      subtotal: Number(subtotal || 0),
+      impuesto: Number(impuesto || 0),
+      total: Number(totalConDescCliente || 0),
+
+      // ✅ extras (descuento cliente)
+      // total "antes del descuento cliente" = total (con desc de producto, sin desc cliente)
+      totalSinDescCliente: Number(total || 0),
+
+      descuentoCliente: Number(descuentoClienteMonto || 0),
+      descuentoClienteNombre: String(descuentoClienteObj?.nombre || ""),
+
+      // ✅ IMPORTANTÍSIMO: detalle de impuestos (15/18/etc) para el PDF
+      impuestosDetalle:
+        impuestosDetalle && typeof impuestosDetalle === "object"
+          ? impuestosDetalle
+          : {},
+
+      // usuario/cai
+      user,
+      cai: cai || {},
+
+      // cliente
+      cliente_nombre: venta?.cliente_nombre || "",
+      cliente_rtn: venta?.cliente_rtn || "",
+      cliente_telefono: venta?.cliente_telefono || "",
+      cliente_direccion: venta?.cliente_direccion || "",
+
+      // pago
+      metodoPago: venta?.metodo_pago || "efectivo",
+      efectivo: Number(venta?.efectivo || 0),
+      cambio: Number(venta?.cambio || 0),
+    };
 
       setModal({
         show: true,
@@ -690,12 +821,30 @@ export default function useVenta({ user }) {
   };
 
   const imprimirRecibo = () => {
-    if (modal.dataRecibo) {
-      generarReciboPDF(modal.dataRecibo);
-      setModal((prev) => ({ ...prev, show: false }));
-    }
+    const data = modal?.dataRecibo;
+    if (!data) return;
+
+    generarReciboPDF({
+      ...data,
+      autoImprimir: true,
+      abrirEnNuevaPestana: false,
+    });
+
+    setModal((prev) => ({ ...prev, show: false }));
   };
 
+  console.table(
+    carrito.map((i) => ({
+      producto: i.nombre,
+      impuesto_id: i.impuesto_id,
+    })),
+  );
+  console.log("impuestosDetalle:", impuestosDetalle);
+
+
+  // =======================
+  // RETURN
+  // =======================
   return {
     // caja
     cajaLoading,
@@ -720,6 +869,7 @@ export default function useVenta({ user }) {
 
     // carrito
     carrito,
+    agregarProductoAlCarrito,
     quitarProducto,
     modificarCantidad,
 
@@ -750,6 +900,11 @@ export default function useVenta({ user }) {
     descuentoClienteObj,
     descuentoClienteMonto,
 
+    // impuestos
+    impuestos,
+    impuestosLoading,
+    impuestosDetalle,
+
     // totales
     subtotalBruto,
     descuentoTotal,
@@ -770,8 +925,8 @@ export default function useVenta({ user }) {
     // feedback
     feedbackModal,
     setFeedbackModal,
-
     // toast
     toast,
   };
 }
+

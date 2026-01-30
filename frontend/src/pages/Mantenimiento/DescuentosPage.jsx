@@ -320,7 +320,7 @@ const DescuentosPage = () => {
 
       <div className="table-responsive" style={{ maxHeight: "65vh" }}>
         <Table bordered hover size="sm" className="align-middle">
-          <thead className="table-dark sticky-top">
+          <thead className=" sticky-top">
             <tr>
               <th>Nombre</th>
               <th>Tipo</th>
