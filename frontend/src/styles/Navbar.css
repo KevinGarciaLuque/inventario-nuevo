@@ -1,40 +1,55 @@
+/* ══════════════════════════════════════════════
+   NAVBAR — Fijo en móvil, estático en desktop
+══════════════════════════════════════════════ */
+
+/* Base: asegura que ocupa todo el ancho */
+.navbar-main {
+  width: 100%;
+}
+
+/* ── MÓVIL: fijo arriba ── */
 @media (max-width: 991.98px) {
-    .navbar-main {
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      z-index: 2050;
-      box-shadow: 0 2px 10px #0002;
-    }
-    .main-content-inner,
-    .main-content-responsive {
-      padding-top: 64px !important; /* Ajusta este valor si tu navbar es más alto o bajo */
-    }
-    /* Encabezados sticky de tablas se ajustan debajo del navbar */
-    .sticky-header thead th,
-    .table-responsive thead th,
-    .table thead th {
-      top: 64px !important; /* Debe coincidir con el padding-top arriba */
-      z-index: 102;
-      background: #fff !important;
-    }
+  .navbar-main {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100vw;
+    z-index: 2050;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
   }
-  
-  @media (min-width: 992px) {
-    .navbar-main {
-      position: static !important;
-      top: unset;
-      width: 100%;
-    }
-    .main-content-inner,
-    .main-content-responsive {
-      padding-top: 0 !important;
-    }
-    .sticky-header thead th,
-    .table-responsive thead th,
-    .table thead th {
-      top: 0 !important;
-    }
+
+  /* Empujar contenido hacia abajo para que no quede detrás del navbar */
+  .main-content-inner {
+    padding-top: 68px !important;
   }
-  
+
+  /* Encabezados sticky de tablas: compensar navbar fijo */
+  .sticky-header thead th,
+  .table-responsive thead th,
+  .table thead th {
+    top: 68px !important;
+    z-index: 102;
+    background: #fff !important;
+  }
+}
+
+/* ── DESKTOP: estático ── */
+@media (min-width: 992px) {
+  .navbar-main {
+    position: static !important;
+    width: 100%;
+  }
+
+  .main-content-inner {
+    padding-top: 0 !important;
+  }
+
+  .sticky-header thead th,
+  .table-responsive thead th,
+  .table thead th {
+    top: 0 !important;
+  }
+}

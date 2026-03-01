@@ -208,16 +208,15 @@ export default function Layout({ onLogout }) {
     <div className="layout-root d-flex min-vh-100 bg-light position-relative">
       {/* Sidebar */}
       <div
-        className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 transition-all
-          ${!isMobile && sidebarCollapsed ? "sidebar-collapsed" : ""}
-          ${isMobile ? "sidebar-mobile" : ""}
-          ${isMobile && sidebarOpen ? "sidebar-open" : ""}`}
-        style={{
-          borderTopRightRadius: "12px",
-          borderBottomRightRadius: "12px",
-          zIndex: 2060,
-          overflowX: "hidden",
-        }}
+        className={[
+          "sidebar-responsive",
+          // Desktop: colapsar a íconos
+          !isMobile && sidebarCollapsed ? "sidebar-collapsed" : "",
+          // Móvil: abrir drawer
+          isMobile && sidebarOpen ? "sidebar-open" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       >
         <Sidebar
           currentPage={currentPage}
@@ -243,14 +242,23 @@ export default function Layout({ onLogout }) {
         />
       )}
 
+      {/* Botón flotante para abrir sidebar en móvil (solo cuando está cerrado) */}
+      {isMobile && !sidebarOpen && (
+        <button
+          className="sb-mobile-fab"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Abrir menú"
+          type="button"
+        >
+          <span className="sb-mobile-fab__lines">
+            <span /><span /><span />
+          </span>
+        </button>
+      )}
+
       {/* Main content */}
       <div className="d-flex flex-column flex-grow-1 overflow-hidden main-content-responsive">
-        <Navbar
-          onLogout={onLogout}
-          onToggleSidebar={() => toggleSidebar()}
-          // (si tu Navbar usa esto para icono/estado visual)
-          sidebarCollapsed={!isMobile ? sidebarCollapsed : !sidebarOpen}
-        />
+        <Navbar onLogout={onLogout} />
 
         <main className="flex-grow-1 p-4 overflow-auto main-content-inner">
           <div className="container-fluid py-3">
@@ -267,57 +275,6 @@ export default function Layout({ onLogout }) {
           onClose={() => setSelectedProduct(null)}
         />
       )}
-
-      {/* CSS del Layout */}
-      <style>{`
-        /* Overlay */
-        .sidebar-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 2059;
-          background-color: rgba(0, 0, 0, 0.45);
-          backdrop-filter: blur(3px);
-        }
-
-        /* MÓVIL: drawer */
-        @media (max-width: 991.98px) {
-          .sidebar.sidebar-mobile {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-
-            width: 78vw;
-            max-width: 320px;
-            min-width: 260px;
-
-            transform: translateX(-100%);
-            pointer-events: none;
-            transition: transform 0.35s ease;
-          }
-
-          .sidebar.sidebar-mobile.sidebar-open {
-            transform: translateX(0);
-            pointer-events: auto;
-          }
-
-          .main-content-responsive {
-            min-width: 0 !important;
-          }
-
-          .table-responsive {
-            max-height: none !important;
-            overflow-y: visible !important;
-          }
-
-          .sticky-header thead th {
-            position: static !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

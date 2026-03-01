@@ -1,137 +1,165 @@
-/* Sidebar ancho normal y colapsado */
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR — Desktop
+═══════════════════════════════════════════════════════ */
 .sidebar-responsive {
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 260px;
   min-width: 64px;
   z-index: 20;
   position: relative;
+  flex-shrink: 0;
 }
 
 .sidebar-collapsed {
   width: 64px !important;
 }
 
-.sidebar-expanded {
-  width: 260px;
-}
-
-/* Sidebar en móvil: tipo overlay */
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR — Móvil (drawer tipo overlay)
+═══════════════════════════════════════════════════════ */
 @media (max-width: 991.98px) {
   .sidebar-responsive {
-    position: fixed;
-    left: -260px;
+    /* SIEMPRE fuera de pantalla */
+    position: fixed !important;
     top: 0;
-    height: 100vh;
-    width: 260px !important;
-    min-width: 0;
-    background: #12141f !important;
-    z-index: 1002;
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.35);
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .sidebar-expanded.sidebar-mobile {
     left: 0;
+    height: 100dvh !important;
+    width: 78vw !important;
+    max-width: 320px !important;
+    min-width: 260px !important;
+    z-index: 2060 !important;
+    transform: translateX(-100%);
+    pointer-events: none;
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Tamaño SIEMPRE el mismo: no colapsado en móvil */
   }
-  .sidebar-collapsed.sidebar-mobile {
-    left: -260px;
+
+  /* Clase que Layout.jsx aplica cuando el drawer está abierto */
+  .sidebar-responsive.sidebar-open {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
   }
 }
 
-/* Bloquear scroll del main cuando sidebar móvil está abierto */
-body.sidebar-mobile-open {
-  overflow: hidden !important;
+/* ═══════════════════════════════════════════════════════
+   OVERLAY — fondo oscuro en móvil
+═══════════════════════════════════════════════════════ */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(2px);
+  z-index: 2059;
+  animation: fadeInOverlay 0.25s ease;
+}
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
+/* ═══════════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════════ */
 .main-content-responsive {
   min-width: 0;
   width: 100%;
+  flex: 1;
 }
 
-/* Ajustar padding del main en pantallas pequeñas */
-@media (max-width: 767.98px) {
-  .main-content-inner {
-    padding: 0.5rem !important;
+@media (max-width: 991.98px) {
+  .main-content-responsive {
+    margin-left: 0 !important;
   }
-  .main-card-responsive {
-    box-shadow: none !important;
-    border-radius: 0 !important;
+  .table-responsive {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  .sticky-header thead th {
+    position: static !important;
   }
 }
 
-/* Ajuste de card en móvil */
+/* ═══════════════════════════════════════════════════════
+   CARD / INNER PADDING
+═══════════════════════════════════════════════════════ */
 .main-card-responsive {
   border-radius: 18px;
   background: #fff;
   margin-bottom: 2rem;
 }
 
-/* Quitar el margen lateral del main en móvil */
-@media (max-width: 575.98px) {
+@media (max-width: 767.98px) {
   .main-content-inner {
-    padding: 0.2rem !important;
+    padding: 0.5rem !important;
   }
   .main-card-responsive {
-    padding: 0 !important;
-    margin-bottom: 1rem !important;
+    border-radius: 12px;
   }
 }
 
+@media (max-width: 575.98px) {
+  .main-content-inner {
+    padding: 0.25rem !important;
+  }
+  .main-card-responsive {
+    border-radius: 8px;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+/* Bloquear scroll del body cuando drawer abierto */
+body.sidebar-mobile-open {
+  overflow: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FAB — Botón flotante para abrir sidebar en móvil
+═══════════════════════════════════════════════════════ */
+.sb-mobile-fab {
+  display: none;
+}
 @media (max-width: 991.98px) {
-  .sidebar-mobile.sidebar-anim {
-    transition: transform 0.8s cubic-bezier(0.36, 1.04, 0.22, 0.99),
-      opacity 0.7s cubic-bezier(0.36, 1.04, 0.22, 0.99);
-    will-change: transform, opacity;
+  .sb-mobile-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 2055;            /* Encima del main, debajo del sidebar */
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #1a1d2e;
+    border: 1.5px solid rgba(255,193,7,0.35);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.28), 0 0 0 3px rgba(255,193,7,0.08);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.18s;
+    padding: 0;
   }
-  .sidebar-mobile.sidebar-expanded {
-    display: block !important;
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    z-index: 2500;
-    min-width: 70vw !important;
-    max-width: 85vw !important;
-    height: 100vh;
-    box-shadow: 8px 0 32px rgba(0,0,0,0.5);
-    background: #12141f !important;
-    transform: translateX(0);
-    opacity: 1;
+  .sb-mobile-fab:hover {
+    background: #252840;
+    transform: scale(1.07);
   }
-  .sidebar-mobile.sidebar-collapsed {
-    display: block !important;
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    z-index: 2500;
-    min-width: 70vw !important;
-    max-width: 85vw !important;
-    height: 100vh;
-    box-shadow: 2px 0 6px #0001;
-    background: #12141f !important;
-    transform: translateX(-100%);
-    opacity: 0;
-    pointer-events: none;
+  .sb-mobile-fab:active {
+    transform: scale(0.93);
   }
-  .main-content-responsive {
-    min-width: 0 !important;
-    margin-left: 0 !important;
+  /* Las 3 líneas */
+  .sb-mobile-fab__lines {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 18px;
   }
-}
-
-.sidebar-overlay {
-  transition: opacity 0.5s cubic-bezier(0.36, 1.04, 0.22, 0.99);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #0007;
-  opacity: 1;
-  z-index: 2499;
-}
-
-.sidebar-overlay.hide {
-  opacity: 0;
-  pointer-events: none;
+  .sb-mobile-fab__lines span {
+    display: block;
+    height: 2px;
+    border-radius: 2px;
+    background: #ffc107;
+  }
+  .sb-mobile-fab__lines span:nth-child(3) {
+    width: 70%;
+  }
 }
 
 /* Encabezado sticky como InventoryPage */

@@ -291,31 +291,44 @@ export default function Sidebar({
     <div className={`sb-root d-flex flex-column ${isCollapsed ? "sb-root--collapsed" : ""}`}>
 
       {/* ── HEADER ── */}
-      <div className="sb-header">
+      <div className={`sb-header ${isCollapsed ? "sb-header--collapsed" : ""}`}>
         {!isCollapsed ? (
-          <div className="sb-header__brand">
-            <div className="sb-header__logo">
+          /* EXPANDIDO: logo + texto | botón toggle */
+          <>
+            <div className="sb-header__brand">
+              <div className="sb-header__logo">
+                <FaBoxes />
+              </div>
+              <div className="sb-header__text">
+                <span className="sb-header__title">INVENTARIO</span>
+                <span className="sb-header__subtitle">Sistema de Gestión</span>
+              </div>
+            </div>
+            <button
+              className="sb-toggle"
+              onClick={onToggle}
+              type="button"
+              aria-label="Colapsar"
+            >
+              <FaAngleDoubleLeft />
+            </button>
+          </>
+        ) : (
+          /* COLAPSADO: botón toggle arriba, logo abajo */
+          <>
+            <button
+              className="sb-toggle sb-toggle--top"
+              onClick={onToggle}
+              type="button"
+              aria-label="Expandir"
+            >
+              <FaAngleDoubleRight />
+            </button>
+            <div className="sb-header__logo sb-header__logo--center">
               <FaBoxes />
             </div>
-            <div className="sb-header__text">
-              <span className="sb-header__title">INVENTARIO</span>
-              <span className="sb-header__subtitle">Sistema de Gestión</span>
-            </div>
-          </div>
-        ) : (
-          <div className="sb-header__logo sb-header__logo--center">
-            <FaBoxes />
-          </div>
+          </>
         )}
-
-        <button
-          className="sb-toggle"
-          onClick={onToggle}
-          type="button"
-          aria-label={isCollapsed ? "Expandir" : "Colapsar"}
-        >
-          {isCollapsed ? <FaAngleDoubleRight /> : <FaAngleDoubleLeft />}
-        </button>
       </div>
 
       {/* ── SEPARADOR ── */}
@@ -395,7 +408,14 @@ export default function Sidebar({
             <button
               type="button"
               className="sb-support-btn"
-              onClick={() => soporteRef.current?.abrirModal?.()}
+              onClick={() => {
+                if (window.innerWidth < 992) {
+                  onToggle?.(false);
+                  setTimeout(() => soporteRef.current?.abrirModal?.(), 320);
+                } else {
+                  soporteRef.current?.abrirModal?.();
+                }
+              }}
             >
               <MdSupportAgent className="me-2" style={{ fontSize: "1.1rem" }} />
               Soporte Técnico
@@ -406,7 +426,14 @@ export default function Sidebar({
             type="button"
             className="sb-support-btn sb-support-btn--icon"
             title="Soporte"
-            onClick={() => soporteRef.current?.abrirModal?.()}
+            onClick={() => {
+              if (window.innerWidth < 992) {
+                onToggle?.(false);
+                setTimeout(() => soporteRef.current?.abrirModal?.(), 320);
+              } else {
+                soporteRef.current?.abrirModal?.();
+              }
+            }}
           >
             <MdSupportAgent style={{ fontSize: "1.3rem" }} />
           </button>
@@ -435,6 +462,19 @@ export default function Sidebar({
           padding: 1.1rem 0.85rem 1rem;
           min-height: 70px;
           flex-shrink: 0;
+        }
+        /* Colapsado: apilar verticalmente centrado */
+        .sb-header--collapsed {
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          padding: 0.85rem 0.5rem;
+          min-height: 80px;
+        }
+        /* Toggle cuando está arriba (modo colapsado) */
+        .sb-toggle--top {
+          margin: 0 auto;
         }
         .sb-header__brand {
           display: flex;
@@ -479,24 +519,26 @@ export default function Sidebar({
           white-space: nowrap;
         }
         .sb-toggle {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,193,7,0.15);
+          border: 1px solid rgba(255,193,7,0.35);
           border-radius: 8px;
-          color: rgba(255,255,255,0.5);
-          width: 28px;
-          height: 28px;
+          color: #ffc107;
+          width: 32px;
+          height: 32px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 0.75rem;
+          font-size: 0.9rem;
           flex-shrink: 0;
           cursor: pointer;
           transition: all 0.2s;
+          box-shadow: 0 0 10px rgba(255,193,7,0.18);
         }
         .sb-toggle:hover {
-          background: rgba(255,193,7,0.15);
-          border-color: rgba(255,193,7,0.4);
-          color: #ffc107;
+          background: rgba(255,193,7,0.3);
+          border-color: #ffc107;
+          color: #fff;
+          box-shadow: 0 0 16px rgba(255,193,7,0.35);
         }
 
         /* ─── DIVIDER ───────────────────────────── */
@@ -530,13 +572,13 @@ export default function Sidebar({
           position: relative;
           display: flex;
           align-items: center;
-          gap: 0.7rem;
-          padding: 0.52rem 1rem 0.52rem 1.1rem;
+          gap: 0.75rem;
+          padding: 0.58rem 1rem 0.58rem 1.1rem;
           margin: 0.1rem 0.5rem;
           border-radius: 10px;
           background: transparent;
-          color: rgba(255,255,255,0.62);
-          font-size: 0.875rem;
+          color: rgba(255,255,255,0.68);
+          font-size: 0.955rem;
           font-weight: 500;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -602,13 +644,13 @@ export default function Sidebar({
           align-items: center;
           gap: 0.6rem;
           width: 100%;
-          padding: 0.45rem 1rem 0.45rem 1.1rem;
+          padding: 0.5rem 1rem 0.5rem 1.1rem;
           background: transparent;
           border: none;
-          color: rgba(255,255,255,0.38);
-          font-size: 0.7rem;
+          color: rgba(255,255,255,0.42);
+          font-size: 0.72rem;
           font-weight: 700;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.13em;
           text-transform: uppercase;
           cursor: pointer;
           transition: all 0.2s;
