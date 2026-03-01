@@ -143,14 +143,27 @@ export default function Navbar({ onLogout }) {
         }
 
         @media (max-width: 991.98px) {
-          /* En móvil el FAB ocupa el espacio izquierdo,
-             el brand ocupa el centro con padding para no solaparse */
+          /* En móvil centrar el brand completamente */
           .nb-brand-desktop { display: none; }
+          .nb-wrapper {
+            justify-content: center !important;
+            position: relative;
+          }
+          .nb-brand {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+          }
           .nb-brand-mobile {
             display: flex;
             align-items: center;
             gap: 0.45rem;
-            padding-left: 52px; /* espacio para el FAB fijo */
+          }
+          /* Usuario a la derecha */
+          .dropdown {
+            margin-left: auto;
+            position: relative;
+            z-index: 10;
           }
           .nb-brand-mobile__logo {
             width: 32px;

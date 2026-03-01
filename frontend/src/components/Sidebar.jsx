@@ -306,7 +306,15 @@ export default function Sidebar({
             </div>
             <button
               className="sb-toggle"
-              onClick={onToggle}
+              onClick={() => {
+                if (window.innerWidth < 992) {
+                  // En móvil cerrar el sidebar
+                  onToggle?.(false);
+                } else {
+                  // En desktop toggle normal
+                  onToggle?.();
+                }
+              }}
               type="button"
               aria-label="Colapsar"
             >
@@ -452,6 +460,15 @@ export default function Sidebar({
           border-right: 1px solid rgba(255,193,7,0.12);
           overflow: hidden;
           position: relative;
+          /* Asegurar que el contenido respete las áreas seguras */
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        
+        /* En móviles con menús del navegador */
+        @media (max-width: 767px) {
+          .sb-root {
+            padding-bottom: 0;
+          }
         }
 
         /* ─── HEADER ────────────────────────────── */
@@ -463,6 +480,14 @@ export default function Sidebar({
           min-height: 70px;
           flex-shrink: 0;
         }
+        
+        /* Ajustar padding en móviles */
+        @media (max-width: 767px) {
+          .sb-header {
+            padding: 1rem 0.85rem;
+          }
+        }
+        
         /* Colapsado: apilar verticalmente centrado */
         .sb-header--collapsed {
           flex-direction: column;
@@ -480,8 +505,9 @@ export default function Sidebar({
           display: flex;
           align-items: center;
           gap: 0.65rem;
-          overflow: hidden;
+          overflow: visible;
         }
+        
         .sb-header__logo {
           width: 38px;
           height: 38px;
@@ -495,6 +521,16 @@ export default function Sidebar({
           flex-shrink: 0;
           box-shadow: 0 4px 14px rgba(255,193,7,0.4);
         }
+        
+        /* Logo más grande en móviles */
+        @media (max-width: 767px) {
+          .sb-header__logo {
+            width: 42px;
+            height: 42px;
+            font-size: 1.2rem;
+          }
+        }
+        
         .sb-header__logo--center {
           margin: 0 auto;
           box-shadow: 0 4px 14px rgba(255,193,7,0.4);
@@ -504,6 +540,7 @@ export default function Sidebar({
           flex-direction: column;
           overflow: hidden;
         }
+        
         .sb-header__title {
           font-size: 0.95rem;
           font-weight: 800;
@@ -512,11 +549,25 @@ export default function Sidebar({
           white-space: nowrap;
           line-height: 1.2;
         }
+        
+        /* Texto más legible en móviles */
+        @media (max-width: 767px) {
+          .sb-header__title {
+            font-size: 1rem;
+          }
+        }
+        
         .sb-header__subtitle {
           font-size: 0.68rem;
           color: rgba(255,193,7,0.7);
           letter-spacing: 0.06em;
           white-space: nowrap;
+        }
+        
+        @media (max-width: 767px) {
+          .sb-header__subtitle {
+            font-size: 0.72rem;
+          }
         }
         .sb-toggle {
           background: rgba(255,193,7,0.15);
@@ -534,6 +585,7 @@ export default function Sidebar({
           transition: all 0.2s;
           box-shadow: 0 0 10px rgba(255,193,7,0.18);
         }
+        
         .sb-toggle:hover {
           background: rgba(255,193,7,0.3);
           border-color: #ffc107;
@@ -558,9 +610,20 @@ export default function Sidebar({
           overflow-y: auto;
           overflow-x: hidden;
           padding: 0.5rem 0;
+          padding-bottom: 1rem;
           scrollbar-width: thin;
           scrollbar-color: rgba(255,193,7,0.2) transparent;
+          /* Permitir scroll incluso en móviles */
+          -webkit-overflow-scrolling: touch;
         }
+        
+        /* Más espacio en móviles para permitir scroll completo */
+        @media (max-width: 767px) {
+          .sb-nav {
+            padding-bottom: 2rem;
+          }
+        }
+        
         .sb-nav::-webkit-scrollbar { width: 3px; }
         .sb-nav::-webkit-scrollbar-thumb {
           background: rgba(255,193,7,0.25);
@@ -692,22 +755,29 @@ export default function Sidebar({
         .sb-footer {
           flex-shrink: 0;
           padding: 0.75rem 0.6rem;
-          padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
+          padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
           border-top: 1px solid rgba(255,255,255,0.07);
           background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%);
         }
         
-        /* Ajuste adicional para tablets */
+        /* Tablets */
         @media (min-width: 768px) and (max-width: 1024px) {
           .sb-footer {
-            padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+            padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
           }
         }
         
-        /* Móviles */
+        /* Móviles con menú inferior del navegador */
         @media (max-width: 767px) {
           .sb-footer {
-            padding-bottom: max(1.2rem, env(safe-area-inset-bottom));
+            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+          }
+        }
+        
+        /* Dispositivos iOS con notch */
+        @supports (padding: max(0px)) {
+          .sb-footer {
+            padding-bottom: max(4.5rem, calc(4.5rem + env(safe-area-inset-bottom)));
           }
         }
         
@@ -764,7 +834,7 @@ export default function Sidebar({
           cursor: pointer;
           transition: all 0.2s;
           white-space: nowrap;
-          margin-bottom: 0.2rem;
+          margin-bottom: 0.5rem;
         }
         .sb-support-btn:hover {
           background: rgba(255,193,7,0.16);
@@ -775,16 +845,27 @@ export default function Sidebar({
         .sb-support-btn--icon {
           width: 42px;
           height: 42px;
-          margin: 0 auto;
+          margin: 0 auto 0.5rem;
           border-radius: 12px;
           padding: 0;
         }
         
-        /* Botón más compacto en tablets/móviles */
-        @media (max-width: 1024px) {
+        /* Botón más visible en móviles */
+        @media (max-width: 767px) {
           .sb-support-btn {
-            padding: 0.45rem 0.6rem;
-            font-size: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.82rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 2px 8px rgba(255,193,7,0.15);
+          }
+        }
+        
+        /* Botón más compacto en tablets */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .sb-support-btn {
+            padding: 0.5rem 0.65rem;
+            font-size: 0.76rem;
+            margin-bottom: 0.6rem;
           }
         }
       `}</style>

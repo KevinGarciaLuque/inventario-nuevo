@@ -22,3 +22,47 @@
   background-color: #fff;
 }
 
+/* ============================================
+   ÁREAS SEGURAS PARA DISPOSITIVOS MÓVILES
+   ============================================ */
+
+/* Asegurar que el contenido respete las áreas seguras */
+body {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 
+          env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Prevenir zoom en inputs en iOS */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Smooth scrolling en toda la app */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimización para touch devices */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scroll suave en iOS */
+body {
+  -webkit-overflow-scrolling: touch;
+}
