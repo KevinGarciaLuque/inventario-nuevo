@@ -1,39 +1,39 @@
 /* Sidebar ancho normal y colapsado */
 .sidebar-responsive {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s;
-  width: 250px;
-  min-width: 60px;
+  width: 260px;
+  min-width: 64px;
   z-index: 20;
   position: relative;
 }
 
 .sidebar-collapsed {
-  width: 60px !important;
+  width: 64px !important;
 }
 
 .sidebar-expanded {
-  width: 250px;
+  width: 260px;
 }
 
 /* Sidebar en móvil: tipo overlay */
 @media (max-width: 991.98px) {
   .sidebar-responsive {
     position: fixed;
-    left: -250px;
+    left: -260px;
     top: 0;
     height: 100vh;
-    width: 250px !important;
+    width: 260px !important;
     min-width: 0;
-    background: #23272b !important;
+    background: #12141f !important;
     z-index: 1002;
-    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.23);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.35);
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sidebar-expanded.sidebar-mobile {
     left: 0;
   }
   .sidebar-collapsed.sidebar-mobile {
-    left: -250px;
+    left: -260px;
   }
 }
 
@@ -91,8 +91,8 @@ body.sidebar-mobile-open {
     min-width: 70vw !important;
     max-width: 85vw !important;
     height: 100vh;
-    box-shadow: 8px 0 24px #0003;
-    background: #222;
+    box-shadow: 8px 0 32px rgba(0,0,0,0.5);
+    background: #12141f !important;
     transform: translateX(0);
     opacity: 1;
   }
@@ -106,7 +106,7 @@ body.sidebar-mobile-open {
     max-width: 85vw !important;
     height: 100vh;
     box-shadow: 2px 0 6px #0001;
-    background: #222;
+    background: #12141f !important;
     transform: translateX(-100%);
     opacity: 0;
     pointer-events: none;
@@ -151,104 +151,5 @@ body.sidebar-mobile-open {
   border-radius: 4px;
 }
 
-/* ===== TÍTULOS DE SECCIÓN (PRO) ===== */
-/* ===============================
-   TÍTULOS DE SECCIÓN – FONDO GOLD
-================================ */
-
-.sidebar-container .accordion-button {
-  position: relative;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-  font-size: 0.75rem;
-
-  color: rgba(255, 255, 255, 0.75);
-  background: transparent;
-
-  transition: all 0.25s ease;
-}
-
-/* Hover → fondo dorado */
-.sidebar-container .accordion-button:hover {
-  color: #ffffff;
-
-  background: linear-gradient(
-    180deg,
-    rgba(255, 193, 7, 0.85),
-    rgba(255, 152, 0, 0.85)
-  );
-
-  box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.45),
-              0 6px 18px rgba(255, 193, 7, 0.35);
-}
-
-/* Activo (grupo abierto) */
-.sidebar-container .accordion-button:not(.collapsed) {
-  color: #ffffff;
-
-  background: linear-gradient(
-    180deg,
-    rgba(255, 193, 7, 0.95),
-    rgba(255, 152, 0, 0.95)
-  );
-
-  box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.55),
-              0 6px 22px rgba(255, 193, 7, 0.45);
-}
-
-/* Quitar flecha de Bootstrap */
-.sidebar-container .accordion-button::after {
-  display: none !important;
-}
-
-/* Focus limpio */
-.sidebar-container .accordion-button:focus {
-  box-shadow: none !important;
-}
-
-
-/* ===== ITEMS DEL MENÚ ===== */
-.sidebar-link {
-  position: relative;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-}
-
-/* Barra izquierda */
-.sidebar-link::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 4px;
-  height: 0;
-  background: #ffc107;
-  border-radius: 2px;
-  transform: translateY(-50%);
-  transition: height 0.2s ease;
-  opacity: 0;
-}
-
-/* Hover item */
-.sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  padding-left: 1.2rem;
-}
-
-/* Hover icon */
-.sidebar-link:hover span {
-  transform: translateX(2px);
-  transition: transform 0.2s ease;
-}
-
-/* Hover barra */
-.sidebar-link:hover::before {
-  height: 60%;
-  opacity: 1;
-}
-
-/* Activo */
-.sidebar-link.text-warning {
-  font-weight: 600;
-}
+/* ─── SIDEBAR: estilos legacy removidos ─────────────────── */
+/* Los estilos del sidebar ahora están encapsulados en Sidebar.jsx */

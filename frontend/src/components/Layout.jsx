@@ -208,7 +208,7 @@ export default function Layout({ onLogout }) {
     <div className="layout-root d-flex min-vh-100 bg-light position-relative">
       {/* Sidebar */}
       <div
-        className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 bg-dark text-white transition-all
+        className={`sidebar sidebar-responsive d-flex flex-column flex-shrink-0 transition-all
           ${!isMobile && sidebarCollapsed ? "sidebar-collapsed" : ""}
           ${isMobile ? "sidebar-mobile" : ""}
           ${isMobile && sidebarOpen ? "sidebar-open" : ""}`}

@@ -1,0 +1,317 @@
+server.js 
+
+// server.js (PROD + LOCAL + RAILWAY) - COMPLETO Y CORREGIDO
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+
+// ✅ En local carga backend/.env (en Railway las env vars ya vienen del panel)
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+const app = express();
+
+/* ===========================
+   LOGS de errores globales
+=========================== */
+process.on("uncaughtException", (err) => {
+  try {
+    const logFile = path.join(process.cwd(), "backend-error.log"); // ✅ mejor para Railway/local
+    fs.appendFileSync(
+      logFile,
+      `[${new Date().toISOString()}] ❌ uncaughtException:\n${err.stack}\n\n`
+    );
+  } catch (e) {
+    console.error("No se pudo escribir backend-error.log", e);
+  }
+  console.error("❌ uncaughtException:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ unhandledRejection:", reason);
+});
+
+/* ===========================
+   CORS (LOCAL + PRODUCCIÓN)
+   - FIX para preflight OPTIONS
+   - Permite tu dominio: https://sistemaposthn.com
+=========================== */
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://sistemaposthn.com",
+  "https://www.sistemaposthn.com",
+  process.env.FRONTEND_URL, // ✅ opcional (puedes setearlo en Railway)
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Permite requests sin origin (Postman/curl)
+    if (!origin) return cb(null, true);
+
+    // ✅ permite orígenes explícitos
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+
+    // ✅ opcional: permitir subdominios de Railway si cambian
+    if (origin.endsWith(".up.railway.app")) return cb(null, true);
+
+    return cb(new Error("No permitido por CORS: " + origin));
+  },
+  credentials: false, // ✅ tu app usa Bearer token, no cookies
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+
+
+// ✅ Aplica CORS a TODA la app
+app.use(cors(corsOptions));
+
+// ✅ IMPORTANTE: responde preflight (OPTIONS) para evitar el error que tienes
+app.options(/.*/, cors(corsOptions));
+
+const backupRoutes = require("./routes/backup");
+
+const descuentosRoutes = require("./routes/descuentos");
+
+
+app.use("/api/descuentos", descuentosRoutes);
+
+
+app.use("/api/backup", backupRoutes);
+
+
+/* ===========================
+   Parsers
+=========================== */
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* ===========================
+   uploads (Railway + local)
+=========================== */
+const uploadsPath = path.join(process.cwd(), "uploads"); // ✅ process.cwd() funciona bien en Railway
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log("📁 Carpeta 'uploads' creada automáticamente.");
+}
+app.use("/uploads", express.static(uploadsPath));
+
+/* ===========================
+   Health check
+=========================== */
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    env: process.env.NODE_ENV || "local",
+    port: Number(process.env.PORT) || 3000,
+    db: process.env.DB_NAME || null,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* ===========================
+   Middleware JWT (protector)
+=========================== */
+// ⚠️ Asegúrate que este archivo exista:
+// backend/middleware/auth.js  (o cambia el require a tu nombre real)
+const auth = require("./middleware/auth");
+
+/* ===========================
+   Rutas
+=========================== */
+// ✅ AUTH (LOGIN) - NO protegido
+app.use("/api/auth", require("./routes/auth"));
+
+// ✅ Rutas protegidas
+app.use("/api/usuarios", auth, require("./routes/usuarios"));
+app.use("/api/productos", auth, require("./routes/productos"));
+app.use("/api/categorias", auth, require("./routes/categorias"));
+app.use("/api/ubicaciones", auth, require("./routes/ubicaciones"));
+app.use("/api/movimientos", auth, require("./routes/movimientos"));
+app.use("/api/bitacora", auth, require("./routes/bitacora"));
+app.use("/api/upload", auth, require("./routes/upload"));
+app.use("/api/cai", auth, require("./routes/cai"));
+app.use("/api/ventas", auth, require("./routes/ventas"));
+app.use("/api/facturas", auth, require("./routes/facturas"));
+app.use("/api/clientes", auth, require("./routes/clientes"));
+app.use("/api/unidades", auth, require("./routes/unidades"));
+app.use("/api/caja", auth, require("./routes/caja"));
+app.use("/api/impuestos", auth, require("./routes/impuestos"));
+app.use("/api/promociones", auth, require("./routes/promociones"));
+app.use(
+  "/api/promocion_productos",
+  auth,
+  require("./routes/promocion_productos")
+);
+
+
+
+/* ===========================
+   404 (al final)
+=========================== */
+app.use((req, res) => {
+  res.status(404).json({
+    message: "Ruta no encontrada",
+    path: req.originalUrl,
+  });
+});
+
+/* ===========================
+   Error handler
+=========================== */
+app.use((err, req, res, next) => {
+  // Si el error viene de CORS, responde 403 en lugar de 500
+  if (err && typeof err.message === "string" && err.message.startsWith("No permitido por CORS")) {
+    return res.status(403).json({ message: err.message });
+  }
+
+  console.error("❌ Error middleware:", err.message || err);
+  res.status(500).json({ message: err.message || "Error del servidor" });
+});
+
+/* ===========================
+   Start
+=========================== */
+const PORT = Number(process.env.PORT) || 3000;
+
+console.log("✅ Iniciando backend...");
+console.log("📌 PORT:", PORT);
+console.log("📌 Allowed Origins:", allowedOrigins);
+console.log("📌 DB:", process.env.DB_HOST, process.env.DB_PORT, process.env.DB_NAME);
+
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Backend corriendo en http://0.0.0.0:${PORT}`);
+});
+
+server.on("error", (e) => {
+  console.error("❌ Error al levantar servidor:", e.message);
+});
+
+
+
+
+
+
+
+*************************************.env**************************
+# PRODUCCIÓN (Railway)
+# ---------------------
+DB_HOST=caboose.proxy.rlwy.net
+DB_PORT=30625
+DB_NAME=railway
+DB_USER=root
+DB_PASSWORD=MpviBxAPtcaUFbLncYUKYdqexyOAKKrL
+PORT=3000
+JWT_SECRET=0ae7!bdA@Hgf#1x2ZLK
+FRONTEND_URL=http://localhost:5173   # o la url real de tu frontend en prod
+
+
+
+
+***************************************************************************
+// src/api/axios.js
+import axios from "axios";
+
+/* =====================================================
+   BASE URL
+   - Producción (Railway): VITE_API_URL
+   - Local fallback
+===================================================== */
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+/* =====================================================
+   Instancia axios
+===================================================== */
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 15000, // ⏱️ evita cuelgues silenciosos
+});
+
+/* =====================================================
+   Helper: obtener token limpio
+===================================================== */
+const getToken = () => {
+  const raw = localStorage.getItem("token");
+  if (!raw) return null;
+
+  // Quita comillas si se guardó como string JSON
+  const cleaned = raw.replace(/^"+|"+$/g, "").trim();
+
+  // Evita "Bearer Bearer xxx"
+  if (cleaned.toLowerCase().startsWith("bearer ")) {
+    return cleaned.slice(7).trim();
+  }
+
+  return cleaned;
+};
+
+/* =====================================================
+   REQUEST INTERCEPTOR
+   - Adjunta JWT automáticamente
+===================================================== */
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+
+    config.headers = config.headers || {};
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete config.headers.Authorization;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+/* =====================================================
+   RESPONSE INTERCEPTOR
+   - Manejo global de errores
+   ✅ IMPORTANTE: NO convertir a new Error(msg) porque
+      eso elimina error.response.status (y ocupa en tus validaciones)
+===================================================== */
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const msg =
+      error.response?.data?.message || error.message || "Error desconocido";
+
+    // ✅ opcional: adjuntar mensaje "limpio" sin destruir el error
+    error.userMessage = msg;
+
+    if (status === 401) {
+      console.error("❌ 401 No autenticado:", msg);
+    } else if (status === 403) {
+      console.error("⛔ 403 Acceso denegado:", msg);
+    } else {
+      console.error("❌ Error de API:", msg);
+    }
+
+    // ✅ devolver el error original de axios (con response/status)
+    return Promise.reject(error);
+  },
+);
+
+export default api;
+
+
+
+
+***************************************************************************
+
+VITE_API_URL=https://feisty-charisma-production.up.railway.app/api
+
+
+
+#VITE_API_URL=http://localhost:3000/api
+#VITE_IMG_URL=http://localhost:3000/uploads
