@@ -691,14 +691,31 @@ export default function Sidebar({
         /* ─── FOOTER ────────────────────────────── */
         .sb-footer {
           flex-shrink: 0;
-          padding: 0.75rem 0.6rem 0.85rem;
+          padding: 0.75rem 0.6rem;
+          padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
           border-top: 1px solid rgba(255,255,255,0.07);
+          background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%);
         }
+        
+        /* Ajuste adicional para tablets */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .sb-footer {
+            padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+          }
+        }
+        
+        /* Móviles */
+        @media (max-width: 767px) {
+          .sb-footer {
+            padding-bottom: max(1.2rem, env(safe-area-inset-bottom));
+          }
+        }
+        
         .sb-user {
           display: flex;
           align-items: center;
           gap: 0.6rem;
-          padding: 0.5rem 0.5rem 0.75rem;
+          padding: 0.5rem 0.5rem 0.6rem;
         }
         .sb-user__avatar {
           width: 34px;
@@ -747,6 +764,7 @@ export default function Sidebar({
           cursor: pointer;
           transition: all 0.2s;
           white-space: nowrap;
+          margin-bottom: 0.2rem;
         }
         .sb-support-btn:hover {
           background: rgba(255,193,7,0.16);
@@ -760,6 +778,14 @@ export default function Sidebar({
           margin: 0 auto;
           border-radius: 12px;
           padding: 0;
+        }
+        
+        /* Botón más compacto en tablets/móviles */
+        @media (max-width: 1024px) {
+          .sb-support-btn {
+            padding: 0.45rem 0.6rem;
+            font-size: 0.75rem;
+          }
         }
       `}</style>
     </div>
