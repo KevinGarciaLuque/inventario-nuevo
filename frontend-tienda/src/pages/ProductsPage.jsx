@@ -5,37 +5,32 @@ import ProductCard from "../components/ProductCard.jsx";
 
 // Una fila de categoría y, si está expandida, sus hijas — recursivo, así
 // que soporta cualquier profundidad (categoría > subcategoría > sub-sub).
+// Clic en la categoría (si tiene hijas) despliega/oculta su rama y además
+// filtra los productos de esa categoría.
 function CategoriaItem({ nodo, nivel, categoriaIdParam, childrenMap, expandedIds, toggleExpand }) {
   const hijos = childrenMap[nodo.id] || [];
   const tieneHijos = hijos.length > 0;
   const expandida = expandedIds.has(nodo.id);
 
   return (
-    <li>
-      <div className="category-parent-row">
-        <Link
-          to={`/categoria/${nodo.id}`}
-          className={`category-link flex-grow-1 ${nivel > 0 ? "category-sublink" : ""} ${
-            String(nodo.id) === categoriaIdParam ? "active" : ""
-          }`}
-        >
-          {nodo.nombre}
-        </Link>
-        {tieneHijos && (
-          <button
-            type="button"
-            className="category-toggle"
-            onClick={() => toggleExpand(nodo.id)}
-            aria-expanded={expandida}
-            aria-label={`Ver subcategorías de ${nodo.nombre}`}
-          >
-            <i className={`bi ${expandida ? "bi-chevron-down" : "bi-chevron-right"}`}></i>
-          </button>
-        )}
-      </div>
+    <li className={`cat-nav-node cat-nav-node--lvl${nivel}`}>
+      <Link
+        to={`/categoria/${nodo.id}`}
+        className={`cat-nav-row ${String(nodo.id) === categoriaIdParam ? "active" : ""}`}
+        onClick={(e) => {
+          if (!tieneHijos) return;
+          e.preventDefault();
+          toggleExpand(nodo.id);
+        }}
+      >
+        <span className={`cat-nav-chevron ${expandida ? "cat-nav-chevron--open" : ""}`}>
+          {tieneHijos && <i className="bi bi-chevron-right"></i>}
+        </span>
+        <span className="cat-nav-nombre">{nodo.nombre}</span>
+      </Link>
 
       {tieneHijos && expandida && (
-        <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
+        <ul className="list-unstyled cat-nav-children">
           {hijos.map((hijo) => (
             <CategoriaItem
               key={hijo.id}
@@ -183,10 +178,14 @@ const ProductsPage = () => {
           </div>
 
           <h6 className="fw-bold mb-2">Categorías</h6>
-          <ul className="list-unstyled d-flex flex-column gap-1">
-            <li>
-              <Link to="/productos" className={`category-link ${!categoriaIdParam ? "active" : ""}`}>
-                Todas
+          <ul className="list-unstyled cat-nav-tree">
+            <li className="cat-nav-node cat-nav-node--lvl0">
+              <Link
+                to="/productos"
+                className={`cat-nav-row ${!categoriaIdParam ? "active" : ""}`}
+              >
+                <span className="cat-nav-chevron"></span>
+                <span className="cat-nav-nombre">Todas</span>
               </Link>
             </li>
             {principales.map((cat) => (

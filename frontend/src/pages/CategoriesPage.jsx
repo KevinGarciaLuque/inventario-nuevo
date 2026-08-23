@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import {
-  BsChevronDown,
   BsChevronRight,
   BsCheckCircleFill,
   BsExclamationTriangleFill,
@@ -327,50 +326,39 @@ export default function CategoriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorias, editId, depthMap, childrenMap]);
 
-  // Renderiza una categoría y, recursivamente, sus hijos (hasta 3 niveles)
+  // Renderiza una categoría y, recursivamente, sus hijos (hasta 3 niveles).
+  // Estilo "árbol de archivos": cada nivel anidado dentro de un contenedor
+  // con guía vertical (border-left), en vez de una fila de tabla con "└─".
   const renderNodo = (nodo, nivel) => {
     const hijos = childrenMap[nodo.id] || [];
     const expanded = expandedIds.has(nodo.id);
     const puedeExpandir = hijos.length > 0 || (isAdmin && nivel < NIVELES_MAX);
-    const filas = [];
 
-    filas.push(
-      <tr key={`row-${nodo.id}`} className={nivel > 1 ? "categories-subrow" : undefined}>
-        <td>
-          <span
-            className={`categories-row ${
-              nivel === 1 ? "categories-row--parent" : "categories-row--child"
-            }`}
-            style={nivel > 1 ? { paddingLeft: `${(nivel - 1) * 1.4}rem` } : undefined}
-            role={puedeExpandir ? "button" : undefined}
-            onClick={puedeExpandir ? () => toggleExpand(nodo.id) : undefined}
-          >
-            {nivel > 1 && <span className="categories-tree-branch">└─</span>}
-            {puedeExpandir ? (
-              expanded ? (
-                <BsChevronDown className="categories-chevron" />
-              ) : (
-                <BsChevronRight className="categories-chevron" />
-              )
-            ) : (
-              <span className="categories-chevron-spacer" />
-            )}
-            {nodo.nombre}
+    return (
+      <div key={nodo.id} className={`cat-node cat-node--lvl${nivel}`}>
+        <div
+          className={`cat-row ${puedeExpandir ? "cat-row--clickable" : ""}`}
+          role={puedeExpandir ? "button" : undefined}
+          onClick={puedeExpandir ? () => toggleExpand(nodo.id) : undefined}
+        >
+          <div className="cat-row__main">
+            <span className={`cat-chevron ${expanded ? "cat-chevron--open" : ""}`}>
+              {puedeExpandir && <BsChevronRight />}
+            </span>
+            <span className="cat-row__nombre">{nodo.nombre}</span>
             {hijos.length > 0 && (
-              <span className="badge rounded-pill bg-light text-secondary border ms-1">
-                {hijos.length}
-              </span>
+              <span className="cat-row__count">{hijos.length}</span>
             )}
-          </span>
-        </td>
-        <td style={{ wordBreak: "break-word" }}>{nodo.descripcion}</td>
-        <td>
+            {nodo.descripcion && (
+              <span className="cat-row__desc">{nodo.descripcion}</span>
+            )}
+          </div>
+
           {isAdmin && (
-            <>
+            <div className="cat-row__actions" onClick={(e) => e.stopPropagation()}>
               {nivel < NIVELES_MAX && (
                 <button
-                  className="btn btn-outline-success btn-sm me-1"
-                  style={{ borderRadius: 8 }}
+                  className="btn btn-outline-success btn-sm"
                   onClick={() => expandirParaSubcategoria(nodo.id)}
                   title="Agregar subcategoría"
                 >
@@ -378,46 +366,38 @@ export default function CategoriesPage() {
                 </button>
               )}
               <button
-                className="btn btn-warning btn-sm me-1"
-                style={{ borderRadius: 8 }}
+                className="btn btn-warning btn-sm"
                 onClick={() => openEdit(nodo)}
                 title="Editar"
               >
                 <BsPencilSquare />
               </button>
               <button
-                className="btn btn-danger btn-sm me-1"
-                style={{ borderRadius: 8 }}
+                className="btn btn-danger btn-sm"
                 onClick={() => handleDeleteClick(nodo.id)}
                 title="Eliminar"
               >
                 <BsTrash />
               </button>
-            </>
+            </div>
           )}
-        </td>
-      </tr>,
+        </div>
+
+        {expanded && (
+          <div className="cat-children">
+            {hijos.map((hijo) => renderNodo(hijo, nivel + 1))}
+
+            {isAdmin && nivel < NIVELES_MAX && (
+              <div className="cat-quickadd">
+                <SubcategoriaQuickAdd
+                  onAdd={(n, d) => handleAddSubcategoriaInline(nodo, n, d)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     );
-
-    if (expanded) {
-      hijos.forEach((hijo) => {
-        filas.push(...renderNodo(hijo, nivel + 1));
-      });
-
-      if (isAdmin && nivel < NIVELES_MAX) {
-        filas.push(
-          <tr key={`add-${nodo.id}`} className="categories-subrow categories-subrow--form">
-            <td colSpan={3} style={{ paddingLeft: `${nivel * 1.4}rem` }}>
-              <SubcategoriaQuickAdd
-                onAdd={(n, d) => handleAddSubcategoriaInline(nodo, n, d)}
-              />
-            </td>
-          </tr>,
-        );
-      }
-    }
-
-    return filas;
   };
 
   return (
@@ -457,30 +437,15 @@ export default function CategoriesPage() {
         </form>
       )}
 
-      {/* TABLA RESPONSIVA */}
-      <div className="bg-white shadow-sm rounded mb-4 border">
-        <div className="table-responsive">
-          <table className="table table-bordered align-middle categories-table sticky-header mb-0">
-            <thead className="table-light sticky-top">
-              <tr>
-                <th>Nombre</th>
-                <th>Descripción</th>
-                <th style={{ width: 170 }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {principales.length > 0 ? (
-                principales.flatMap((p) => renderNodo(p, 1))
-              ) : (
-                <tr>
-                  <td colSpan={3} className="text-center text-muted">
-                    {loading ? "Cargando..." : "No hay categorías"}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* ÁRBOL DE CATEGORÍAS */}
+      <div className="cat-tree-card mb-4">
+        {principales.length > 0 ? (
+          principales.map((p) => renderNodo(p, 1))
+        ) : (
+          <div className="text-center text-muted py-4">
+            {loading ? "Cargando..." : "No hay categorías"}
+          </div>
+        )}
       </div>
 
       {/* MODAL EDICIÓN RESPONSIVO */}
@@ -613,46 +578,116 @@ export default function CategoriesPage() {
         </Modal.Body>
       </Modal>
 
-      {/* ESTILOS RESPONSIVOS */}
+      {/* ESTILOS DEL ÁRBOL Y RESPONSIVOS */}
       <style>{`
-        .categories-row--parent {
-          font-weight: 700;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          user-select: none;
+        .cat-tree-card {
+          background: #fff;
+          border: 1px solid #e9ecef;
+          border-radius: 14px;
+          box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+          padding: 0.4rem 0.6rem;
         }
-        .categories-row--child {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          color: #495057;
-          user-select: none;
+
+        .cat-node--lvl1 {
+          border-top: 1px solid #f1f3f5;
         }
-        .categories-row[role="button"] {
+        .cat-node--lvl1:first-child {
+          border-top: none;
+        }
+
+        .cat-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          padding: 0.65rem 0.5rem;
+          border-radius: 8px;
+        }
+        .cat-node--lvl1 > .cat-row {
+          padding: 0.75rem 0.5rem;
+        }
+        .cat-row--clickable {
           cursor: pointer;
+          user-select: none;
         }
-        .categories-row[role="button"]:hover {
-          color: #0d6efd;
+        .cat-row--clickable:hover {
+          background: #f8f9fa;
         }
-        .categories-chevron {
-          color: #6c757d;
+
+        .cat-row__main {
+          display: flex;
+          align-items: center;
+          gap: 0.55rem;
+          min-width: 0;
+          flex: 1;
+        }
+
+        .cat-chevron {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 1.1rem;
+          flex-shrink: 0;
+          color: #868e96;
+          transition: transform 0.18s ease;
+        }
+        .cat-chevron--open {
+          transform: rotate(90deg);
+        }
+
+        .cat-node--lvl1 .cat-row__nombre {
+          font-weight: 700;
+          font-size: 0.98rem;
+          color: #212529;
+        }
+        .cat-node--lvl2 .cat-row__nombre {
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: #343a40;
+        }
+        .cat-node--lvl3 .cat-row__nombre {
+          font-weight: 500;
+          font-size: 0.87rem;
+          color: #495057;
+        }
+
+        .cat-row__count {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #868e96;
+          background: #f1f3f5;
+          border-radius: 999px;
+          padding: 0.1rem 0.5rem;
           flex-shrink: 0;
         }
-        .categories-chevron-spacer {
-          display: inline-block;
-          width: 1em;
-          flex-shrink: 0;
-        }
-        .categories-tree-branch {
+
+        .cat-row__desc {
+          font-size: 0.8rem;
           color: #adb5bd;
-          font-weight: 400;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
         }
-        .categories-subrow {
-          background: #fbfbfd;
+
+        .cat-row__actions {
+          display: flex;
+          gap: 0.35rem;
+          flex-shrink: 0;
         }
-        .categories-subrow--form td {
-          padding-left: 1.5rem;
+        .cat-row__actions .btn {
+          border-radius: 8px;
+        }
+
+        /* Guía vertical de anidación, como un árbol de archivos */
+        .cat-children {
+          margin-left: 1.05rem;
+          padding-left: 0.85rem;
+          border-left: 2px solid #eef0f2;
+        }
+
+        .cat-quickadd {
+          padding: 0.5rem 0.5rem 0.65rem;
         }
 
         /* Formulario responsivo */
@@ -667,17 +702,8 @@ export default function CategoriesPage() {
             max-width: 100% !important;
             flex: 0 0 100% !important;
           }
-        }
-        /* Tabla responsiva */
-        @media (max-width: 575.98px) {
-          .categories-table th,
-          .categories-table td {
-            font-size: 0.99rem !important;
-            padding: 0.34rem 0.45rem !important;
-            vertical-align: middle;
-          }
-          .categories-table th {
-            min-width: 75px;
+          .cat-row__desc {
+            display: none;
           }
         }
         /* Modal edición responsivo */
