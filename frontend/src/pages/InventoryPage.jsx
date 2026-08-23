@@ -261,7 +261,7 @@ export default function InventoryPage({ onView }) {
         }
         onConfirm={handleDelete}
         mensaje={`¿Seguro que deseas eliminar el producto "${deleteConfirm.nombre}"?`}
-        subtitulo="Esta acción no se puede deshacer."
+        subtitulo="Si ya tiene ventas registradas no se puede borrar sin afectar el historial: en ese caso se desactivará en su lugar y dejará de aparecer en el inventario."
       />
 
       {/* Filtros */}

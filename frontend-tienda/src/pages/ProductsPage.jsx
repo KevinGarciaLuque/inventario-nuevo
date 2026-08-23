@@ -3,6 +3,56 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../api/axios.js";
 import ProductCard from "../components/ProductCard.jsx";
 
+// Una fila de categoría y, si está expandida, sus hijas — recursivo, así
+// que soporta cualquier profundidad (categoría > subcategoría > sub-sub).
+function CategoriaItem({ nodo, nivel, categoriaIdParam, childrenMap, expandedIds, toggleExpand }) {
+  const hijos = childrenMap[nodo.id] || [];
+  const tieneHijos = hijos.length > 0;
+  const expandida = expandedIds.has(nodo.id);
+
+  return (
+    <li>
+      <div className="category-parent-row">
+        <Link
+          to={`/categoria/${nodo.id}`}
+          className={`category-link flex-grow-1 ${nivel > 0 ? "category-sublink" : ""} ${
+            String(nodo.id) === categoriaIdParam ? "active" : ""
+          }`}
+        >
+          {nodo.nombre}
+        </Link>
+        {tieneHijos && (
+          <button
+            type="button"
+            className="category-toggle"
+            onClick={() => toggleExpand(nodo.id)}
+            aria-expanded={expandida}
+            aria-label={`Ver subcategorías de ${nodo.nombre}`}
+          >
+            <i className={`bi ${expandida ? "bi-chevron-down" : "bi-chevron-right"}`}></i>
+          </button>
+        )}
+      </div>
+
+      {tieneHijos && expandida && (
+        <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
+          {hijos.map((hijo) => (
+            <CategoriaItem
+              key={hijo.id}
+              nodo={hijo}
+              nivel={nivel + 1}
+              categoriaIdParam={categoriaIdParam}
+              childrenMap={childrenMap}
+              expandedIds={expandedIds}
+              toggleExpand={toggleExpand}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 const ProductsPage = () => {
   const { id: categoriaIdParam } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,37 +105,51 @@ const ProductsPage = () => {
 
   const categoriaActual = categorias.find((c) => String(c.id) === categoriaIdParam);
 
-  // Árbol: categorías principales seguidas de sus subcategorías
-  const categoriasArbol = useMemo(() => {
-    const principales = categorias
-      .filter((c) => !c.categoria_padre_id)
-      .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-    const porPadre = {};
+  // Índice: id de padre -> lista de hijas (categoría, subcategoría o
+  // sub-subcategoría; el árbol soporta cualquier profundidad)
+  const childrenMap = useMemo(() => {
+    const map = {};
     categorias.forEach((c) => {
       if (c.categoria_padre_id) {
-        (porPadre[c.categoria_padre_id] ||= []).push(c);
+        (map[c.categoria_padre_id] ||= []).push(c);
       }
     });
-    Object.values(porPadre).forEach((arr) =>
+    Object.values(map).forEach((arr) =>
       arr.sort((a, b) => a.nombre.localeCompare(b.nombre)),
     );
-
-    return principales.map((padre) => ({
-      ...padre,
-      subcategorias: porPadre[padre.id] || [],
-    }));
+    return map;
   }, [categorias]);
+
+  const principales = useMemo(
+    () =>
+      categorias
+        .filter((c) => !c.categoria_padre_id)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [categorias],
+  );
 
   const [expandedIds, setExpandedIds] = useState(new Set());
 
-  // Si la URL apunta a una subcategoría (o a un padre), despliega ese grupo
+  // Si la URL apunta a una subcategoría (de cualquier nivel), despliega
+  // toda la rama de ancestros para que se vea dónde está ubicada.
   useEffect(() => {
     if (!categoriaIdParam) return;
     const activa = categorias.find((c) => String(c.id) === categoriaIdParam);
     if (!activa) return;
-    const idAExpandir = activa.categoria_padre_id || activa.id;
-    setExpandedIds((prev) => new Set(prev).add(idAExpandir));
+
+    const idsARevelar = [];
+    let actual = activa;
+    while (actual?.categoria_padre_id) {
+      idsARevelar.push(actual.categoria_padre_id);
+      actual = categorias.find((c) => c.id === actual.categoria_padre_id);
+    }
+    if (idsARevelar.length === 0) return;
+
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      idsARevelar.forEach((id) => next.add(id));
+      return next;
+    });
   }, [categoriaIdParam, categorias]);
 
   const toggleExpand = (id) => {
@@ -125,49 +189,17 @@ const ProductsPage = () => {
                 Todas
               </Link>
             </li>
-            {categoriasArbol.map((cat) => {
-              const tieneSubs = cat.subcategorias.length > 0;
-              const expandida = expandedIds.has(cat.id);
-              return (
-                <li key={cat.id}>
-                  <div className="category-parent-row">
-                    <Link
-                      to={`/categoria/${cat.id}`}
-                      className={`category-link flex-grow-1 ${String(cat.id) === categoriaIdParam ? "active" : ""}`}
-                    >
-                      {cat.nombre}
-                    </Link>
-                    {tieneSubs && (
-                      <button
-                        type="button"
-                        className="category-toggle"
-                        onClick={() => toggleExpand(cat.id)}
-                        aria-expanded={expandida}
-                        aria-label={`Ver subcategorías de ${cat.nombre}`}
-                      >
-                        <i
-                          className={`bi ${expandida ? "bi-chevron-down" : "bi-chevron-right"}`}
-                        ></i>
-                      </button>
-                    )}
-                  </div>
-                  {tieneSubs && expandida && (
-                    <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
-                      {cat.subcategorias.map((sub) => (
-                        <li key={sub.id}>
-                          <Link
-                            to={`/categoria/${sub.id}`}
-                            className={`category-link category-sublink ${String(sub.id) === categoriaIdParam ? "active" : ""}`}
-                          >
-                            {sub.nombre}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
+            {principales.map((cat) => (
+              <CategoriaItem
+                key={cat.id}
+                nodo={cat}
+                nivel={0}
+                categoriaIdParam={categoriaIdParam}
+                childrenMap={childrenMap}
+                expandedIds={expandedIds}
+                toggleExpand={toggleExpand}
+              />
+            ))}
           </ul>
         </aside>
 

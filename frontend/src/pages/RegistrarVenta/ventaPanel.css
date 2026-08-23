@@ -1,0 +1,173 @@
+/* ══════════════════════════════════════════════
+   Paneles de "Registrar Venta": Método de pago,
+   Descuento por cliente y Totales — mismo lenguaje
+   visual para que se vean como un solo diseño.
+══════════════════════════════════════════════ */
+
+.venta-panel {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+.venta-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.venta-panel__icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #fff3cd;
+  color: #b8860b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
+.venta-panel__title {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #212529;
+  line-height: 1.2;
+}
+
+.venta-panel__subtitle {
+  font-size: 0.78rem;
+  color: #868e96;
+  line-height: 1.2;
+}
+
+.venta-field-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #495057;
+  margin-bottom: 0.3rem;
+}
+
+/* Tabs de método de pago (segmented control) */
+.venta-payment-tabs {
+  display: flex;
+  gap: 0.4rem;
+  background: #f1f3f5;
+  padding: 0.3rem;
+  border-radius: 10px;
+}
+
+.venta-payment-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: none;
+  background: transparent;
+  color: #495057;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.4rem;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.venta-payment-tab:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.venta-payment-tab--active {
+  background: #fff;
+  color: #b8860b;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.venta-change-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #e7f5ec;
+  color: #1e7a3d;
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.venta-change-box strong {
+  font-size: 1.05rem;
+}
+
+.venta-info-box {
+  background: #eef4ff;
+  color: #2952a3;
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.87rem;
+}
+
+/* Descuento por cliente */
+.venta-discount-applied {
+  background: #fff5f5;
+  border: 1px solid #ffd8d8;
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+}
+
+.venta-discount-empty {
+  color: #adb5bd;
+  font-size: 0.88rem;
+  font-style: italic;
+}
+
+/* Totales */
+.venta-totals-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.28rem 0;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.venta-totals-row--muted {
+  color: #adb5bd;
+  font-size: 0.8rem;
+}
+
+.venta-totals-row .text-danger {
+  font-weight: 600;
+}
+
+.venta-totals-divider {
+  border: none;
+  border-top: 1px solid #e9ecef;
+  margin: 0.55rem 0;
+}
+
+.venta-total-final {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff8e1;
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.venta-total-final span {
+  font-weight: 600;
+  color: #6d5100;
+  font-size: 0.95rem;
+}
+
+.venta-total-final strong {
+  font-size: 1.35rem;
+  color: #6d5100;
+}

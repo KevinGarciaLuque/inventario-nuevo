@@ -73,6 +73,7 @@ export default function useVenta({ user }) {
     metodo_pago: "efectivo",
     efectivo: 0,
     cambio: 0,
+    monto_tarjeta: 0,
     cliente_nombre: "",
     cliente_rtn: "",
     cliente_telefono: "",
@@ -126,16 +127,17 @@ export default function useVenta({ user }) {
     window.setTimeout(() => setToast({ show: false, message: "" }), 2000);
   };
 
-  const handleCambio = ({ metodo, efectivo, cambio }) => {
+  const handleCambio = ({ metodo, efectivo, cambio, monto_tarjeta = 0 }) => {
     setVenta((prev) => {
       if (
         prev.metodo_pago === metodo &&
         prev.efectivo === efectivo &&
-        prev.cambio === cambio
+        prev.cambio === cambio &&
+        prev.monto_tarjeta === monto_tarjeta
       ) {
         return prev;
       }
-      return { ...prev, metodo_pago: metodo, efectivo, cambio };
+      return { ...prev, metodo_pago: metodo, efectivo, cambio, monto_tarjeta };
     });
   };
 
@@ -494,17 +496,6 @@ export default function useVenta({ user }) {
   }, [tipoCliente]);
 
 
-  useEffect(() => {
-  console.table(
-    carrito.map(i => ({
-      producto: i.nombre,
-      impuesto_id: i.impuesto_id,
-      tasa_aplicada: getTasaItem(i)
-    }))
-  );
-}, [carrito]);
-
-
   const descuentoClienteObj = useMemo(() => {
     if (!descuentoSeleccionadoId) return null;
     return (
@@ -708,6 +699,20 @@ function getTasaItem(item) {
         return;
       }
 
+      if (
+        venta.metodo_pago === "mixto" &&
+        round2(Number(venta.efectivo) + Number(venta.monto_tarjeta)) <
+          totalConDescCliente
+      ) {
+        setFeedbackModal({
+          show: true,
+          success: false,
+          message:
+            "⚠️ La suma de efectivo + tarjeta no puede ser menor al total.",
+        });
+        return;
+      }
+
       const productosPayload = carrito.map((item) => ({
         producto_id: item.id,
         cantidad: item.cantidad,
@@ -724,6 +729,7 @@ function getTasaItem(item) {
         metodo_pago: venta.metodo_pago,
         efectivo: venta.efectivo,
         cambio: venta.cambio,
+        monto_tarjeta: venta.monto_tarjeta || 0,
 
         tipo_cliente: tipoCliente || null,
         descuento_cliente_id: descuentoSeleccionadoId || null,
@@ -772,6 +778,7 @@ function getTasaItem(item) {
       metodoPago: venta?.metodo_pago || "efectivo",
       efectivo: Number(venta?.efectivo || 0),
       cambio: Number(venta?.cambio || 0),
+      montoTarjeta: Number(venta?.monto_tarjeta || 0),
     };
 
       setModal({
@@ -790,6 +797,7 @@ function getTasaItem(item) {
         metodo_pago: "efectivo",
         efectivo: 0,
         cambio: 0,
+        monto_tarjeta: 0,
         cliente_nombre: "",
         cliente_rtn: "",
         cliente_telefono: "",
@@ -832,15 +840,6 @@ function getTasaItem(item) {
 
     setModal((prev) => ({ ...prev, show: false }));
   };
-
-  console.table(
-    carrito.map((i) => ({
-      producto: i.nombre,
-      impuesto_id: i.impuesto_id,
-    })),
-  );
-  console.log("impuestosDetalle:", impuestosDetalle);
-
 
   // =======================
   // RETURN

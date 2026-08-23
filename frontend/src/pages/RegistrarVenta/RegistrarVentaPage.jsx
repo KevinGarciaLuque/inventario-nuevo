@@ -126,6 +126,7 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
       />
 
       <TotalesVenta
+        venta={v.venta}
         total={v.total}
         totalConDescCliente={v.totalConDescCliente}
         subtotal={v.subtotal}

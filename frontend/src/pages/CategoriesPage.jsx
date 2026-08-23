@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import {
   BsChevronDown,
@@ -11,6 +11,8 @@ import {
 } from "react-icons/bs";
 import api from "../api/axios";
 import { useUser } from "../context/UserContext"; // Ajusta según tu contexto de usuario
+
+const NIVELES_MAX = 3;
 
 // Mini formulario, con su propio estado, para agregar una subcategoría
 // directamente dentro de la categoría padre ya expandida.
@@ -62,6 +64,7 @@ function SubcategoriaQuickAdd({ onAdd }) {
 
 export default function CategoriesPage() {
   const { user } = useUser(); // Accede al usuario actual y su rol
+  const isAdmin = user?.rol === "admin";
   const [categorias, setCategorias] = useState([]);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
@@ -119,31 +122,70 @@ export default function CategoriesPage() {
     cargarCategorias();
   }, []);
 
-  // Categorías de nivel superior (las únicas que pueden usarse como "padre")
-  const categoriasPadre = useMemo(
-    () => categorias.filter((c) => !c.categoria_padre_id),
+  // Índice: id de padre -> lista de hijos (ordenados alfabéticamente)
+  const childrenMap = useMemo(() => {
+    const map = {};
+    categorias.forEach((c) => {
+      if (c.categoria_padre_id) {
+        (map[c.categoria_padre_id] ||= []).push(c);
+      }
+    });
+    Object.values(map).forEach((arr) =>
+      arr.sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    );
+    return map;
+  }, [categorias]);
+
+  // Categorías principales (las más nuevas primero)
+  const principales = useMemo(
+    () =>
+      categorias
+        .filter((c) => !c.categoria_padre_id)
+        .sort((a, b) => b.id - a.id),
     [categorias],
   );
 
-  // Árbol: categorías principales (las más nuevas primero) + sus subcategorías
-  const arbol = useMemo(() => {
-    const porPadre = {};
-    categorias.forEach((c) => {
-      if (c.categoria_padre_id) {
-        (porPadre[c.categoria_padre_id] ||= []).push(c);
-      }
-    });
-    Object.values(porPadre).forEach((arr) =>
-      arr.sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    );
+  // Nivel de cada categoría (1 = principal, 2 = subcategoría, 3 = sub-subcategoría)
+  const depthMap = useMemo(() => {
+    const map = {};
+    const getDepth = (id, seen = new Set()) => {
+      if (map[id] != null) return map[id];
+      if (seen.has(id)) return (map[id] = 1); // corta ciclos accidentales
+      const cat = categorias.find((c) => c.id === id);
+      if (!cat || !cat.categoria_padre_id) return (map[id] = 1);
+      seen.add(id);
+      return (map[id] = getDepth(cat.categoria_padre_id, seen) + 1);
+    };
+    categorias.forEach((c) => getDepth(c.id));
+    return map;
+  }, [categorias]);
 
-    const principales = [...categoriasPadre].sort((a, b) => b.id - a.id);
+  // Ids de todos los descendientes de una categoría (para no permitir que se
+  // reasigne a sí misma como su propio nieto al editar el padre)
+  const getDescendantIds = (id) => {
+    const result = [];
+    const walk = (pid) => {
+      (childrenMap[pid] || []).forEach((hijo) => {
+        result.push(hijo.id);
+        walk(hijo.id);
+      });
+    };
+    walk(id);
+    return result;
+  };
 
-    return principales.map((padre) => ({
-      ...padre,
-      subcategorias: porPadre[padre.id] || [],
-    }));
-  }, [categorias, categoriasPadre]);
+  // Ruta completa para mostrar en el selector de "categoría padre"
+  const breadcrumb = (cat) => {
+    const partes = [cat.nombre];
+    let actual = cat;
+    while (actual?.categoria_padre_id) {
+      const padre = categorias.find((c) => c.id === actual.categoria_padre_id);
+      if (!padre) break;
+      partes.unshift(padre.nombre);
+      actual = padre;
+    }
+    return partes.join(" › ");
+  };
 
   const toggleExpand = (id) => {
     setExpandedIds((prev) => {
@@ -184,7 +226,7 @@ export default function CategoriesPage() {
     }
   };
 
-  // Agregar subcategoría dentro de una categoría padre ya expandida
+  // Agregar subcategoría (o sub-subcategoría) dentro de un nodo ya expandido
   const handleAddSubcategoriaInline = async (padre, nombreSub, descripcionSub) => {
     try {
       await api.post("/categorias", {
@@ -271,13 +313,120 @@ export default function CategoriesPage() {
     }
   };
 
+  // Opciones válidas para "categoría padre" al editar: nada por debajo del
+  // nivel 2 (para que el resultado no pase de 3 niveles), y ni la categoría
+  // misma ni ninguno de sus propios descendientes (evita ciclos).
+  const opcionesPadreParaEdicion = useMemo(() => {
+    if (!editId) return [];
+    const descendientes = getDescendantIds(editId);
+    return categorias
+      .filter((cat) => cat.id !== editId)
+      .filter((cat) => !descendientes.includes(cat.id))
+      .filter((cat) => (depthMap[cat.id] || 1) < NIVELES_MAX)
+      .sort((a, b) => breadcrumb(a).localeCompare(breadcrumb(b)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorias, editId, depthMap, childrenMap]);
+
+  // Renderiza una categoría y, recursivamente, sus hijos (hasta 3 niveles)
+  const renderNodo = (nodo, nivel) => {
+    const hijos = childrenMap[nodo.id] || [];
+    const expanded = expandedIds.has(nodo.id);
+    const puedeExpandir = hijos.length > 0 || (isAdmin && nivel < NIVELES_MAX);
+    const filas = [];
+
+    filas.push(
+      <tr key={`row-${nodo.id}`} className={nivel > 1 ? "categories-subrow" : undefined}>
+        <td>
+          <span
+            className={`categories-row ${
+              nivel === 1 ? "categories-row--parent" : "categories-row--child"
+            }`}
+            style={nivel > 1 ? { paddingLeft: `${(nivel - 1) * 1.4}rem` } : undefined}
+            role={puedeExpandir ? "button" : undefined}
+            onClick={puedeExpandir ? () => toggleExpand(nodo.id) : undefined}
+          >
+            {nivel > 1 && <span className="categories-tree-branch">└─</span>}
+            {puedeExpandir ? (
+              expanded ? (
+                <BsChevronDown className="categories-chevron" />
+              ) : (
+                <BsChevronRight className="categories-chevron" />
+              )
+            ) : (
+              <span className="categories-chevron-spacer" />
+            )}
+            {nodo.nombre}
+            {hijos.length > 0 && (
+              <span className="badge rounded-pill bg-light text-secondary border ms-1">
+                {hijos.length}
+              </span>
+            )}
+          </span>
+        </td>
+        <td style={{ wordBreak: "break-word" }}>{nodo.descripcion}</td>
+        <td>
+          {isAdmin && (
+            <>
+              {nivel < NIVELES_MAX && (
+                <button
+                  className="btn btn-outline-success btn-sm me-1"
+                  style={{ borderRadius: 8 }}
+                  onClick={() => expandirParaSubcategoria(nodo.id)}
+                  title="Agregar subcategoría"
+                >
+                  <BsPlusCircle />
+                </button>
+              )}
+              <button
+                className="btn btn-warning btn-sm me-1"
+                style={{ borderRadius: 8 }}
+                onClick={() => openEdit(nodo)}
+                title="Editar"
+              >
+                <BsPencilSquare />
+              </button>
+              <button
+                className="btn btn-danger btn-sm me-1"
+                style={{ borderRadius: 8 }}
+                onClick={() => handleDeleteClick(nodo.id)}
+                title="Eliminar"
+              >
+                <BsTrash />
+              </button>
+            </>
+          )}
+        </td>
+      </tr>,
+    );
+
+    if (expanded) {
+      hijos.forEach((hijo) => {
+        filas.push(...renderNodo(hijo, nivel + 1));
+      });
+
+      if (isAdmin && nivel < NIVELES_MAX) {
+        filas.push(
+          <tr key={`add-${nodo.id}`} className="categories-subrow categories-subrow--form">
+            <td colSpan={3} style={{ paddingLeft: `${nivel * 1.4}rem` }}>
+              <SubcategoriaQuickAdd
+                onAdd={(n, d) => handleAddSubcategoriaInline(nodo, n, d)}
+              />
+            </td>
+          </tr>,
+        );
+      }
+    }
+
+    return filas;
+  };
+
   return (
     <div className="container-fluid px-2 px-md-4 py-3 py-md-4">
       <h3 className="mb-3">Categorías</h3>
 
       {/* FORMULARIO: solo agrega categorías principales (las subcategorías
-          se agregan expandiendo la categoría padre en la tabla) */}
-      {user?.rol === "admin" && (
+          y sub-subcategorías se agregan expandiendo el nodo en la tabla) */}
+      {isAdmin && (
         <form onSubmit={handleAdd} className="mb-3 row g-2 categories-form">
           <div className="col-md-4 col-12">
             <input
@@ -320,119 +469,8 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {arbol.length > 0 ? (
-                arbol.map((padre) => {
-                  const expanded = expandedIds.has(padre.id);
-                  return (
-                    <Fragment key={padre.id}>
-                      <tr>
-                        <td>
-                          <span
-                            className="categories-row categories-row--parent"
-                            role="button"
-                            onClick={() => toggleExpand(padre.id)}
-                          >
-                            {expanded ? (
-                              <BsChevronDown className="categories-chevron" />
-                            ) : (
-                              <BsChevronRight className="categories-chevron" />
-                            )}
-                            {padre.nombre}
-                            {padre.subcategorias.length > 0 && (
-                              <span className="badge rounded-pill bg-light text-secondary border ms-1">
-                                {padre.subcategorias.length}
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td style={{ wordBreak: "break-word" }}>
-                          {padre.descripcion}
-                        </td>
-                        <td>
-                          {user?.rol === "admin" && (
-                            <>
-                              <button
-                                className="btn btn-outline-success btn-sm me-1"
-                                style={{ borderRadius: 8 }}
-                                onClick={() => expandirParaSubcategoria(padre.id)}
-                                title="Agregar subcategoría"
-                              >
-                                <BsPlusCircle />
-                              </button>
-                              <button
-                                className="btn btn-warning btn-sm me-1"
-                                style={{ borderRadius: 8 }}
-                                onClick={() => openEdit(padre)}
-                                title="Editar"
-                              >
-                                <BsPencilSquare />
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm me-1"
-                                style={{ borderRadius: 8 }}
-                                onClick={() => handleDeleteClick(padre.id)}
-                                title="Eliminar"
-                              >
-                                <BsTrash />
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-
-                      {expanded &&
-                        padre.subcategorias.map((hijo) => (
-                          <tr key={hijo.id} className="categories-subrow">
-                            <td>
-                              <span className="categories-row categories-row--child">
-                                <span className="categories-tree-branch">
-                                  └─
-                                </span>
-                                {hijo.nombre}
-                              </span>
-                            </td>
-                            <td style={{ wordBreak: "break-word" }}>
-                              {hijo.descripcion}
-                            </td>
-                            <td>
-                              {user?.rol === "admin" && (
-                                <>
-                                  <button
-                                    className="btn btn-warning btn-sm me-1"
-                                    style={{ borderRadius: 8 }}
-                                    onClick={() => openEdit(hijo)}
-                                    title="Editar"
-                                  >
-                                    <BsPencilSquare />
-                                  </button>
-                                  <button
-                                    className="btn btn-danger btn-sm me-1"
-                                    style={{ borderRadius: 8 }}
-                                    onClick={() => handleDeleteClick(hijo.id)}
-                                    title="Eliminar"
-                                  >
-                                    <BsTrash />
-                                  </button>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-
-                      {expanded && user?.rol === "admin" && (
-                        <tr className="categories-subrow categories-subrow--form">
-                          <td colSpan={3}>
-                            <SubcategoriaQuickAdd
-                              onAdd={(n, d) =>
-                                handleAddSubcategoriaInline(padre, n, d)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })
+              {principales.length > 0 ? (
+                principales.flatMap((p) => renderNodo(p, 1))
               ) : (
                 <tr>
                   <td colSpan={3} className="text-center text-muted">
@@ -492,13 +530,11 @@ export default function CategoriesPage() {
                       onChange={(e) => setEditPadreId(e.target.value)}
                     >
                       <option value="">Categoría principal (sin padre)</option>
-                      {categoriasPadre
-                        .filter((cat) => cat.id !== editId)
-                        .map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            Subcategoría de: {cat.nombre}
-                          </option>
-                        ))}
+                      {opcionesPadreParaEdicion.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          Subcategoría de: {breadcrumb(cat)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -584,22 +620,29 @@ export default function CategoriesPage() {
           display: inline-flex;
           align-items: center;
           gap: 0.4rem;
-          cursor: pointer;
           user-select: none;
         }
-        .categories-row--parent:hover {
+        .categories-row--child {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          color: #495057;
+          user-select: none;
+        }
+        .categories-row[role="button"] {
+          cursor: pointer;
+        }
+        .categories-row[role="button"]:hover {
           color: #0d6efd;
         }
         .categories-chevron {
           color: #6c757d;
           flex-shrink: 0;
         }
-        .categories-row--child {
-          padding-left: 1.5rem;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          color: #495057;
+        .categories-chevron-spacer {
+          display: inline-block;
+          width: 1em;
+          flex-shrink: 0;
         }
         .categories-tree-branch {
           color: #adb5bd;

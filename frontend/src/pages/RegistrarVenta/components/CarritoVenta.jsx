@@ -1,4 +1,4 @@
-import { Button, Image, Table, Badge } from "react-bootstrap";
+import { Button, Image, Table, Badge, OverlayTrigger, Popover } from "react-bootstrap";
 import { FaTrash } from "react-icons/fa";
 import { getImgSrc } from "../utils/ventaUtils";
 
@@ -92,7 +92,30 @@ export default function CarritoVenta({
                   <td className="fw-semibold">{item.nombre || "-"}</td>
                   <td>{item.categoria || "-"}</td>
                   <td>{item.ubicacion || "-"}</td>
-                  <td style={{ maxWidth: 220 }}>{item.descripcion || "-"}</td>
+                  <td style={{ maxWidth: 160 }}>
+                    {item.descripcion ? (
+                      <OverlayTrigger
+                        trigger={["hover", "click"]}
+                        placement="top"
+                        rootClose
+                        overlay={
+                          <Popover>
+                            <Popover.Body
+                              style={{ maxWidth: 260, whiteSpace: "pre-wrap" }}
+                            >
+                              {item.descripcion}
+                            </Popover.Body>
+                          </Popover>
+                        }
+                      >
+                        <span className="carrito-descripcion-corta">
+                          {item.descripcion}
+                        </span>
+                      </OverlayTrigger>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
 
                   <td className="text-end">{precioBase.toFixed(2)} L</td>
 
@@ -139,6 +162,23 @@ export default function CarritoVenta({
           </tbody>
         </Table>
       </div>
+
+      <style>{`
+        .carrito-descripcion-corta {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          cursor: pointer;
+          text-decoration: underline dotted;
+          text-decoration-color: #adb5bd;
+          text-underline-offset: 2px;
+        }
+        .carrito-descripcion-corta:hover {
+          color: #0d6efd;
+        }
+      `}</style>
     </>
   );
 }

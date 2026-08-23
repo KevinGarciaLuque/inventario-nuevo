@@ -50,6 +50,7 @@ const generarReciboPDF = ({
   metodoPago = "efectivo",
   efectivo = 0,
   cambio = 0,
+  montoTarjeta = 0,
 
   esCopia = false,
 
@@ -514,8 +515,14 @@ const generarReciboPDF = ({
     doc.setFont("helvetica", "normal").setFontSize(10);
     const metodo = String(metodoPago || "efectivo").toLowerCase();
 
+    const ETIQUETA_METODO = {
+      efectivo: "Efectivo",
+      tarjeta: "Tarjeta",
+      mixto: "Mixto (Efectivo + Tarjeta)",
+    };
+
     doc.text(
-      `Método de pago: ${metodo === "tarjeta" ? "Tarjeta" : "Efectivo"}`,
+      `Método de pago: ${ETIQUETA_METODO[metodo] || "Efectivo"}`,
       X_IZQ,
       posY,
     );
@@ -523,6 +530,13 @@ const generarReciboPDF = ({
 
     if (metodo === "efectivo") {
       doc.text(`Pago en efectivo: ${formatoLempiras(efectivo)}`, X_IZQ, posY);
+      posY += 4;
+      doc.text(`Cambio entregado: ${formatoLempiras(cambio)}`, X_IZQ, posY);
+      posY += 4;
+    } else if (metodo === "mixto") {
+      doc.text(`Pagado con tarjeta: ${formatoLempiras(montoTarjeta)}`, X_IZQ, posY);
+      posY += 4;
+      doc.text(`Pagado en efectivo: ${formatoLempiras(efectivo)}`, X_IZQ, posY);
       posY += 4;
       doc.text(`Cambio entregado: ${formatoLempiras(cambio)}`, X_IZQ, posY);
       posY += 4;

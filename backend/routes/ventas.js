@@ -309,6 +309,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     metodo_pago = "efectivo",
     efectivo = 0,
     cambio = 0,
+    monto_tarjeta = 0,
     edad_cliente = null, // ✅ NUEVO (opcional)
   } = req.body || {};
 
@@ -571,12 +572,24 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const mp = toStr(metodo_pago).toLowerCase();
     const efectivoNum = round2(efectivo);
     const cambioNum = round2(cambio);
+    const montoTarjetaNum = round2(monto_tarjeta);
+
+    if (mp === "mixto" && round2(efectivoNum + montoTarjetaNum) < total_con_impuesto) {
+      throw new Error(
+        "El total pagado (efectivo + tarjeta) no puede ser menor al total de la venta.",
+      );
+    }
+
+    const ventaEfectivo = mp === "efectivo" ? efectivoNum : mp === "mixto" ? efectivoNum : 0;
+    const ventaCambio = mp === "efectivo" || mp === "mixto" ? cambioNum : 0;
+    const ventaMontoTarjeta =
+      mp === "tarjeta" ? total_con_impuesto : mp === "mixto" ? montoTarjetaNum : 0;
 
     const [ventaResult] = await connection.query(
       `INSERT INTO ventas (
         total, impuesto, total_con_impuesto,
-        usuario_id, caja_id, metodo_pago, efectivo, cambio
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        usuario_id, caja_id, metodo_pago, efectivo, cambio, monto_tarjeta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         subtotal, // "total" = subtotal sin impuesto (según tu diseño actual)
         impuesto,
@@ -584,8 +597,9 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         usuario_id,
         caja_id,
         mp,
-        mp === "efectivo" ? efectivoNum : 0,
-        mp === "efectivo" ? cambioNum : 0,
+        ventaEfectivo,
+        ventaCambio,
+        ventaMontoTarjeta,
       ],
     );
 
@@ -696,8 +710,8 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       `INSERT INTO facturas (
         numero_factura, venta_id, cai_id, total_factura,
         cliente_nombre, cliente_rtn, cliente_direccion,
-        metodo_pago, efectivo, cambio
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        metodo_pago, efectivo, cambio, monto_tarjeta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         numeroFactura,
         venta_id,
@@ -707,8 +721,9 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         toStr(cliente_rtn),
         toStr(cliente_direccion),
         mp,
-        mp === "efectivo" ? efectivoNum : 0,
-        mp === "efectivo" ? cambioNum : 0,
+        ventaEfectivo,
+        ventaCambio,
+        ventaMontoTarjeta,
       ],
     );
 

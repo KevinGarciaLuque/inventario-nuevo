@@ -1,9 +1,11 @@
 // frontend/src/pages/RegistrarVenta/components/TotalesVenta.jsx
 import { Button, Spinner, FormSelect } from "react-bootstrap";
-import { FaCashRegister } from "react-icons/fa";
+import { FaCashRegister, FaTags, FaReceipt } from "react-icons/fa";
 import MetodosPagos from "../../../components/MetodosPagos";
+import "../ventaPanel.css";
 
 export default function TotalesVenta({
+  venta = {},
   total,
   subtotal,
   impuesto,
@@ -44,6 +46,14 @@ export default function TotalesVenta({
   ];
   const tipoAplica = TIPOS_CON_DESCUENTO.includes(tipoCliente);
 
+  const ETIQUETA_TIPO_CLIENTE = {
+    tercera_edad: "Tercera edad",
+    cuarta_edad: "Cuarta edad",
+    discapacitado: "Discapacitado",
+    empleado: "Empleado",
+    preferencial: "Preferencial",
+  };
+
   const hayDetalleImpuestos =
     impuestosDetalle &&
     typeof impuestosDetalle === "object" &&
@@ -69,7 +79,7 @@ export default function TotalesVenta({
   const extraerPct = (nombre) =>
     Number(String(nombre).match(/(\d+(\.\d+)?)/)?.[1] || 0);
 
-  // ✅ Montos “forzados” para 15% y 18% (aunque no vengan)
+  // ✅ Montos "forzados" para 15% y 18% (aunque no vengan)
   const monto15 = (() => {
     if (!hayDetalleImpuestos) return 0;
     const key = Object.keys(impuestosDetalle).find((k) => extraerPct(k) === 15);
@@ -93,10 +103,22 @@ export default function TotalesVenta({
         .sort(([a], [b]) => extraerPct(a) - extraerPct(b))
     : [];
 
+  // Resumen del método de pago para el bloque de totales
+  const metodoResumen = (() => {
+    const m = venta?.metodo_pago || "efectivo";
+    if (m === "tarjeta") return "Pago con tarjeta";
+    if (m === "mixto") {
+      return `Tarjeta L ${Number(venta?.monto_tarjeta || 0).toFixed(2)} + Efectivo L ${Number(
+        venta?.efectivo || 0,
+      ).toFixed(2)}`;
+    }
+    return `Efectivo recibido L ${Number(venta?.efectivo || 0).toFixed(2)}`;
+  })();
+
   return (
-    <div className="row mt-3">
+    <div className="row mt-3 g-3">
       {/* ✅ Columna 1: Métodos de pago */}
-      <div className="col-md-4 mb-3">
+      <div className="col-md-4">
         <MetodosPagos
           total={totalFinal}
           onCambioCalculado={handleCambio}
@@ -104,20 +126,21 @@ export default function TotalesVenta({
         />
       </div>
 
-      {/* ✅ Columna 2: Select descuento cliente */}
-      <div className="col-md-4 mb-3">
-        <div className="bg-white p-3 rounded shadow-sm border h-100">
-          <div className="mb-2">
-            <strong>Descuento por cliente</strong>
-            <div className="text-muted" style={{ fontSize: 13 }}>
-              Aplica solo a tercera edad, cuarta edad, discapacitado, etc.
+      {/* ✅ Columna 2: Descuento por cliente */}
+      <div className="col-md-4">
+        <div className="venta-panel h-100">
+          <div className="venta-panel__header">
+            <FaTags className="venta-panel__icon" />
+            <div>
+              <div className="venta-panel__title">Descuento por cliente</div>
+              <div className="venta-panel__subtitle">
+                Tercera edad, discapacidad, empleados, etc.
+              </div>
             </div>
           </div>
 
           <div className="mb-3">
-            <label className="form-label fw-semibold mb-1">
-              Tipo de cliente
-            </label>
+            <label className="venta-field-label">Tipo de cliente</label>
             <FormSelect
               value={tipoCliente || ""}
               onChange={(e) => {
@@ -126,24 +149,22 @@ export default function TotalesVenta({
               }}
             >
               <option value="">-- Seleccionar --</option>
-              <option value="tercera_edad">Tercera edad</option>
-              <option value="cuarta_edad">Cuarta edad</option>
-              <option value="discapacitado">Discapacitado</option>
-              <option value="empleado">Empleado</option>
-              <option value="preferencial">Preferencial</option>
+              {Object.entries(ETIQUETA_TIPO_CLIENTE).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
             </FormSelect>
           </div>
 
-          <div className="mb-2">
-            <label className="form-label fw-semibold mb-1">
-              Seleccionar descuento
-            </label>
+          <div className="mb-3">
+            <label className="venta-field-label">Descuento a aplicar</label>
 
             {!tipoAplica ? (
               <input
                 className="form-control"
                 disabled
-                value="Selecciona un tipo con descuento"
+                value="Selecciona primero un tipo de cliente"
               />
             ) : (
               <FormSelect
@@ -154,7 +175,10 @@ export default function TotalesVenta({
                 <option value="">
                   {descuentosLoading
                     ? "Cargando descuentos..."
-                    : "-- Seleccionar descuento --"}
+                    : (descuentos || []).filter((d) => d?.activo !== false)
+                          .length === 0
+                      ? "No hay descuentos configurados para este tipo"
+                      : "-- Seleccionar descuento --"}
                 </option>
 
                 {(descuentos || [])
@@ -174,93 +198,96 @@ export default function TotalesVenta({
             )}
           </div>
 
-          <hr className="my-3" />
-
           {descuentosLoading ? (
             <div className="d-flex align-items-center gap-2 text-muted">
               <Spinner animation="border" size="sm" />
               Cargando descuentos...
             </div>
           ) : Number(descuentoClienteMonto || 0) > 0 ? (
-            <div>
-              <div className="mb-1">
-                <strong>Aplicado:</strong>{" "}
-                {descuentoClienteNombre || "Descuento"}
+            <div className="venta-discount-applied">
+              <div className="text-muted" style={{ fontSize: 12 }}>
+                Descuento aplicado
               </div>
-              <div className="text-danger fw-semibold">
-                - L {Number(descuentoClienteMonto).toFixed(2)}
+              <div className="d-flex justify-content-between align-items-center">
+                <strong>{descuentoClienteNombre || "Descuento"}</strong>
+                <span className="text-danger fw-bold">
+                  - L {Number(descuentoClienteMonto).toFixed(2)}
+                </span>
               </div>
             </div>
           ) : (
-            <div className="text-muted">Sin descuento seleccionado.</div>
+            <div className="venta-discount-empty">
+              Sin descuento seleccionado.
+            </div>
           )}
         </div>
       </div>
 
       {/* ✅ Columna 3: Totales + botón */}
-      <div className="col-md-4 d-flex flex-column justify-content-between mb-3">
-        <div className="bg-light p-3 rounded shadow-sm h-100">
-          <div className="mb-2">
-            <strong>Subtotal (bruto):</strong> L{" "}
-            {Number(subtotalBruto).toFixed(2)}
+      <div className="col-md-4">
+        <div className="venta-panel h-100">
+          <div className="venta-panel__header">
+            <FaReceipt className="venta-panel__icon" />
+            <div>
+              <div className="venta-panel__title">Resumen de la venta</div>
+              <div className="venta-panel__subtitle">{metodoResumen}</div>
+            </div>
           </div>
 
-          <div className="mb-2">
-            <strong>Descuento (productos):</strong>{" "}
+          <div className="venta-totals-row">
+            <span>Subtotal (bruto)</span>
+            <span>L {Number(subtotalBruto).toFixed(2)}</span>
+          </div>
+
+          <div className="venta-totals-row">
+            <span>Descuento (productos)</span>
             <span className="text-danger">
               - L {Number(descuentoTotal).toFixed(2)}
             </span>
           </div>
 
-          <div className="mb-2">
-            <strong>
+          <div className="venta-totals-row">
+            <span>
               Descuento cliente
-              {descuentoClienteNombre ? ` (${descuentoClienteNombre})` : ""}:
-            </strong>{" "}
+              {descuentoClienteNombre ? ` (${descuentoClienteNombre})` : ""}
+            </span>
             <span className="text-danger">
               - L {Number(descuentoClienteMonto || 0).toFixed(2)}
             </span>
           </div>
 
-          <hr className="my-2" />
+          <hr className="venta-totals-divider" />
 
-          <div className="mb-2">
-            <strong>Subtotal:</strong> L {Number(subtotal).toFixed(2)}
+          <div className="venta-totals-row">
+            <span>Subtotal</span>
+            <span>L {Number(subtotal).toFixed(2)}</span>
           </div>
 
-          {/* ✅ IMPUESTOS: SIEMPRE mostrar 15% y 18% */}
-          <div className="mb-2">
-            <div className="d-flex justify-content-between">
-              <strong>ISV 15%:</strong>
-              <span>L {Number(monto15).toFixed(2)}</span>
-            </div>
-
-            <div className="d-flex justify-content-between">
-              <strong>ISV 18%:</strong>
-              <span>L {Number(monto18).toFixed(2)}</span>
-            </div>
-
-            {/* ✅ Otros impuestos (si existen) */}
-            {otrosImpuestosOrdenados.map(([nombre, monto]) => (
-              <div key={nombre} className="d-flex justify-content-between">
-                <strong>{normalizarEtiquetaImpuesto(nombre)}:</strong>
-                <span>L {Number(monto).toFixed(2)}</span>
-              </div>
-            ))}
+          <div className="venta-totals-row">
+            <span>ISV 15%</span>
+            <span>L {Number(monto15).toFixed(2)}</span>
           </div>
 
-          {/* ✅ Total impuestos */}
-          <div className="mb-2 text-muted" style={{ fontSize: 13 }}>
-            <div className="d-flex justify-content-between">
-              <span>Total impuestos</span>
-              <span>L {Number(impuesto).toFixed(2)}</span>
-            </div>
+          <div className="venta-totals-row">
+            <span>ISV 18%</span>
+            <span>L {Number(monto18).toFixed(2)}</span>
           </div>
 
-          <div className="mb-3">
-            <h5 className="m-0">
-              <strong>Total:</strong> L {Number(totalFinal).toFixed(2)}
-            </h5>
+          {otrosImpuestosOrdenados.map(([nombre, monto]) => (
+            <div key={nombre} className="venta-totals-row">
+              <span>{normalizarEtiquetaImpuesto(nombre)}</span>
+              <span>L {Number(monto).toFixed(2)}</span>
+            </div>
+          ))}
+
+          <div className="venta-totals-row venta-totals-row--muted">
+            <span>Total impuestos</span>
+            <span>L {Number(impuesto).toFixed(2)}</span>
+          </div>
+
+          <div className="venta-total-final">
+            <span>Total</span>
+            <strong>L {Number(totalFinal).toFixed(2)}</strong>
           </div>
 
           <Button

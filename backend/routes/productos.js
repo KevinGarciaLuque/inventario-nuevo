@@ -3,6 +3,17 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+// ✅ Middleware de rol (req.user viene del auth global)
+const requireRoles =
+  (...roles) =>
+  (req, res, next) => {
+    const rol = req.user?.rol;
+    if (!rol || !roles.includes(rol)) {
+      return res.status(403).json({ message: "Acceso denegado." });
+    }
+    next();
+  };
+
 // ========================
 // Helpers
 // ========================
@@ -128,8 +139,9 @@ router.get("/buscar", async (req, res) => {
       LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
       LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
       LEFT JOIN impuestos i ON p.impuesto_id = i.id
-      WHERE 
-        (p.nombre LIKE ? OR p.codigo LIKE ?)
+      WHERE
+        p.activo = 1
+        AND (p.nombre LIKE ? OR p.codigo LIKE ?)
       ORDER BY
         CASE
           WHEN p.codigo = ? THEN 0
@@ -183,7 +195,7 @@ router.get("/by-codigo/:codigo", async (req, res) => {
       LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
       LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
       LEFT JOIN impuestos i ON p.impuesto_id = i.id
-      WHERE p.codigo = ?
+      WHERE p.codigo = ? AND p.activo = 1
       LIMIT 1
       `,
       [codigo],
@@ -236,7 +248,7 @@ router.get("/", async (req, res) => {
       LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
       LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
       LEFT JOIN impuestos i ON p.impuesto_id = i.id
-      WHERE 1
+      WHERE p.activo = 1
     `;
 
     const params = [];
@@ -644,12 +656,18 @@ router.put("/:id", async (req, res) => {
 // ========================
 // Eliminar producto (con bitácora)
 // ========================
-router.delete("/:id", async (req, res) => {
+// ✅ Solo admin puede eliminar productos.
+// Si el producto ya tiene ventas/movimientos registrados, MySQL bloquea el
+// DELETE por la relación de llaves foráneas (no se puede borrar sin romper
+// el historial de facturas). En ese caso, en vez de fallar, se DESACTIVA
+// el producto: deja de aparecer en inventario y en la búsqueda de ventas,
+// pero las facturas ya emitidas lo siguen mostrando correctamente.
+router.delete("/:id", requireRoles("admin"), async (req, res) => {
   try {
     const id = mustBePositiveInt(req.params.id);
     if (!id) return res.status(400).json({ message: "ID inválido" });
 
-    const { usuario_id } = req.query;
+    const usuario_id = req.user?.id || req.query.usuario_id || null;
 
     const [prods] = await db.query(
       "SELECT nombre, codigo FROM productos WHERE id=?",
@@ -661,29 +679,41 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
-    await db.query("DELETE FROM productos WHERE id=?", [id]);
+    let desactivado = false;
+
+    try {
+      await db.query("DELETE FROM productos WHERE id=?", [id]);
+    } catch (error) {
+      if (error?.code === "ER_ROW_IS_REFERENCED_2") {
+        await db.query("UPDATE productos SET activo = 0 WHERE id = ?", [id]);
+        desactivado = true;
+      } else {
+        throw error;
+      }
+    }
 
     if (usuario_id) {
       await db.query(
         "INSERT INTO bitacora (usuario_id, accion, descripcion) VALUES (?, ?, ?)",
         [
           usuario_id,
-          "Eliminar producto",
-          `Producto "${producto.nombre}" (ID: ${id}) eliminado.`,
+          desactivado ? "Desactivar producto" : "Eliminar producto",
+          desactivado
+            ? `Producto "${producto.nombre}" (ID: ${id}) tiene ventas o movimientos registrados; se desactivó en lugar de eliminarse.`
+            : `Producto "${producto.nombre}" (ID: ${id}) eliminado.`,
         ],
       );
     }
 
-    return res.json({ message: "Producto eliminado correctamente" });
+    return res.json({
+      message: desactivado
+        ? "Este producto ya tiene ventas registradas, así que se desactivó en lugar de eliminarse: ya no aparecerá en el inventario ni podrá venderse."
+        : "Producto eliminado correctamente",
+      desactivado,
+    });
   } catch (error) {
-    let msg = "Error al eliminar producto";
-    if (error?.code === "ER_ROW_IS_REFERENCED_2") {
-      msg =
-        "No se pudo eliminar el producto porque tiene registros relacionados (ventas, movimientos, etc.)";
-      return res.status(409).json({ message: msg });
-    }
     console.error("❌ Error DELETE /productos:", error);
-    return res.status(500).json({ message: msg });
+    return res.status(500).json({ message: "Error al eliminar producto" });
   }
 });
 

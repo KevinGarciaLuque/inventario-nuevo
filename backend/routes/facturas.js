@@ -105,7 +105,7 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
         f.numero_factura, f.fecha_emision,
         f.cliente_nombre, f.cliente_rtn, f.cliente_direccion,
         f.total_factura,
-        v.id AS venta_id, v.usuario_id, v.metodo_pago, v.efectivo, v.cambio,
+        v.id AS venta_id, v.usuario_id, v.metodo_pago, v.efectivo, v.cambio, v.monto_tarjeta,
         u.nombre AS cajero,
         c.cai_codigo, c.rango_inicio, c.rango_fin,
         c.fecha_autorizacion, c.fecha_limite_emision

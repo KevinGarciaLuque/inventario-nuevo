@@ -43,14 +43,22 @@ router.get("/productos", async (req, res) => {
     const categoriaId = toNumberOrNull(req.query.categoria_id);
     const q = s(req.query.q);
 
-    let query = `${SELECT_PRODUCTO_PUBLICO} WHERE p.stock > 0`;
+    let query = `${SELECT_PRODUCTO_PUBLICO} WHERE p.stock > 0 AND p.activo = 1`;
     const params = [];
 
     if (categoriaId) {
-      // Si es una categoría principal, incluye también sus subcategorías
-      query +=
-        " AND p.categoria_id IN (SELECT id FROM categorias WHERE id = ? OR categoria_padre_id = ?)";
-      params.push(categoriaId, categoriaId);
+      // Incluye la categoría elegida y TODOS sus descendientes (subcategorías
+      // y sub-subcategorías, sin importar cuántos niveles tenga el árbol).
+      query += ` AND p.categoria_id IN (
+        WITH RECURSIVE arbol AS (
+          SELECT id FROM categorias WHERE id = ?
+          UNION ALL
+          SELECT c.id FROM categorias c
+          INNER JOIN arbol a ON c.categoria_padre_id = a.id
+        )
+        SELECT id FROM arbol
+      )`;
+      params.push(categoriaId);
     }
 
     if (q) {
@@ -75,7 +83,7 @@ router.get("/productos/:id", async (req, res) => {
     if (!id) return res.status(400).json({ message: "ID inválido" });
 
     const [rows] = await db.query(
-      `${SELECT_PRODUCTO_PUBLICO} WHERE p.id = ? AND p.stock > 0 LIMIT 1`,
+      `${SELECT_PRODUCTO_PUBLICO} WHERE p.id = ? AND p.stock > 0 AND p.activo = 1 LIMIT 1`,
       [id],
     );
 
