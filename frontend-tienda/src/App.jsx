@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
@@ -10,10 +10,21 @@ import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import CartPage from "./pages/CartPage.jsx";
 import ContactPage from "./pages/ContactPage.jsx";
 import AboutPage from "./pages/AboutPage.jsx";
+import LinksPage from "./pages/LinksPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 function App() {
   const [showRegistro, setShowRegistro] = useState(false);
+  const location = useLocation();
+  const esPaginaEnlaces = location.pathname === "/enlaces";
+
+  if (esPaginaEnlaces) {
+    return (
+      <Routes>
+        <Route path="/enlaces" element={<LinksPage />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="app-shell d-flex flex-column min-vh-100">

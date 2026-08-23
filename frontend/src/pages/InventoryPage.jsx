@@ -101,7 +101,7 @@ export default function InventoryPage({ onView }) {
       try {
         const [resImp, resUni] = await Promise.all([
           api.get("/impuestos"),
-          api.get("/unidades-medida"),
+          api.get("/unidades"),
         ]);
         setImpuestos(Array.isArray(resImp.data) ? resImp.data : []);
         setUnidades(Array.isArray(resUni.data) ? resUni.data : []);
