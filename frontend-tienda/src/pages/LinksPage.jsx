@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import QRCode from "qrcode";
 import { FaInstagram, FaFacebookF, FaTiktok, FaWhatsapp, FaShoppingBag } from "react-icons/fa";
 import logo from "../assets/LaurenLogo.png";
-import { SITE_INFO, SOCIAL_LINKS } from "../config/site.js";
-import { buildWaLink, WHATSAPP_NUMBER } from "../utils/whatsapp.js";
+import { SITE_INFO } from "../config/site.js";
+import { buildWaLink } from "../utils/whatsapp.js";
+import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 
 const LinksPage = () => {
+  const { redes, telefonoPrincipal } = useSiteConfig();
   const [qrDataUrl, setQrDataUrl] = useState(null);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ const LinksPage = () => {
         </Link>
 
         <a
-          href={SOCIAL_LINKS.instagram}
+          href={redes.instagram}
           target="_blank"
           rel="noopener noreferrer"
           className="links-btn links-btn--instagram"
@@ -41,7 +43,7 @@ const LinksPage = () => {
         </a>
 
         <a
-          href={SOCIAL_LINKS.facebook}
+          href={redes.facebook}
           target="_blank"
           rel="noopener noreferrer"
           className="links-btn links-btn--facebook"
@@ -50,7 +52,7 @@ const LinksPage = () => {
         </a>
 
         <a
-          href={SOCIAL_LINKS.tiktok}
+          href={redes.tiktok}
           target="_blank"
           rel="noopener noreferrer"
           className="links-btn links-btn--tiktok"
@@ -59,7 +61,7 @@ const LinksPage = () => {
         </a>
 
         <a
-          href={buildWaLink(WHATSAPP_NUMBER, "Hola, quiero más información.")}
+          href={buildWaLink(telefonoPrincipal, "Hola, quiero más información.")}
           target="_blank"
           rel="noopener noreferrer"
           className="links-btn links-btn--whatsapp"

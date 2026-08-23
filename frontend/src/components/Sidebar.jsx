@@ -1,5 +1,5 @@
 // src/components/Sidebar.jsx
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FaBoxes,
   FaPlus,
@@ -20,6 +20,7 @@ import {
   FaPercentage,
   FaChevronDown,
   FaGlobe,
+  FaCog,
 } from "react-icons/fa";
 import { MdSupportAgent } from "react-icons/md";
 
@@ -98,12 +99,23 @@ const MENU_BY_ROLE = {
       items: [
         { key: "users", label: "Usuarios", icon: <FaUserFriends /> },
         { key: "clientes", label: "Clientes", icon: <FaUser /> },
+        { key: "bitacora", label: "Bitácora", icon: <FaFilter /> },
+      ],
+    },
+
+    {
+      title: "TIENDA WEB",
+      items: [
+        {
+          key: "tienda-config",
+          label: "Configuración",
+          icon: <FaCog />,
+        },
         {
           key: "clientes-web",
           label: "Solicitudes Web",
           icon: <FaGlobe />,
         },
-        { key: "bitacora", label: "Bitácora", icon: <FaFilter /> },
       ],
     },
 
@@ -222,7 +234,12 @@ export default function Sidebar({
 }) {
   const { user } = useUser();
   const soporteRef = useRef(null);
-  const [openSections, setOpenSections] = useState({});
+  const navRef = useRef(null);
+  const sectionRefs = useRef({});
+
+  // ✅ Solo una sección abierta a la vez (acordeón real), para no tener que
+  // hacer scroll larguísimo cuando hay varios módulos desplegados.
+  const [openSection, setOpenSection] = useState(null);
 
   const sections = useMemo(() => {
     if (!user) return [];
@@ -243,22 +260,35 @@ export default function Sidebar({
     return [...topItems, ...normal];
   }, [accordionSections, topItems]);
 
+  // ✅ Al entrar o navegar a una página, abre automáticamente su sección
+  useEffect(() => {
+    const match = accordionSections.find((sec) =>
+      sec.items.some((it) => it.key === currentPage)
+    );
+    if (match) setOpenSection(match.title);
+  }, [currentPage, accordionSections]);
+
+  // ✅ Cuando se abre una sección, la lleva a la vista sin que el usuario
+  // tenga que buscarla con scroll
+  useEffect(() => {
+    if (!openSection) return;
+    const el = sectionRefs.current[openSection];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [openSection]);
+
   const handleMenuClick = (key) => {
     onChangePage(key);
     if (window.innerWidth < 992) onToggle?.(false);
   };
 
   const toggleSection = (title) => {
-    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+    setOpenSection((prev) => (prev === title ? null : title));
   };
 
   // Determina si una sección está abierta
-  const isSectionOpen = (sec) => {
-    const contieneActual = sec.items.some((it) => it.key === currentPage);
-    return openSections[sec.title] !== undefined
-      ? openSections[sec.title]
-      : contieneActual;
-  };
+  const isSectionOpen = (sec) => openSection === sec.title;
 
   // Íconos de sección
   const SECTION_ICONS = {
@@ -267,6 +297,7 @@ export default function Sidebar({
     "CIERRES DE CAJA": <FaHistory />,
     "FACTURACIÓN": <FaFileInvoiceDollar />,
     "GESTIÓN USUARIOS": <FaUserFriends />,
+    "TIENDA WEB": <FaGlobe />,
     "MANTENIMIENTO": <FaFilter />,
     "VENTAS": <FaCashRegister />,
   };
@@ -349,7 +380,7 @@ export default function Sidebar({
       <div className="sb-divider" />
 
       {/* ── NAVEGACIÓN ── */}
-      <nav className="sb-nav flex-grow-1">
+      <nav className="sb-nav flex-grow-1" ref={navRef}>
 
         {/* MODO EXPANDIDO */}
         {!isCollapsed && (
@@ -366,7 +397,11 @@ export default function Sidebar({
               const open = isSectionOpen(sec);
               const contieneActual = sec.items.some((it) => it.key === currentPage);
               return (
-                <div key={sec.title} className="sb-section">
+                <div
+                  key={sec.title}
+                  className="sb-section"
+                  ref={(el) => (sectionRefs.current[sec.title] = el)}
+                >
                   <button
                     type="button"
                     className={`sb-section__header ${open ? "sb-section__header--open" : ""} ${contieneActual ? "sb-section__header--active" : ""}`}

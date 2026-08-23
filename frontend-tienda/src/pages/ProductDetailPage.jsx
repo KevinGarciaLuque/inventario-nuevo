@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../api/axios.js";
 import { getImgSrc } from "../utils/img.js";
-import { buildWaLink, mensajeMayorista, WHATSAPP_NUMBER } from "../utils/whatsapp.js";
+import { buildWaLink, mensajeMayorista } from "../utils/whatsapp.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 
 const money = (n) => `L ${Number(n || 0).toFixed(2)}`;
 
 const ProductDetailPage = () => {
   const { id } = useParams();
   const { addItem } = useCart();
+  const { telefonoPrincipal } = useSiteConfig();
 
   const [producto, setProducto] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -131,7 +133,7 @@ const ProductDetailPage = () => {
             </button>
             <a
               className="btn btn-outline-success btn-lg"
-              href={buildWaLink(WHATSAPP_NUMBER, mensajeMayorista(producto))}
+              href={buildWaLink(telefonoPrincipal, mensajeMayorista(producto))}
               target="_blank"
               rel="noopener noreferrer"
             >

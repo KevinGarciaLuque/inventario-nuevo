@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios.js";
 import ProductCard from "../components/ProductCard.jsx";
-import { SITE_INFO } from "../config/site.js";
-import logo from "../assets/LaurenLogo.png";
+import HeroCarousel from "../components/HeroCarousel.jsx";
 
 const CATEGORIA_EMOJI = {
   maquillaje: "💄",
@@ -39,16 +38,7 @@ const HomePage = () => {
 
   return (
     <div className="home-page">
-      <section className="hero">
-        <div className="container py-5 text-center">
-          <img src={logo} alt={SITE_INFO.nombre} className="hero-logo mb-3" />
-          <h1 className="display-5 fw-bold mb-3 brand-name">{SITE_INFO.nombre}</h1>
-          <p className="lead text-secondary mb-4">{SITE_INFO.descripcion}</p>
-          <Link to="/productos" className="btn btn-warning btn-lg fw-semibold">
-            Ver catálogo
-          </Link>
-        </div>
-      </section>
+      <HeroCarousel />
 
       <section className="container py-5">
         <h2 className="h4 fw-bold mb-4">Categorías</h2>

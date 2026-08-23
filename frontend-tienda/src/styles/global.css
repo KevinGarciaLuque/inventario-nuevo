@@ -96,17 +96,94 @@ a {
   padding: 0 4px;
 }
 
-/* Hero */
-.hero {
-  background: linear-gradient(135deg, var(--cream) 0%, #ffffff 100%);
+/* Hero carousel (banners de inicio) */
+.hero-carousel {
+  background: var(--cream);
 }
 
-.hero-logo {
-  width: 96px;
-  height: 96px;
+.hero-slide {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #fff;
+}
+
+.hero-slide--brand {
+  background: linear-gradient(135deg, var(--cream) 0%, #ffffff 100%);
+  color: var(--ink);
+}
+
+.hero-slide--carteras {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--gold) 100%);
+}
+
+.hero-slide--maquillaje {
+  background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 100%);
+}
+
+.hero-slide-logo {
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 8px 24px rgba(232, 96, 122, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.hero-slide-emoji {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.hero-slide-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.hero-slide--carteras .hero-slide-title,
+.hero-slide--maquillaje .hero-slide-title {
+  color: #fff;
+  font-style: italic;
+}
+
+.hero-slide-text {
+  max-width: 480px;
+  margin-bottom: 1.5rem;
+  opacity: 0.95;
+  font-size: 1.05rem;
+}
+
+.hero-carousel .carousel-indicators [data-bs-target] {
+  background-color: var(--brand-dark);
+  opacity: 0.35;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.hero-carousel .carousel-indicators .active {
+  opacity: 1;
+}
+
+.hero-carousel .carousel-control-prev-icon,
+.hero-carousel .carousel-control-next-icon {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+}
+
+@media (max-width: 575.98px) {
+  .hero-slide {
+    min-height: 340px;
+    padding: 2.5rem 1.25rem;
+  }
+  .hero-slide-title {
+    font-size: 1.6rem;
+  }
 }
 
 /* Categorías */

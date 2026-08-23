@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
-import { SOCIAL_LINKS, CONTACT_INFO, SITE_INFO } from "../config/site.js";
+import { SITE_INFO } from "../config/site.js";
+import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 import logo from "../assets/LaurenLogo.png";
 
 const Footer = ({ onQuieroSerCliente }) => {
   const year = new Date().getFullYear();
+  const { redes, contacto, telefonoPrincipal } = useSiteConfig();
 
   return (
     <footer className="tienda-footer">
@@ -16,13 +18,13 @@ const Footer = ({ onQuieroSerCliente }) => {
             </div>
             <p className="text-secondary mb-3">{SITE_INFO.descripcion}</p>
             <div className="d-flex gap-3 fs-4">
-              <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <a href={redes.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
                 <i className="bi bi-facebook"></i>
               </a>
-              <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+              <a href={redes.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                 <i className="bi bi-instagram"></i>
               </a>
-              <a href={SOCIAL_LINKS.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+              <a href={redes.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
                 <i className="bi bi-tiktok"></i>
               </a>
             </div>
@@ -45,9 +47,9 @@ const Footer = ({ onQuieroSerCliente }) => {
           <div className="col-md-4">
             <h6 className="fw-bold mb-3">Contacto</h6>
             <ul className="list-unstyled d-flex flex-column gap-2 text-secondary">
-              <li><i className="bi bi-whatsapp me-2"></i>{CONTACT_INFO.telefonoTexto}</li>
-              <li><i className="bi bi-envelope me-2"></i>{CONTACT_INFO.correo}</li>
-              <li><i className="bi bi-geo-alt me-2"></i>{CONTACT_INFO.direccion}</li>
+              <li><i className="bi bi-whatsapp me-2"></i>{telefonoPrincipal}</li>
+              <li><i className="bi bi-envelope me-2"></i>{contacto.correo}</li>
+              <li><i className="bi bi-geo-alt me-2"></i>{contacto.direccion}</li>
             </ul>
           </div>
         </div>

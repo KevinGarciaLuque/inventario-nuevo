@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext.jsx";
 import { getImgSrc } from "../utils/img.js";
-import { buildWaLink, mensajePedido, WHATSAPP_NUMBER } from "../utils/whatsapp.js";
+import { buildWaLink, mensajePedido } from "../utils/whatsapp.js";
+import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 
 const money = (n) => `L ${Number(n || 0).toFixed(2)}`;
 
 const CartPage = () => {
   const { items, removeItem, updateQty, totalPrecio, clear } = useCart();
+  const { telefonoPrincipal } = useSiteConfig();
 
   if (items.length === 0) {
     return (
@@ -19,7 +21,7 @@ const CartPage = () => {
   }
 
   const handleEnviarPedido = () => {
-    const link = buildWaLink(WHATSAPP_NUMBER, mensajePedido(items));
+    const link = buildWaLink(telefonoPrincipal, mensajePedido(items));
     window.open(link, "_blank", "noopener,noreferrer");
   };
 

@@ -126,4 +126,37 @@ router.post("/clientes-web", async (req, res) => {
   }
 });
 
+// GET /api/public/config -> redes sociales, contacto y teléfono principal
+router.get("/config", async (req, res) => {
+  try {
+    const [[config]] = await db.query(
+      "SELECT facebook_url, instagram_url, tiktok_url, correo, direccion, horario, maps_embed_url FROM tienda_config WHERE id = 1 LIMIT 1",
+    );
+    const [telefonos] = await db.query(
+      "SELECT numero, etiqueta, es_principal FROM tienda_telefonos ORDER BY es_principal DESC, id ASC",
+    );
+
+    const principal = telefonos.find((t) => t.es_principal) || telefonos[0] || null;
+
+    return res.json({
+      redes: {
+        facebook: config?.facebook_url || "",
+        instagram: config?.instagram_url || "",
+        tiktok: config?.tiktok_url || "",
+      },
+      contacto: {
+        correo: config?.correo || "",
+        direccion: config?.direccion || "",
+        horario: config?.horario || "",
+        mapsEmbedUrl: config?.maps_embed_url || "",
+      },
+      telefonoPrincipal: principal?.numero || "",
+      telefonos: telefonos.map((t) => ({ numero: t.numero, etiqueta: t.etiqueta })),
+    });
+  } catch (error) {
+    console.error("❌ Error GET /public/config:", error);
+    return res.status(500).json({ message: "Error al obtener la configuración" });
+  }
+});
+
 module.exports = router;

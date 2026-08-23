@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { getImgSrc } from "../utils/img.js";
-import { buildWaLink, mensajeMayorista, WHATSAPP_NUMBER } from "../utils/whatsapp.js";
+import { buildWaLink, mensajeMayorista } from "../utils/whatsapp.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 
 const money = (n) => `L ${Number(n || 0).toFixed(2)}`;
 
 const ProductCard = ({ producto }) => {
   const { addItem } = useCart();
+  const { telefonoPrincipal } = useSiteConfig();
 
   const precioFinal =
     producto.descuento > 0
@@ -48,7 +50,7 @@ const ProductCard = ({ producto }) => {
           </button>
           <a
             className="btn btn-outline-success btn-sm"
-            href={buildWaLink(WHATSAPP_NUMBER, mensajeMayorista(producto))}
+            href={buildWaLink(telefonoPrincipal, mensajeMayorista(producto))}
             target="_blank"
             rel="noopener noreferrer"
           >

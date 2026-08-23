@@ -9,6 +9,7 @@ import CaiPage from "../pages/CaiPage";
 import CategoriesPage from "../pages/CategoriesPage";
 import ClientesPage from "../pages/Clientes/ClientesPage";
 import ClientesWebPage from "../pages/ClientesWebPage";
+import TiendaConfigPage from "../pages/TiendaConfigPage";
 import FacturasPage from "../pages/FacturasPage";
 import LocationsPage from "../pages/LocationsPage";
 import MovimientosPage from "../pages/MovimientosPage";
@@ -163,6 +164,9 @@ export default function Layout({ onLogout }) {
 
       case "clientes-web":
         return <ClientesWebPage />;
+
+      case "tienda-config":
+        return <TiendaConfigPage />;
 
       case "bitacora":
         return <BitacoraPage />;
