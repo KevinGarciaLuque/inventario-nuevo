@@ -302,6 +302,20 @@ export default function Sidebar({
     "VENTAS": <FaCashRegister />,
   };
 
+  // ✅ Color distintivo por módulo, para identificar de un vistazo
+  // cuál sección está activa (aunque el usuario tenga varias
+  // desplegadas o navegue rápido entre módulos).
+  const SECTION_COLORS = {
+    "INVENTARIO": "#3b82f6",
+    "REGISTRAR VENTAS": "#22c55e",
+    "VENTAS": "#22c55e",
+    "CIERRES DE CAJA": "#a855f7",
+    "FACTURACIÓN": "#f97316",
+    "GESTIÓN USUARIOS": "#ec4899",
+    "TIENDA WEB": "#14b8a6",
+    "MANTENIMIENTO": "#ffc107",
+  };
+
   const MenuItem = ({ item, collapsed }) => {
     const isActive = currentPage === item.key;
     return (
@@ -396,10 +410,12 @@ export default function Sidebar({
             {accordionSections.map((sec) => {
               const open = isSectionOpen(sec);
               const contieneActual = sec.items.some((it) => it.key === currentPage);
+              const accentColor = SECTION_COLORS[sec.title] || "#ffc107";
               return (
                 <div
                   key={sec.title}
-                  className="sb-section"
+                  className={`sb-section ${open ? "sb-section--open" : ""}`}
+                  style={{ "--sec-accent": accentColor }}
                   ref={(el) => (sectionRefs.current[sec.title] = el)}
                 >
                   <button
@@ -696,13 +712,13 @@ export default function Sidebar({
           padding-left: 1.35rem;
         }
         .sb-item--active {
-          background: linear-gradient(135deg, rgba(255,193,7,0.18), rgba(255,152,0,0.1));
-          color: #ffc107 !important;
+          background: color-mix(in srgb, var(--sec-accent, #ffc107) 18%, transparent);
+          color: var(--sec-accent, #ffc107) !important;
           font-weight: 600;
-          border: 1px solid rgba(255,193,7,0.2);
+          border: 1px solid color-mix(in srgb, var(--sec-accent, #ffc107) 30%, transparent);
         }
         .sb-item--active:hover {
-          background: linear-gradient(135deg, rgba(255,193,7,0.22), rgba(255,152,0,0.14));
+          background: color-mix(in srgb, var(--sec-accent, #ffc107) 24%, transparent);
           padding-left: 1.1rem;
         }
         .sb-item__icon {
@@ -712,7 +728,7 @@ export default function Sidebar({
           transition: color 0.2s;
         }
         .sb-item:hover .sb-item__icon { color: rgba(255,255,255,0.85); }
-        .sb-item__icon--active { color: #ffc107 !important; }
+        .sb-item__icon--active { color: var(--sec-accent, #ffc107) !important; }
         .sb-item__label {
           flex: 1;
           overflow: hidden;
@@ -722,9 +738,9 @@ export default function Sidebar({
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #ffc107;
+          background: var(--sec-accent, #ffc107);
           flex-shrink: 0;
-          box-shadow: 0 0 6px rgba(255,193,7,0.7);
+          box-shadow: 0 0 6px color-mix(in srgb, var(--sec-accent, #ffc107) 70%, transparent);
         }
 
         /* ─── COLLAPSED LIST ────────────────────── */
@@ -742,7 +758,15 @@ export default function Sidebar({
         .sb-root--collapsed .sb-item__icon { font-size: 1.1rem; }
 
         /* ─── SECTION ───────────────────────────── */
-        .sb-section { margin: 0.15rem 0; }
+        .sb-section {
+          margin: 0.15rem 0;
+          border-left: 3px solid transparent;
+          transition: border-color 0.2s, background 0.2s;
+        }
+        .sb-section--open {
+          border-left-color: var(--sec-accent, #ffc107);
+          background: color-mix(in srgb, var(--sec-accent, #ffc107) 6%, transparent);
+        }
         .sb-section__header {
           display: flex;
           align-items: center;
@@ -765,11 +789,15 @@ export default function Sidebar({
         }
         .sb-section__header--open,
         .sb-section__header--active {
-          color: rgba(255,193,7,0.75);
+          color: var(--sec-accent, #ffc107);
         }
         .sb-section__header--open:hover,
         .sb-section__header--active:hover {
-          color: #ffc107;
+          color: var(--sec-accent, #ffc107);
+          filter: brightness(1.15);
+        }
+        .sb-section--open .sb-section__icon {
+          color: var(--sec-accent, #ffc107);
         }
         .sb-section__icon {
           font-size: 0.78rem;

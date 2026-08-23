@@ -1,4 +1,21 @@
 /* ═══════════════════════════════════════════════════════
+   LAYOUT ROOT — altura fija a la pantalla
+   Así el header y el sidebar quedan fijos, y solo el
+   contenido debajo del header hace scroll (no la página
+   completa).
+═══════════════════════════════════════════════════════ */
+.layout-root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+@media (max-width: 991.98px) {
+  .layout-root {
+    height: 100dvh;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
    SIDEBAR — Desktop
 ═══════════════════════════════════════════════════════ */
 .sidebar-responsive {
