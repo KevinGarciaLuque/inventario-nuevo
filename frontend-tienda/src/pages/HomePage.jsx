@@ -46,7 +46,9 @@ const HomePage = () => {
           <p className="text-secondary">Aún no hay categorías disponibles.</p>
         )}
         <div className="row g-3">
-          {categorias.map((cat) => (
+          {categorias
+            .filter((cat) => !cat.categoria_padre_id)
+            .map((cat) => (
             <div className="col-6 col-md-3" key={cat.id}>
               <Link to={`/categoria/${cat.id}`} className="category-tile">
                 <span className="category-emoji">

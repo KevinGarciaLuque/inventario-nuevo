@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
 import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
+import { renderCategoriaOptions } from "../../utils/categoriasOptions.jsx";
 
 const API_ROOT = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
   .replace(/\/api\/?$/i, "")
@@ -565,11 +566,7 @@ export default function EditProductModal({
                   required
                 >
                   <option value="">Seleccionar</option>
-                  {categorias.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.nombre}
-                    </option>
-                  ))}
+                  {renderCategoriaOptions(categorias)}
                 </Form.Select>
               </div>
 

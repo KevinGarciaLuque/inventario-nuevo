@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
+import { renderCategoriaOptions } from "../../utils/categoriasOptions.jsx";
 
 export default function AddProductPage() {
   const [categorias, setCategorias] = useState([]);
@@ -658,11 +659,7 @@ const verificarCodigoUnico = async (codigoRaw) => {
             required
           >
             <option value="">Seleccionar</option>
-            {categorias.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.nombre}
-              </option>
-            ))}
+            {renderCategoriaOptions(categorias)}
           </select>
         </div>
 

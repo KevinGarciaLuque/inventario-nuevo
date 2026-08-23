@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import api from "../api/axios.js";
 import ProductCard from "../components/ProductCard.jsx";
@@ -55,6 +55,28 @@ const ProductsPage = () => {
 
   const categoriaActual = categorias.find((c) => String(c.id) === categoriaIdParam);
 
+  // Árbol: categorías principales seguidas de sus subcategorías
+  const categoriasArbol = useMemo(() => {
+    const principales = categorias
+      .filter((c) => !c.categoria_padre_id)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    const porPadre = {};
+    categorias.forEach((c) => {
+      if (c.categoria_padre_id) {
+        (porPadre[c.categoria_padre_id] ||= []).push(c);
+      }
+    });
+    Object.values(porPadre).forEach((arr) =>
+      arr.sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    );
+
+    return principales.map((padre) => ({
+      ...padre,
+      subcategorias: porPadre[padre.id] || [],
+    }));
+  }, [categorias]);
+
   return (
     <div className="container py-5">
       <h1 className="h3 fw-bold mb-4">
@@ -83,7 +105,7 @@ const ProductsPage = () => {
                 Todas
               </Link>
             </li>
-            {categorias.map((cat) => (
+            {categoriasArbol.map((cat) => (
               <li key={cat.id}>
                 <Link
                   to={`/categoria/${cat.id}`}
@@ -91,6 +113,20 @@ const ProductsPage = () => {
                 >
                   {cat.nombre}
                 </Link>
+                {cat.subcategorias.length > 0 && (
+                  <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
+                    {cat.subcategorias.map((sub) => (
+                      <li key={sub.id}>
+                        <Link
+                          to={`/categoria/${sub.id}`}
+                          className={`category-link category-sublink ${String(sub.id) === categoriaIdParam ? "active" : ""}`}
+                        >
+                          {sub.nombre}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>

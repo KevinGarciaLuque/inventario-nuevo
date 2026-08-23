@@ -47,8 +47,10 @@ router.get("/productos", async (req, res) => {
     const params = [];
 
     if (categoriaId) {
-      query += " AND p.categoria_id = ?";
-      params.push(categoriaId);
+      // Si es una categoría principal, incluye también sus subcategorías
+      query +=
+        " AND p.categoria_id IN (SELECT id FROM categorias WHERE id = ? OR categoria_padre_id = ?)";
+      params.push(categoriaId, categoriaId);
     }
 
     if (q) {
@@ -92,7 +94,7 @@ router.get("/productos/:id", async (req, res) => {
 router.get("/categorias", async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, nombre, descripcion FROM categorias ORDER BY nombre ASC",
+      "SELECT id, nombre, descripcion, categoria_padre_id FROM categorias ORDER BY categoria_padre_id IS NULL DESC, nombre ASC",
     );
     return res.json(rows);
   } catch (error) {

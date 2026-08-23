@@ -179,6 +179,16 @@ body.sidebar-mobile-open {
   }
 }
 
+/* Imagen/miniatura clickeable que abre el modal de detalle */
+.inventory-img-clickable {
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.inventory-img-clickable:hover {
+  opacity: 0.8;
+  transform: scale(1.03);
+}
+
 /* Encabezado sticky como InventoryPage */
 .sticky-header thead th {
   position: sticky;

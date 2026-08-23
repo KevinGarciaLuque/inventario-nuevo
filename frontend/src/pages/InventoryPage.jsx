@@ -6,6 +6,7 @@ import api from "../api/axios";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import { useUser } from "../context/UserContext";
 import EditProductModal from "./AddProduct/EditProductModal";
+import { renderCategoriaOptions } from "../utils/categoriasOptions.jsx";
 
 const API_URL = "http://localhost:3000";
 
@@ -291,11 +292,7 @@ export default function InventoryPage({ onView }) {
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="">Todas las categorías</option>
-            {categorias.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.nombre}
-              </option>
-            ))}
+            {renderCategoriaOptions(categorias)}
           </select>
         </div>
         <div className="col-sm-3">
@@ -351,12 +348,18 @@ export default function InventoryPage({ onView }) {
                         <img
                           src={getImgSrc(item.imagen)}
                           alt={item.nombre}
-                          className="img-thumbnail"
+                          className="img-thumbnail inventory-img-clickable"
                           style={{ maxHeight: 50, maxWidth: 70 }}
+                          onClick={() => onView(item)}
                           onError={(e) => (e.target.style.display = "none")}
                         />
                       ) : (
-                        <span className="text-muted">Sin imagen</span>
+                        <span
+                          className="text-muted inventory-img-clickable"
+                          onClick={() => onView(item)}
+                        >
+                          Sin imagen
+                        </span>
                       )}
                     </td>
                     <td>{item.codigo}</td>
@@ -383,12 +386,6 @@ export default function InventoryPage({ onView }) {
                         : "-"}
                     </td>
                     <td>
-                      <button
-                        className="btn btn-outline-warning btn-sm me-2"
-                        onClick={() => onView(item)}
-                      >
-                        <i className="bi bi-eye"></i>
-                      </button>
                       {user?.rol === "admin" && (
                         <>
                           <button
@@ -434,7 +431,10 @@ export default function InventoryPage({ onView }) {
                 className="inventory-card bg-white rounded shadow-sm border p-2"
               >
                 <div className="d-flex gap-2">
-                  <div className="inventory-card__img flex-shrink-0">
+                  <div
+                    className="inventory-card__img flex-shrink-0 inventory-img-clickable"
+                    onClick={() => onView(item)}
+                  >
                     {item.imagen ? (
                       <img
                         src={getImgSrc(item.imagen)}
@@ -483,12 +483,6 @@ export default function InventoryPage({ onView }) {
                           : "-"}
                       </span>
                       <div className="d-flex gap-1">
-                        <button
-                          className="btn btn-outline-warning btn-sm"
-                          onClick={() => onView(item)}
-                        >
-                          <i className="bi bi-eye"></i>
-                        </button>
                         {user?.rol === "admin" && (
                           <>
                             <button
