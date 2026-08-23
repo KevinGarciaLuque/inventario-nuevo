@@ -45,9 +45,15 @@ const ContactPage = () => {
               <strong>Síguenos</strong>
               <br />
               <div className="d-flex gap-3 fs-4 mt-1">
-                <a href={redes.facebook} target="_blank" rel="noopener noreferrer"><i className="bi bi-facebook"></i></a>
-                <a href={redes.instagram} target="_blank" rel="noopener noreferrer"><i className="bi bi-instagram"></i></a>
-                <a href={redes.tiktok} target="_blank" rel="noopener noreferrer"><i className="bi bi-tiktok"></i></a>
+                {redes.facebook && (
+                  <a href={redes.facebook} target="_blank" rel="noopener noreferrer"><i className="bi bi-facebook"></i></a>
+                )}
+                {redes.instagram && (
+                  <a href={redes.instagram} target="_blank" rel="noopener noreferrer"><i className="bi bi-instagram"></i></a>
+                )}
+                {redes.tiktok && (
+                  <a href={redes.tiktok} target="_blank" rel="noopener noreferrer"><i className="bi bi-tiktok"></i></a>
+                )}
               </div>
             </li>
           </ul>

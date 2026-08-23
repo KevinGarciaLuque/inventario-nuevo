@@ -1,12 +1,16 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/axios.js";
-import { SOCIAL_LINKS, CONTACT_INFO } from "../config/site.js";
+import { CONTACT_INFO } from "../config/site.js";
 import { WHATSAPP_NUMBER } from "../utils/whatsapp.js";
 
 const SiteConfigContext = createContext(null);
 
+// Nota: a diferencia de contacto/teléfono, las redes NO tienen un valor por
+// defecto real (SOCIAL_LINKS son solo placeholders genéricos). Si no están
+// configuradas en el panel, se quedan vacías para que el botón se oculte
+// en vez de llevar a la portada genérica de Instagram/TikTok/Facebook.
 const DEFAULT_CONFIG = {
-  redes: { ...SOCIAL_LINKS },
+  redes: { facebook: "", instagram: "", tiktok: "" },
   contacto: {
     correo: CONTACT_INFO.correo,
     direccion: CONTACT_INFO.direccion,
@@ -28,9 +32,9 @@ export const SiteConfigProvider = ({ children }) => {
         const d = res.data;
         setConfig({
           redes: {
-            facebook: d.redes?.facebook || DEFAULT_CONFIG.redes.facebook,
-            instagram: d.redes?.instagram || DEFAULT_CONFIG.redes.instagram,
-            tiktok: d.redes?.tiktok || DEFAULT_CONFIG.redes.tiktok,
+            facebook: d.redes?.facebook || "",
+            instagram: d.redes?.instagram || "",
+            tiktok: d.redes?.tiktok || "",
           },
           contacto: {
             correo: d.contacto?.correo || DEFAULT_CONFIG.contacto.correo,

@@ -33,32 +33,38 @@ const LinksPage = () => {
           <FaShoppingBag /> Ver catálogo
         </Link>
 
-        <a
-          href={redes.instagram}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="links-btn links-btn--instagram"
-        >
-          <FaInstagram /> Instagram
-        </a>
+        {redes.instagram && (
+          <a
+            href={redes.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="links-btn links-btn--instagram"
+          >
+            <FaInstagram /> Instagram
+          </a>
+        )}
 
-        <a
-          href={redes.facebook}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="links-btn links-btn--facebook"
-        >
-          <FaFacebookF /> Facebook
-        </a>
+        {redes.facebook && (
+          <a
+            href={redes.facebook}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="links-btn links-btn--facebook"
+          >
+            <FaFacebookF /> Facebook
+          </a>
+        )}
 
-        <a
-          href={redes.tiktok}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="links-btn links-btn--tiktok"
-        >
-          <FaTiktok /> TikTok
-        </a>
+        {redes.tiktok && (
+          <a
+            href={redes.tiktok}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="links-btn links-btn--tiktok"
+          >
+            <FaTiktok /> TikTok
+          </a>
+        )}
 
         <a
           href={buildWaLink(telefonoPrincipal, "Hola, quiero más información.")}

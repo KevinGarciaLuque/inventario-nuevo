@@ -18,15 +18,21 @@ const Footer = ({ onQuieroSerCliente }) => {
             </div>
             <p className="text-secondary mb-3">{SITE_INFO.descripcion}</p>
             <div className="d-flex gap-3 fs-4">
-              <a href={redes.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-                <i className="bi bi-facebook"></i>
-              </a>
-              <a href={redes.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-                <i className="bi bi-instagram"></i>
-              </a>
-              <a href={redes.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
-                <i className="bi bi-tiktok"></i>
-              </a>
+              {redes.facebook && (
+                <a href={redes.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                  <i className="bi bi-facebook"></i>
+                </a>
+              )}
+              {redes.instagram && (
+                <a href={redes.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                  <i className="bi bi-instagram"></i>
+                </a>
+              )}
+              {redes.tiktok && (
+                <a href={redes.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                  <i className="bi bi-tiktok"></i>
+                </a>
+              )}
             </div>
           </div>
 
