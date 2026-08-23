@@ -1,8 +1,16 @@
 import { useSiteConfig } from "../context/SiteConfigContext.jsx";
 import { buildWaLink } from "../utils/whatsapp.js";
 
+// Solo los links "embed" de Google Maps pueden ir dentro de un iframe;
+// los links normales de "Compartir" (maps.app.goo.gl, /maps/place/...)
+// los bloquea Google. Si no es un link insertable, mostramos un botón
+// en vez de un cuadro roto.
+const esUrlInsertable = (url) =>
+  !!url && (url.includes("/maps/embed") || url.includes("output=embed"));
+
 const ContactPage = () => {
   const { redes, contacto, telefonoPrincipal } = useSiteConfig();
+  const mapaInsertable = esUrlInsertable(contacto.mapsEmbedUrl);
 
   return (
     <div className="container py-5">
@@ -46,15 +54,34 @@ const ContactPage = () => {
         </div>
 
         <div className="col-md-7">
-          <div className="ratio ratio-4x3 rounded-4 overflow-hidden">
-            <iframe
-              src={contacto.mapsEmbedUrl}
-              title="Ubicación"
-              loading="lazy"
-              style={{ border: 0 }}
-              allowFullScreen
-            ></iframe>
-          </div>
+          {mapaInsertable ? (
+            <div className="ratio ratio-4x3 rounded-4 overflow-hidden">
+              <iframe
+                src={contacto.mapsEmbedUrl}
+                title="Ubicación"
+                loading="lazy"
+                style={{ border: 0 }}
+                allowFullScreen
+              ></iframe>
+            </div>
+          ) : (
+            <div className="contact-map-fallback rounded-4 d-flex flex-column align-items-center justify-content-center text-center p-4">
+              <i className="bi bi-geo-alt-fill fs-1 mb-3"></i>
+              <p className="mb-3 text-secondary">
+                {contacto.direccion || "Visítanos en nuestra tienda"}
+              </p>
+              {contacto.mapsEmbedUrl && (
+                <a
+                  href={contacto.mapsEmbedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-warning fw-semibold"
+                >
+                  Abrir en Google Maps
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

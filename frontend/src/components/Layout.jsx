@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
@@ -32,6 +32,7 @@ import PromocionesPage from "../pages/Promociones/PromocionesPage";
 
 import BitacoraPage from "./BitacoraPage";
 import ProductModal from "./ProductModal";
+import InactivityWatcher from "./InactivityWatcher";
 
 import "../styles/Layout.css";
 
@@ -42,8 +43,14 @@ import { useUser } from "../context/UserContext";
 export default function Layout({ onLogout }) {
   const { user } = useUser();
 
-  // ✅ Por defecto NO amarramos a "inventory", lo decide el rol
-  const [currentPage, setCurrentPage] = useState("inventory");
+  // ✅ Pantalla inicial calculada de una sola vez según el rol (sin
+  // useEffect), para no renderizar "inventory" primero y luego cambiar
+  // a "dashboard" — eso era lo que causaba el parpadeo justo tras el login.
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (user?.rol === "admin") return "dashboard";
+    if (user?.rol === "cajero") return "caja-apertura";
+    return "inventory";
+  });
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   // ✅ Desktop: colapsado/expandido
@@ -53,25 +60,6 @@ export default function Layout({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
-
-  // ✅ Para NO re-setear currentPage y evitar loops
-  const yaInicializoRef = useRef(false);
-
-  // ✅ Cuando existe el usuario, define pantalla inicial por rol
-  useEffect(() => {
-    if (!user) return;
-    if (yaInicializoRef.current) return;
-
-    if (user.rol === "admin") {
-      setCurrentPage("dashboard"); // ✅ Dashboard primero para admin
-    } else if (user.rol === "cajero") {
-      setCurrentPage("caja-apertura"); // ✅ recomendado para cajero
-    } else {
-      setCurrentPage("inventory"); // ✅ default general
-    }
-
-    yaInicializoRef.current = true;
-  }, [user]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -283,6 +271,8 @@ export default function Layout({ onLogout }) {
           onClose={() => setSelectedProduct(null)}
         />
       )}
+
+      <InactivityWatcher />
     </div>
   );
 }

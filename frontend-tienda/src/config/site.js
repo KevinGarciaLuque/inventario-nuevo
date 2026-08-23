@@ -9,9 +9,11 @@ export const CONTACT_INFO = {
   telefonoTexto: "+504 9387-7292",
   correo: "contacto@tutienda.com",
   direccion: "Tegucigalpa, Honduras",
-  // Coordenadas para el mapa de la página de Contacto (Google Maps embed)
+  // Coordenadas para el mapa de la página de Contacto (Google Maps embed).
+  // Importante: debe ser "maps.google.com" (no "www.google.com"), o Google
+  // bloquea el iframe por X-Frame-Options.
   mapsEmbedUrl:
-    "https://www.google.com/maps?q=Tegucigalpa,Honduras&output=embed",
+    "https://maps.google.com/maps?q=Tegucigalpa,Honduras&output=embed",
   horario: "Lun - Sáb, 9:00am - 6:00pm",
 };
 

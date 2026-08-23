@@ -10,7 +10,12 @@ const CAMPOS_CONFIG = [
   { key: "correo", label: "Correo de contacto", placeholder: "contacto@tuempresa.com" },
   { key: "direccion", label: "Dirección", placeholder: "Tegucigalpa, Honduras" },
   { key: "horario", label: "Horario de atención", placeholder: "Lun - Sáb, 9:00am - 6:00pm" },
-  { key: "maps_embed_url", label: "URL de Google Maps (embed)", placeholder: "https://www.google.com/maps?q=...&output=embed" },
+  {
+    key: "maps_embed_url",
+    label: "URL de Google Maps (embed)",
+    placeholder: "https://maps.google.com/maps?q=Tegucigalpa,Honduras&output=embed",
+    hint: 'No pegues el link normal de "Compartir" (ej. maps.app.goo.gl) — ese Google lo bloquea. En Google Maps: busca tu ubicación → Compartir → pestaña "Insertar un mapa" → copia solo la URL de adentro de src="..." (empieza con https://www.google.com/maps/embed?pb=...).',
+  },
 ];
 
 export default function TiendaConfigPage() {
@@ -120,6 +125,9 @@ export default function TiendaConfigPage() {
                   onChange={(e) => handleChange(campo.key, e.target.value)}
                   disabled={loading}
                 />
+                {campo.hint && (
+                  <small className="text-muted d-block mt-1">{campo.hint}</small>
+                )}
               </div>
             ))}
             <button

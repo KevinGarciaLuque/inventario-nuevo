@@ -379,6 +379,14 @@ a {
   color: var(--brand-dark);
 }
 
+.contact-map-fallback {
+  min-height: 320px;
+  height: 100%;
+  background: var(--cream);
+  border: 1px dashed var(--brand-light);
+  color: var(--brand-dark);
+}
+
 /* Link-en-bio (página /enlaces) */
 .links-page {
   min-height: 100vh;
