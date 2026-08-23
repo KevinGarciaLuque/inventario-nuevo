@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import {
+  BsChevronDown,
+  BsChevronRight,
   BsCheckCircleFill,
   BsExclamationTriangleFill,
   BsPencilSquare,
@@ -10,13 +12,61 @@ import {
 import api from "../api/axios";
 import { useUser } from "../context/UserContext"; // Ajusta según tu contexto de usuario
 
+// Mini formulario, con su propio estado, para agregar una subcategoría
+// directamente dentro de la categoría padre ya expandida.
+function SubcategoriaQuickAdd({ onAdd }) {
+  const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    setSaving(true);
+    await onAdd(nombre.trim(), descripcion.trim());
+    setNombre("");
+    setDescripcion("");
+    setSaving(false);
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="d-flex flex-wrap gap-2 align-items-center subcategoria-quick-add"
+    >
+      <input
+        className="form-control form-control-sm"
+        style={{ maxWidth: 220 }}
+        placeholder="Nombre de la subcategoría"
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value)}
+        required
+      />
+      <input
+        className="form-control form-control-sm"
+        style={{ maxWidth: 260 }}
+        placeholder="Descripción (opcional)"
+        value={descripcion}
+        onChange={(e) => setDescripcion(e.target.value)}
+      />
+      <button
+        className="btn btn-success btn-sm"
+        type="submit"
+        disabled={saving}
+      >
+        {saving ? "Agregando..." : "Agregar subcategoría"}
+      </button>
+    </form>
+  );
+}
+
 export default function CategoriesPage() {
   const { user } = useUser(); // Accede al usuario actual y su rol
   const [categorias, setCategorias] = useState([]);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [padreId, setPadreId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expandedIds, setExpandedIds] = useState(new Set());
 
   // Para edición
   const [editId, setEditId] = useState(null);
@@ -75,8 +125,8 @@ export default function CategoriesPage() {
     [categorias],
   );
 
-  // Árbol aplanado: cada categoría principal seguida de sus subcategorías
-  const filasArbol = useMemo(() => {
+  // Árbol: categorías principales (las más nuevas primero) + sus subcategorías
+  const arbol = useMemo(() => {
     const porPadre = {};
     categorias.forEach((c) => {
       if (c.categoria_padre_id) {
@@ -87,37 +137,43 @@ export default function CategoriesPage() {
       arr.sort((a, b) => a.nombre.localeCompare(b.nombre)),
     );
 
-    const principales = [...categoriasPadre].sort((a, b) =>
-      a.nombre.localeCompare(b.nombre),
-    );
+    const principales = [...categoriasPadre].sort((a, b) => b.id - a.id);
 
-    const filas = [];
-    principales.forEach((p) => {
-      filas.push({ ...p, esSubcategoria: false });
-      (porPadre[p.id] || []).forEach((hijo) =>
-        filas.push({ ...hijo, esSubcategoria: true }),
-      );
-    });
-    return filas;
+    return principales.map((padre) => ({
+      ...padre,
+      subcategorias: porPadre[padre.id] || [],
+    }));
   }, [categorias, categoriasPadre]);
 
-  // Agregar categoría (o subcategoría si hay padre seleccionado)
+  const toggleExpand = (id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const expandirParaSubcategoria = (id) => {
+    setExpandedIds((prev) => new Set(prev).add(id));
+  };
+
+  // Agregar categoría principal
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
       await api.post("/categorias", {
         nombre,
         descripcion,
-        categoria_padre_id: padreId || null,
+        categoria_padre_id: null,
       });
       setNombre("");
       setDescripcion("");
-      setPadreId("");
       await cargarCategorias();
       showModal({
         type: "success",
-        title: padreId ? "¡Subcategoría agregada!" : "¡Categoría agregada!",
-        message: "Se registró correctamente.",
+        title: "¡Categoría agregada!",
+        message: "Se registró correctamente y aparece primero en la lista.",
       });
     } catch {
       showModal({
@@ -128,15 +184,27 @@ export default function CategoriesPage() {
     }
   };
 
-  // Preseleccionar el padre para agregar rápidamente una subcategoría
-  const handleAddSubcategoria = (parent) => {
-    setPadreId(String(parent.id));
-    setNombre("");
-    setDescripcion("");
-    document
-      .getElementById("categoria-nombre-input")
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    document.getElementById("categoria-nombre-input")?.focus();
+  // Agregar subcategoría dentro de una categoría padre ya expandida
+  const handleAddSubcategoriaInline = async (padre, nombreSub, descripcionSub) => {
+    try {
+      await api.post("/categorias", {
+        nombre: nombreSub,
+        descripcion: descripcionSub,
+        categoria_padre_id: padre.id,
+      });
+      await cargarCategorias();
+      showModal({
+        type: "success",
+        title: "¡Subcategoría agregada!",
+        message: `Se agregó dentro de "${padre.nombre}".`,
+      });
+    } catch {
+      showModal({
+        type: "error",
+        title: "Error",
+        message: "No se pudo agregar la subcategoría.",
+      });
+    }
   };
 
   // Mostrar modal de confirmación
@@ -207,20 +275,20 @@ export default function CategoriesPage() {
     <div className="container-fluid px-2 px-md-4 py-3 py-md-4">
       <h3 className="mb-3">Categorías</h3>
 
-      {/* FORMULARIO RESPONSIVO (solo admins pueden agregar) */}
+      {/* FORMULARIO: solo agrega categorías principales (las subcategorías
+          se agregan expandiendo la categoría padre en la tabla) */}
       {user?.rol === "admin" && (
         <form onSubmit={handleAdd} className="mb-3 row g-2 categories-form">
-          <div className="col-md-3 col-12">
+          <div className="col-md-4 col-12">
             <input
-              id="categoria-nombre-input"
               className="form-control"
-              placeholder="Nombre"
+              placeholder="Nombre de la categoría principal"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               required
             />
           </div>
-          <div className="col-md-4 col-12">
+          <div className="col-md-5 col-12">
             <input
               className="form-control"
               placeholder="Descripción"
@@ -228,27 +296,13 @@ export default function CategoriesPage() {
               onChange={(e) => setDescripcion(e.target.value)}
             />
           </div>
-          <div className="col-md-3 col-12">
-            <select
-              className="form-select"
-              value={padreId}
-              onChange={(e) => setPadreId(e.target.value)}
-            >
-              <option value="">Categoría principal (sin padre)</option>
-              {categoriasPadre.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  Subcategoría de: {cat.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-2 col-12 d-grid">
+          <div className="col-md-3 col-12 d-grid">
             <button
               className="btn btn-success w-150"
               type="submit"
               disabled={loading}
             >
-              {loading ? "Guardando..." : "Agregar"}
+              {loading ? "Guardando..." : "Agregar categoría"}
             </button>
           </div>
         </form>
@@ -266,60 +320,119 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {filasArbol.length > 0 ? (
-                filasArbol.map((cat) => (
-                  <tr key={cat.id}>
-                    <td>
-                      <span
-                        className={
-                          cat.esSubcategoria
-                            ? "categories-row categories-row--child"
-                            : "categories-row categories-row--parent"
-                        }
-                      >
-                        {cat.esSubcategoria && (
-                          <span className="categories-tree-branch">└─</span>
-                        )}
-                        {cat.nombre}
-                      </span>
-                    </td>
-                    <td style={{ wordBreak: "break-word" }}>
-                      {cat.descripcion}
-                    </td>
-                    <td>
-                      {user?.rol === "admin" && (
-                        <>
-                          {!cat.esSubcategoria && (
-                            <button
-                              className="btn btn-outline-success btn-sm me-1"
-                              style={{ borderRadius: 8 }}
-                              onClick={() => handleAddSubcategoria(cat)}
-                              title="Agregar subcategoría"
-                            >
-                              <BsPlusCircle />
-                            </button>
+              {arbol.length > 0 ? (
+                arbol.map((padre) => {
+                  const expanded = expandedIds.has(padre.id);
+                  return (
+                    <Fragment key={padre.id}>
+                      <tr>
+                        <td>
+                          <span
+                            className="categories-row categories-row--parent"
+                            role="button"
+                            onClick={() => toggleExpand(padre.id)}
+                          >
+                            {expanded ? (
+                              <BsChevronDown className="categories-chevron" />
+                            ) : (
+                              <BsChevronRight className="categories-chevron" />
+                            )}
+                            {padre.nombre}
+                            {padre.subcategorias.length > 0 && (
+                              <span className="badge rounded-pill bg-light text-secondary border ms-1">
+                                {padre.subcategorias.length}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td style={{ wordBreak: "break-word" }}>
+                          {padre.descripcion}
+                        </td>
+                        <td>
+                          {user?.rol === "admin" && (
+                            <>
+                              <button
+                                className="btn btn-outline-success btn-sm me-1"
+                                style={{ borderRadius: 8 }}
+                                onClick={() => expandirParaSubcategoria(padre.id)}
+                                title="Agregar subcategoría"
+                              >
+                                <BsPlusCircle />
+                              </button>
+                              <button
+                                className="btn btn-warning btn-sm me-1"
+                                style={{ borderRadius: 8 }}
+                                onClick={() => openEdit(padre)}
+                                title="Editar"
+                              >
+                                <BsPencilSquare />
+                              </button>
+                              <button
+                                className="btn btn-danger btn-sm me-1"
+                                style={{ borderRadius: 8 }}
+                                onClick={() => handleDeleteClick(padre.id)}
+                                title="Eliminar"
+                              >
+                                <BsTrash />
+                              </button>
+                            </>
                           )}
-                          <button
-                            className="btn btn-warning btn-sm me-1"
-                            style={{ borderRadius: 8 }}
-                            onClick={() => openEdit(cat)}
-                            title="Editar"
-                          >
-                            <BsPencilSquare />
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm me-1"
-                            style={{ borderRadius: 8 }}
-                            onClick={() => handleDeleteClick(cat.id)}
-                            title="Eliminar"
-                          >
-                            <BsTrash />
-                          </button>
-                        </>
+                        </td>
+                      </tr>
+
+                      {expanded &&
+                        padre.subcategorias.map((hijo) => (
+                          <tr key={hijo.id} className="categories-subrow">
+                            <td>
+                              <span className="categories-row categories-row--child">
+                                <span className="categories-tree-branch">
+                                  └─
+                                </span>
+                                {hijo.nombre}
+                              </span>
+                            </td>
+                            <td style={{ wordBreak: "break-word" }}>
+                              {hijo.descripcion}
+                            </td>
+                            <td>
+                              {user?.rol === "admin" && (
+                                <>
+                                  <button
+                                    className="btn btn-warning btn-sm me-1"
+                                    style={{ borderRadius: 8 }}
+                                    onClick={() => openEdit(hijo)}
+                                    title="Editar"
+                                  >
+                                    <BsPencilSquare />
+                                  </button>
+                                  <button
+                                    className="btn btn-danger btn-sm me-1"
+                                    style={{ borderRadius: 8 }}
+                                    onClick={() => handleDeleteClick(hijo.id)}
+                                    title="Eliminar"
+                                  >
+                                    <BsTrash />
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+
+                      {expanded && user?.rol === "admin" && (
+                        <tr className="categories-subrow categories-subrow--form">
+                          <td colSpan={3}>
+                            <SubcategoriaQuickAdd
+                              onAdd={(n, d) =>
+                                handleAddSubcategoriaInline(padre, n, d)
+                              }
+                            />
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))
+                    </Fragment>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={3} className="text-center text-muted">
@@ -468,6 +581,18 @@ export default function CategoriesPage() {
       <style>{`
         .categories-row--parent {
           font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          cursor: pointer;
+          user-select: none;
+        }
+        .categories-row--parent:hover {
+          color: #0d6efd;
+        }
+        .categories-chevron {
+          color: #6c757d;
+          flex-shrink: 0;
         }
         .categories-row--child {
           padding-left: 1.5rem;
@@ -479,6 +604,12 @@ export default function CategoriesPage() {
         .categories-tree-branch {
           color: #adb5bd;
           font-weight: 400;
+        }
+        .categories-subrow {
+          background: #fbfbfd;
+        }
+        .categories-subrow--form td {
+          padding-left: 1.5rem;
         }
 
         /* Formulario responsivo */

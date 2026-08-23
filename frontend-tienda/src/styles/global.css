@@ -349,6 +349,27 @@ a {
   font-weight: 600;
 }
 
+.category-parent-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.category-toggle {
+  background: none;
+  border: none;
+  color: #8a7175;
+  padding: 0.4rem 0.5rem;
+  line-height: 1;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.category-toggle:hover {
+  background: var(--brand-light);
+  color: var(--brand-dark);
+}
+
 .category-sublist {
   margin: 0.15rem 0 0.4rem 0.5rem;
   padding-left: 0.5rem;

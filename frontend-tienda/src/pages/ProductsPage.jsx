@@ -77,6 +77,26 @@ const ProductsPage = () => {
     }));
   }, [categorias]);
 
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  // Si la URL apunta a una subcategoría (o a un padre), despliega ese grupo
+  useEffect(() => {
+    if (!categoriaIdParam) return;
+    const activa = categorias.find((c) => String(c.id) === categoriaIdParam);
+    if (!activa) return;
+    const idAExpandir = activa.categoria_padre_id || activa.id;
+    setExpandedIds((prev) => new Set(prev).add(idAExpandir));
+  }, [categoriaIdParam, categorias]);
+
+  const toggleExpand = (id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="container py-5">
       <h1 className="h3 fw-bold mb-4">
@@ -105,30 +125,49 @@ const ProductsPage = () => {
                 Todas
               </Link>
             </li>
-            {categoriasArbol.map((cat) => (
-              <li key={cat.id}>
-                <Link
-                  to={`/categoria/${cat.id}`}
-                  className={`category-link ${String(cat.id) === categoriaIdParam ? "active" : ""}`}
-                >
-                  {cat.nombre}
-                </Link>
-                {cat.subcategorias.length > 0 && (
-                  <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
-                    {cat.subcategorias.map((sub) => (
-                      <li key={sub.id}>
-                        <Link
-                          to={`/categoria/${sub.id}`}
-                          className={`category-link category-sublink ${String(sub.id) === categoriaIdParam ? "active" : ""}`}
-                        >
-                          {sub.nombre}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
+            {categoriasArbol.map((cat) => {
+              const tieneSubs = cat.subcategorias.length > 0;
+              const expandida = expandedIds.has(cat.id);
+              return (
+                <li key={cat.id}>
+                  <div className="category-parent-row">
+                    <Link
+                      to={`/categoria/${cat.id}`}
+                      className={`category-link flex-grow-1 ${String(cat.id) === categoriaIdParam ? "active" : ""}`}
+                    >
+                      {cat.nombre}
+                    </Link>
+                    {tieneSubs && (
+                      <button
+                        type="button"
+                        className="category-toggle"
+                        onClick={() => toggleExpand(cat.id)}
+                        aria-expanded={expandida}
+                        aria-label={`Ver subcategorías de ${cat.nombre}`}
+                      >
+                        <i
+                          className={`bi ${expandida ? "bi-chevron-down" : "bi-chevron-right"}`}
+                        ></i>
+                      </button>
+                    )}
+                  </div>
+                  {tieneSubs && expandida && (
+                    <ul className="list-unstyled d-flex flex-column gap-1 category-sublist">
+                      {cat.subcategorias.map((sub) => (
+                        <li key={sub.id}>
+                          <Link
+                            to={`/categoria/${sub.id}`}
+                            className={`category-link category-sublink ${String(sub.id) === categoriaIdParam ? "active" : ""}`}
+                          >
+                            {sub.nombre}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </aside>
 
