@@ -13,7 +13,8 @@ const toNumberOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Columnas seguras: nunca precio_costo, stock_minimo, lote, etc.
+// Columnas seguras: nunca precio_costo, lote, etc.
+// stock_minimo y creado_en sí se exponen (umbral de "últimas unidades" y badge "Nuevo").
 const SELECT_PRODUCTO_PUBLICO = `
   SELECT
     p.id,
@@ -24,6 +25,8 @@ const SELECT_PRODUCTO_PUBLICO = `
     p.descuento,
     p.imagen,
     p.stock,
+    p.stock_minimo,
+    p.creado_en,
     p.categoria_id,
     c.nombre AS categoria,
     um.nombre AS unidad_nombre,

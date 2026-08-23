@@ -3,26 +3,62 @@ import { getImgSrc } from "../utils/img.js";
 import { buildWaLink, mensajeMayorista } from "../utils/whatsapp.js";
 import { useCart } from "../context/CartContext.jsx";
 import { useSiteConfig } from "../context/SiteConfigContext.jsx";
+import { useFavorites } from "../context/FavoritesContext.jsx";
 
 const money = (n) => `L ${Number(n || 0).toFixed(2)}`;
+const DIAS_PARA_SER_NUEVO = 14;
+
+const esNuevo = (creadoEn) => {
+  if (!creadoEn) return false;
+  const dias = (Date.now() - new Date(creadoEn).getTime()) / (1000 * 60 * 60 * 24);
+  return dias <= DIAS_PARA_SER_NUEVO;
+};
 
 const ProductCard = ({ producto }) => {
   const { addItem } = useCart();
   const { telefonoPrincipal } = useSiteConfig();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   const precioFinal =
     producto.descuento > 0
       ? producto.precio * (1 - producto.descuento / 100)
       : producto.precio;
 
+  const stockBajo =
+    producto.stock > 0 &&
+    producto.stock_minimo != null &&
+    producto.stock <= producto.stock_minimo;
+
+  const favorito = isFavorite(producto.id);
+
   return (
     <div className="product-card h-100 d-flex flex-column">
-      <Link to={`/producto/${producto.id}`} className="product-card-img-wrap">
-        <img src={getImgSrc(producto.imagen)} alt={producto.nombre} loading="lazy" />
-        {producto.descuento > 0 && (
-          <span className="badge bg-danger product-card-badge">-{producto.descuento}%</span>
-        )}
-      </Link>
+      <div className="product-card-img-wrap">
+        <Link to={`/producto/${producto.id}`}>
+          <img src={getImgSrc(producto.imagen)} alt={producto.nombre} loading="lazy" />
+        </Link>
+
+        <div className="product-card-badges">
+          {producto.descuento > 0 && (
+            <span className="badge bg-danger">-{producto.descuento}%</span>
+          )}
+          {stockBajo && (
+            <span className="badge product-card-badge--stock">¡Últimas unidades!</span>
+          )}
+          {esNuevo(producto.creado_en) && (
+            <span className="badge product-card-badge--nuevo">Nuevo</span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={`product-card-fav ${favorito ? "product-card-fav--active" : ""}`}
+          onClick={() => toggleFavorite(producto)}
+          aria-label={favorito ? "Quitar de favoritos" : "Agregar a favoritos"}
+        >
+          <i className={favorito ? "bi bi-heart-fill" : "bi bi-heart"}></i>
+        </button>
+      </div>
 
       <div className="p-3 d-flex flex-column flex-grow-1">
         {producto.categoria && (
@@ -32,7 +68,7 @@ const ProductCard = ({ producto }) => {
           {producto.nombre}
         </Link>
 
-        <div className="mt-2 mb-3">
+        <div className="mt-2 mb-2">
           {producto.descuento > 0 && (
             <span className="text-decoration-line-through text-secondary small me-2">
               {money(producto.precio)}
@@ -40,6 +76,13 @@ const ProductCard = ({ producto }) => {
           )}
           <span className="fw-bold fs-5">{money(precioFinal)}</span>
         </div>
+
+        {producto.stock > 0 && (
+          <span className="product-card-stock mb-2">
+            <i className="bi bi-box-seam me-1"></i>
+            {producto.stock} {producto.unidad_abreviatura || ""} disponibles
+          </span>
+        )}
 
         <div className="mt-auto d-flex flex-column gap-2">
           <button

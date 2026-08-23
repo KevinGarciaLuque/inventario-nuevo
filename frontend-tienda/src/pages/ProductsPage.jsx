@@ -8,6 +8,7 @@ const ProductsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get("q") || "";
 
+  const [texto, setTexto] = useState(q);
   const [categorias, setCategorias] = useState([]);
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -16,6 +17,21 @@ const ProductsPage = () => {
   useEffect(() => {
     api.get("/public/categorias").then((res) => setCategorias(res.data || [])).catch(() => {});
   }, []);
+
+  // Filtrado en vivo: espera una pequeña pausa mientras se escribe
+  // antes de actualizar la URL/consulta, para no disparar una
+  // petición por cada tecla.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      const actual = searchParams.get("q") || "";
+      if (texto.trim() === actual) return;
+      const next = texto.trim() ? { q: texto.trim() } : {};
+      setSearchParams(next, { replace: true });
+    }, 300);
+
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texto]);
 
   useEffect(() => {
     let activo = true;
@@ -39,12 +55,6 @@ const ProductsPage = () => {
 
   const categoriaActual = categorias.find((c) => String(c.id) === categoriaIdParam);
 
-  const handleBuscar = (e) => {
-    e.preventDefault();
-    const texto = e.target.elements.q.value.trim();
-    setSearchParams(texto ? { q: texto } : {});
-  };
-
   return (
     <div className="container py-5">
       <h1 className="h3 fw-bold mb-4">
@@ -53,20 +63,18 @@ const ProductsPage = () => {
 
       <div className="row g-4">
         <aside className="col-lg-3">
-          <form onSubmit={handleBuscar} className="mb-4">
-            <div className="input-group">
-              <input
-                type="text"
-                name="q"
-                defaultValue={q}
-                className="form-control"
-                placeholder="Buscar producto..."
-              />
-              <button className="btn btn-warning" type="submit">
-                <i className="bi bi-search"></i>
-              </button>
-            </div>
-          </form>
+          <div className="input-group mb-4">
+            <span className="input-group-text bg-white">
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              type="text"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              className="form-control"
+              placeholder="Buscar producto..."
+            />
+          </div>
 
           <h6 className="fw-bold mb-2">Categorías</h6>
           <ul className="list-unstyled d-flex flex-column gap-1">

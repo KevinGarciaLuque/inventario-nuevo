@@ -8,6 +8,7 @@ import HomePage from "./pages/HomePage.jsx";
 import ProductsPage from "./pages/ProductsPage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import CartPage from "./pages/CartPage.jsx";
+import FavoritesPage from "./pages/FavoritesPage.jsx";
 import ContactPage from "./pages/ContactPage.jsx";
 import AboutPage from "./pages/AboutPage.jsx";
 import LinksPage from "./pages/LinksPage.jsx";
@@ -37,6 +38,7 @@ function App() {
           <Route path="/categoria/:id" element={<ProductsPage />} />
           <Route path="/producto/:id" element={<ProductDetailPage />} />
           <Route path="/carrito" element={<CartPage />} />
+          <Route path="/favoritos" element={<FavoritesPage />} />
           <Route path="/contacto" element={<ContactPage />} />
           <Route path="/sobre-nosotros" element={<AboutPage />} />
           <Route path="*" element={<NotFoundPage />} />

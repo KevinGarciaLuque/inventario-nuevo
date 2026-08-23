@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useCart } from "../context/CartContext.jsx";
+import { useFavorites } from "../context/FavoritesContext.jsx";
 import { SITE_INFO } from "../config/site.js";
 import logo from "../assets/LaurenLogo.png";
 
 const Navbar = ({ onQuieroSerCliente }) => {
   const { totalItems } = useCart();
+  const { items: favoritos } = useFavorites();
   const [open, setOpen] = useState(false);
 
   const linkClass = ({ isActive }) =>
@@ -51,6 +53,13 @@ const Navbar = ({ onQuieroSerCliente }) => {
               >
                 Quiero ser cliente
               </button>
+
+              <Link to="/favoritos" className="btn btn-outline-danger position-relative" onClick={() => setOpen(false)}>
+                <i className="bi bi-heart"></i>
+                {favoritos.length > 0 && (
+                  <span className="cart-badge">{favoritos.length}</span>
+                )}
+              </Link>
 
               <Link to="/carrito" className="btn btn-warning position-relative" onClick={() => setOpen(false)}>
                 <i className="bi bi-cart3"></i>
