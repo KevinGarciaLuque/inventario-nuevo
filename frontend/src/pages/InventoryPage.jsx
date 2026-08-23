@@ -219,9 +219,9 @@ export default function InventoryPage({ onView }) {
 
   // Render
   return (
-    <section className="container py-4">
+    <section className="container-fluid px-2 px-md-4 py-3 py-md-4">
       <div ref={flashRef}></div>
-      <h2 className="mb-4 text-center">Inventario</h2>
+      <h2 className="mb-3 mb-md-4">Inventario</h2>
 
       {/* Toast de mensajes */}
       <Modal
@@ -314,116 +314,207 @@ export default function InventoryPage({ onView }) {
         </div>
       </div>
 
-      {/* Tabla de productos */}
-      <div
-        className="bg-white shadow rounded mb-4"
-        style={{
-          maxHeight: "500px",
-          height: "400px", // 🔥 altura fija que fuerza scroll vertical
-          overflowY: "auto",
-          overflowX: "auto",
-          border: "1px solid #dee2e6", // borde para claridad visual
-        }}
-      >
-        <table
-          className="table table-bordered align-middle sticky-header"
-          style={{ minWidth: "800px" }} // 🔄 ancho mínimo para scroll horizontal
-        >
-          <thead className="table-light sticky-top">
-            <tr>
-              <th>Imagen</th>
-              <th>Código</th>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Ubicación</th>
-              <th>Stock</th>
-              <th>Precio</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+      {/* Tabla de productos — escritorio y tablet */}
+      <div className="d-none d-md-block bg-white shadow rounded mb-4 border">
+        <div className="table-responsive">
+          <table className="table table-bordered align-middle mb-0 sticky-header">
+            <thead className="table-light sticky-top">
               <tr>
-                <td colSpan={8} className="text-center">
-                  Cargando...
-                </td>
+                <th>Imagen</th>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Ubicación</th>
+                <th>Stock</th>
+                <th>Precio</th>
+                <th>Acciones</th>
               </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center text-muted">
-                  No hay productos
-                </td>
-              </tr>
-            ) : (
-              filtered.map((item) => (
-                <tr key={item.id}>
-                  <td>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="text-center">
+                    Cargando...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center text-muted">
+                    No hay productos
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      {item.imagen ? (
+                        <img
+                          src={getImgSrc(item.imagen)}
+                          alt={item.nombre}
+                          className="img-thumbnail"
+                          style={{ maxHeight: 50, maxWidth: 70 }}
+                          onError={(e) => (e.target.style.display = "none")}
+                        />
+                      ) : (
+                        <span className="text-muted">Sin imagen</span>
+                      )}
+                    </td>
+                    <td>{item.codigo}</td>
+                    <td>{item.nombre}</td>
+                    <td>{item.categoria || "-"}</td>
+                    <td>{item.ubicacion || "-"}</td>
+                    <td>
+                      <span
+                        className={
+                          item.stock <= (item.stock_minimo || 1)
+                            ? "badge bg-danger text-white"
+                            : "badge bg-success text-white"
+                        }
+                      >
+                        {item.stock}
+                      </span>
+                    </td>
+                    <td>
+                      {item.precio
+                        ? Number(item.precio).toLocaleString("es-HN", {
+                            style: "currency",
+                            currency: "HNL",
+                          })
+                        : "-"}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-outline-warning btn-sm me-2"
+                        onClick={() => onView(item)}
+                      >
+                        <i className="bi bi-eye"></i>
+                      </button>
+                      {user?.rol === "admin" && (
+                        <>
+                          <button
+                            className="btn btn-outline-primary btn-sm me-2"
+                            onClick={() =>
+                              setEditModal({ show: true, product: item })
+                            }
+                          >
+                            <i className="bi bi-pencil-square"></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => askDelete(item.id, item.nombre)}
+                          >
+                            <Trash className="mb-1" />
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Tarjetas de productos — móvil */}
+      <div className="d-md-none mb-4">
+        {loading ? (
+          <div className="text-center text-muted py-4 bg-white rounded shadow-sm border">
+            Cargando...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center text-muted py-4 bg-white rounded shadow-sm border">
+            No hay productos
+          </div>
+        ) : (
+          <div className="d-flex flex-column gap-2">
+            {filtered.map((item) => (
+              <div
+                key={item.id}
+                className="inventory-card bg-white rounded shadow-sm border p-2"
+              >
+                <div className="d-flex gap-2">
+                  <div className="inventory-card__img flex-shrink-0">
                     {item.imagen ? (
                       <img
                         src={getImgSrc(item.imagen)}
                         alt={item.nombre}
                         className="img-thumbnail"
-                        style={{ maxHeight: 50, maxWidth: 70 }}
+                        style={{ width: 56, height: 56, objectFit: "cover" }}
                         onError={(e) => (e.target.style.display = "none")}
                       />
                     ) : (
-                      <span className="text-muted">Sin imagen</span>
+                      <div
+                        className="d-flex align-items-center justify-content-center text-muted bg-light rounded"
+                        style={{ width: 56, height: 56, fontSize: "0.65rem" }}
+                      >
+                        Sin foto
+                      </div>
                     )}
-                  </td>
-                  <td>{item.codigo}</td>
-                  <td>{item.nombre}</td>
-                  <td>{item.categoria || "-"}</td>
-                  <td>{item.ubicacion || "-"}</td>
-                  <td>
-                    <span
-                      className={
-                        item.stock <= (item.stock_minimo || 1)
-                          ? "badge bg-danger text-white"
-                          : "badge bg-success text-white"
-                      }
-                    >
-                      {item.stock}
-                    </span>
-                  </td>
-                  <td>
-                    {item.precio
-                      ? Number(item.precio).toLocaleString("es-HN", {
-                          style: "currency",
-                          currency: "HNL",
-                        })
-                      : "-"}
-                  </td>
-                  <td>
-                    <button
-                      className="btn btn-outline-warning btn-sm me-2"
-                      onClick={() => onView(item)}
-                    >
-                      <i className="bi bi-eye"></i>
-                    </button>
-                    {user?.rol === "admin" && (
-                      <>
+                  </div>
+                  <div className="flex-grow-1 min-w-0">
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <div className="min-w-0">
+                        <div className="fw-semibold text-truncate">
+                          {item.nombre}
+                        </div>
+                        <div className="text-muted small">{item.codigo}</div>
+                      </div>
+                      <span
+                        className={
+                          item.stock <= (item.stock_minimo || 1)
+                            ? "badge bg-danger text-white flex-shrink-0"
+                            : "badge bg-success text-white flex-shrink-0"
+                        }
+                      >
+                        {item.stock}
+                      </span>
+                    </div>
+                    <div className="text-muted small mt-1">
+                      {item.categoria || "-"} · {item.ubicacion || "-"}
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mt-2">
+                      <span className="fw-bold">
+                        {item.precio
+                          ? Number(item.precio).toLocaleString("es-HN", {
+                              style: "currency",
+                              currency: "HNL",
+                            })
+                          : "-"}
+                      </span>
+                      <div className="d-flex gap-1">
                         <button
-                          className="btn btn-outline-primary btn-sm me-2"
-                          onClick={() =>
-                            setEditModal({ show: true, product: item })
-                          }
+                          className="btn btn-outline-warning btn-sm"
+                          onClick={() => onView(item)}
                         >
-                          <i className="bi bi-pencil-square"></i>
+                          <i className="bi bi-eye"></i>
                         </button>
-                        <button
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => askDelete(item.id, item.nombre)}
-                        >
-                          <Trash className="mb-1" />
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                        {user?.rol === "admin" && (
+                          <>
+                            <button
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() =>
+                                setEditModal({ show: true, product: item })
+                              }
+                            >
+                              <i className="bi bi-pencil-square"></i>
+                            </button>
+                            <button
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => askDelete(item.id, item.nombre)}
+                            >
+                              <Trash className="mb-1" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <EditProductModal
