@@ -39,9 +39,12 @@ process.on("unhandledRejection", (reason) => {
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
   "https://sistemaposthn.com",
   "https://www.sistemaposthn.com",
   process.env.FRONTEND_URL, // ✅ opcional (puedes setearlo en Railway)
+  process.env.TIENDA_URL, // ✅ dominio de la tienda web pública (opcional)
 ].filter(Boolean);
 
 const corsOptions = {
@@ -124,6 +127,9 @@ const auth = require("./middleware/auth");
 // ✅ AUTH (LOGIN) - NO protegido
 app.use("/api/auth", require("./routes/auth"));
 
+// ✅ Tienda web pública (catálogo + registro de clientes) - NO protegido
+app.use("/api/public", require("./routes/public"));
+
 // ✅ Rutas protegidas
 app.use("/api/usuarios", auth, require("./routes/usuarios"));
 app.use("/api/productos", auth, require("./routes/productos"));
@@ -136,6 +142,7 @@ app.use("/api/cai", auth, require("./routes/cai"));
 app.use("/api/ventas", auth, require("./routes/ventas"));
 app.use("/api/facturas", auth, require("./routes/facturas"));
 app.use("/api/clientes", auth, require("./routes/clientes"));
+app.use("/api/clientes-web", auth, require("./routes/clientes_web"));
 app.use("/api/unidades", auth, require("./routes/unidades"));
 app.use("/api/caja", auth, require("./routes/caja"));
 app.use("/api/impuestos", auth, require("./routes/impuestos"));

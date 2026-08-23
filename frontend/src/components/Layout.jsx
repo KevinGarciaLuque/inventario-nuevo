@@ -8,6 +8,7 @@ import InventoryPage from "../pages/InventoryPage";
 import CaiPage from "../pages/CaiPage";
 import CategoriesPage from "../pages/CategoriesPage";
 import ClientesPage from "../pages/Clientes/ClientesPage";
+import ClientesWebPage from "../pages/ClientesWebPage";
 import FacturasPage from "../pages/FacturasPage";
 import LocationsPage from "../pages/LocationsPage";
 import MovimientosPage from "../pages/MovimientosPage";
@@ -159,6 +160,9 @@ export default function Layout({ onLogout }) {
 
       case "clientes":
         return <ClientesPage />;
+
+      case "clientes-web":
+        return <ClientesWebPage />;
 
       case "bitacora":
         return <BitacoraPage />;

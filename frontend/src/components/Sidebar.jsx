@@ -19,6 +19,7 @@ import {
   FaRulerCombined,
   FaPercentage,
   FaChevronDown,
+  FaGlobe,
 } from "react-icons/fa";
 import { MdSupportAgent } from "react-icons/md";
 
@@ -97,6 +98,11 @@ const MENU_BY_ROLE = {
       items: [
         { key: "users", label: "Usuarios", icon: <FaUserFriends /> },
         { key: "clientes", label: "Clientes", icon: <FaUser /> },
+        {
+          key: "clientes-web",
+          label: "Solicitudes Web",
+          icon: <FaGlobe />,
+        },
         { key: "bitacora", label: "Bitácora", icon: <FaFilter /> },
       ],
     },
