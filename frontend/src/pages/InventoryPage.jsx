@@ -6,7 +6,10 @@ import api from "../api/axios";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import { useUser } from "../context/UserContext";
 import EditProductModal from "./AddProduct/EditProductModal";
+import BarcodeModal from "../components/BarcodeModal";
 import { renderCategoriaOptions } from "../utils/categoriasOptions.jsx";
+import generarCatalogoPDF from "../utils/generarCatalogoPDF";
+import { FaFilePdf } from "react-icons/fa";
 
 const API_URL = "http://localhost:3000";
 
@@ -43,6 +46,8 @@ export default function InventoryPage({ onView }) {
     variant: "success",
   });
   const [editModal, setEditModal] = useState({ show: false, product: null });
+  const [barcodeModal, setBarcodeModal] = useState({ show: false, product: null });
+  const [catalogoLoading, setCatalogoLoading] = useState(false);
   const usuario_id = user?.id;
 
   const [codigoBuffer, setCodigoBuffer] = useState("");
@@ -218,6 +223,74 @@ export default function InventoryPage({ onView }) {
           : item.stock > (item.stock_minimo || 1)),
   );
 
+  // Cuántas variantes (colores/opciones) tiene cada producto principal,
+  // para mostrar el badge "N variantes" en Inventario.
+  const totalVariantesPorPadre = items.reduce((acc, item) => {
+    if (item.producto_padre_id) {
+      acc[item.producto_padre_id] = (acc[item.producto_padre_id] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // Reordena la lista filtrada para que cada variante quede justo debajo de
+  // su producto principal (si ambos pasan el filtro actual).
+  const filteredAgrupado = (() => {
+    const idsEnFiltro = new Set(filtered.map((i) => i.id));
+    const yaColocados = new Set();
+    const resultado = [];
+    filtered.forEach((item) => {
+      if (yaColocados.has(item.id)) return;
+      if (item.producto_padre_id && idsEnFiltro.has(item.producto_padre_id)) {
+        return; // se coloca cuando se procese su producto principal
+      }
+      resultado.push(item);
+      yaColocados.add(item.id);
+      filtered.forEach((posibleHijo) => {
+        if (
+          posibleHijo.producto_padre_id === item.id &&
+          !yaColocados.has(posibleHijo.id)
+        ) {
+          resultado.push(posibleHijo);
+          yaColocados.add(posibleHijo.id);
+        }
+      });
+    });
+    return resultado;
+  })();
+
+  // Exportar catálogo en PDF con los productos actualmente filtrados
+  // (respeta el filtro de categoría/ubicación/búsqueda de la pantalla).
+  const handleImprimirCatalogo = async () => {
+    if (filtered.length === 0) {
+      setToast({
+        show: true,
+        message: "No hay productos para incluir en el catálogo.",
+        variant: "danger",
+      });
+      return;
+    }
+    setCatalogoLoading(true);
+    try {
+      const categoriaSeleccionada = categorias.find(
+        (c) => String(c.id) === String(category),
+      );
+      await generarCatalogoPDF({
+        productos: filteredAgrupado,
+        titulo: categoriaSeleccionada
+          ? categoriaSeleccionada.nombre
+          : "Todos los productos",
+        getImgSrc,
+      });
+    } catch {
+      setToast({
+        show: true,
+        message: "No se pudo generar el catálogo.",
+        variant: "danger",
+      });
+    }
+    setCatalogoLoading(false);
+  };
+
   // Render
   return (
     <section className="container-fluid px-2 px-md-4 py-3 py-md-4">
@@ -311,6 +384,20 @@ export default function InventoryPage({ onView }) {
         </div>
       </div>
 
+      <div className="d-flex justify-content-end mb-3">
+        <Button
+          variant="outline-danger"
+          className="d-flex align-items-center gap-2"
+          onClick={handleImprimirCatalogo}
+          disabled={catalogoLoading}
+        >
+          <FaFilePdf />
+          {catalogoLoading
+            ? "Generando..."
+            : `Imprimir catálogo (${filtered.length})`}
+        </Button>
+      </div>
+
       {/* Tabla de productos — escritorio y tablet */}
       <div className="d-none d-md-block bg-white shadow rounded mb-4 border">
         <div className="table-responsive">
@@ -341,7 +428,7 @@ export default function InventoryPage({ onView }) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((item) => (
+                filteredAgrupado.map((item) => (
                   <tr key={item.id}>
                     <td>
                       {item.imagen ? (
@@ -362,8 +449,42 @@ export default function InventoryPage({ onView }) {
                         </span>
                       )}
                     </td>
-                    <td>{item.codigo}</td>
-                    <td>{item.nombre}</td>
+                    <td>
+                      <span
+                        className="inventory-img-clickable"
+                        onClick={() =>
+                          setBarcodeModal({ show: true, product: item })
+                        }
+                        title="Ver / imprimir código de barras"
+                      >
+                        {item.codigo}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          item.producto_padre_id
+                            ? "inventory-variant-row"
+                            : undefined
+                        }
+                      >
+                        {item.producto_padre_id && (
+                          <span className="inventory-variant-branch">└─</span>
+                        )}
+                        {item.nombre}
+                        {item.variante_nombre && (
+                          <span className="badge bg-light text-secondary border ms-2">
+                            {item.variante_nombre}
+                          </span>
+                        )}
+                        {!item.producto_padre_id &&
+                          totalVariantesPorPadre[item.id] > 0 && (
+                            <span className="badge bg-light text-secondary border ms-2">
+                              {totalVariantesPorPadre[item.id]} variantes
+                            </span>
+                          )}
+                      </span>
+                    </td>
                     <td>{item.categoria || "-"}</td>
                     <td>{item.ubicacion || "-"}</td>
                     <td>
@@ -425,10 +546,12 @@ export default function InventoryPage({ onView }) {
           </div>
         ) : (
           <div className="d-flex flex-column gap-2">
-            {filtered.map((item) => (
+            {filteredAgrupado.map((item) => (
               <div
                 key={item.id}
-                className="inventory-card bg-white rounded shadow-sm border p-2"
+                className={`inventory-card bg-white rounded shadow-sm border p-2 ${
+                  item.producto_padre_id ? "inventory-card--variant" : ""
+                }`}
               >
                 <div className="d-flex gap-2">
                   <div
@@ -456,9 +579,30 @@ export default function InventoryPage({ onView }) {
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <div className="min-w-0">
                         <div className="fw-semibold text-truncate">
+                          {item.producto_padre_id && (
+                            <span className="inventory-variant-branch">└─ </span>
+                          )}
                           {item.nombre}
+                          {item.variante_nombre && (
+                            <span className="badge bg-light text-secondary border ms-1">
+                              {item.variante_nombre}
+                            </span>
+                          )}
+                          {!item.producto_padre_id &&
+                            totalVariantesPorPadre[item.id] > 0 && (
+                              <span className="badge bg-light text-secondary border ms-1">
+                                {totalVariantesPorPadre[item.id]} variantes
+                              </span>
+                            )}
                         </div>
-                        <div className="text-muted small">{item.codigo}</div>
+                        <div
+                          className="text-muted small inventory-img-clickable d-inline-block"
+                          onClick={() =>
+                            setBarcodeModal({ show: true, product: item })
+                          }
+                        >
+                          {item.codigo}
+                        </div>
                       </div>
                       <span
                         className={
@@ -521,6 +665,12 @@ export default function InventoryPage({ onView }) {
         usuario_id={user?.id} // ✅ opcional (bitácora)
         onClose={() => setEditModal({ show: false, product: null })}
         onUpdated={cargarDatos}
+      />
+
+      <BarcodeModal
+        show={barcodeModal.show}
+        producto={barcodeModal.product}
+        onHide={() => setBarcodeModal({ show: false, product: null })}
       />
 
       {/* Estilo para encabezado sticky corregido */}

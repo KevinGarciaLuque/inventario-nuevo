@@ -4,6 +4,7 @@ import { Button, Form, Modal, Spinner } from "react-bootstrap";
 import { CheckCircleFill, XCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
 import { renderCategoriaOptions } from "../../utils/categoriasOptions.jsx";
+import ProductoPadreSelector from "../../components/ProductoPadreSelector.jsx";
 
 const API_ROOT = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
   .replace(/\/api\/?$/i, "")
@@ -35,6 +36,7 @@ export default function EditProductModal({
     stock_minimo: 1,
     precio_costo: "",
     precio: "",
+    precio_mayorista: "",
     descuento: "",
     imagen: "",
   });
@@ -42,6 +44,8 @@ export default function EditProductModal({
   const [imagenFile, setImagenFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [productoPadre, setProductoPadre] = useState(null);
+  const [varianteNombre, setVarianteNombre] = useState("");
 
   // ✅ Validación código (único)
   const [codigoVerificando, setCodigoVerificando] = useState(false);
@@ -158,6 +162,10 @@ export default function EditProductModal({
           ? String(product.precio_costo)
           : "",
       precio: product.precio != null ? String(product.precio) : "",
+      precio_mayorista:
+        product.precio_mayorista != null && product.precio_mayorista !== ""
+          ? String(product.precio_mayorista)
+          : "",
       descuento:
         product.descuento != null && product.descuento !== ""
           ? String(product.descuento)
@@ -180,6 +188,18 @@ export default function EditProductModal({
     setImagenFile(null);
     setCodigoExiste(false);
     setCodigoMsg("");
+
+    // Variante (opcional)
+    setProductoPadre(
+      product.producto_padre_id
+        ? {
+            id: product.producto_padre_id,
+            nombre: product.producto_padre_nombre || "",
+            codigo: product.producto_padre_codigo || "",
+          }
+        : null,
+    );
+    setVarianteNombre(product.variante_nombre || "");
   }, [product]);
 
   // ============
@@ -317,6 +337,19 @@ export default function EditProductModal({
         return;
       }
 
+      // ✅ Precio de mayorista (opcional, solo para el catálogo PDF)
+      const mayoristaStr = String(form.precio_mayorista ?? "").trim();
+      const mayoristaNum =
+        mayoristaStr === "" ? null : Number(mayoristaStr.replace(",", "."));
+      if (
+        mayoristaNum !== null &&
+        (!Number.isFinite(mayoristaNum) || mayoristaNum < 0)
+      ) {
+        alert("Precio de mayorista inválido.");
+        setLoading(false);
+        return;
+      }
+
       // ✅ Descuento (opcional)
       const descStr = String(form.descuento ?? "").trim();
       const descNum = descStr === "" ? 0 : Number(descStr.replace(",", "."));
@@ -372,6 +405,7 @@ export default function EditProductModal({
         stock_minimo: Number(form.stock_minimo) || 1,
 
         precio: pv,
+        precio_mayorista: mayoristaNum,
         precio_costo: costoNum,
         descuento: descNum,
 
@@ -382,6 +416,10 @@ export default function EditProductModal({
 
         imagen: imageUrl || null,
         usuario_id: usuario_id || undefined,
+
+        // ✅ variante (opcional)
+        producto_padre_id: productoPadre?.id || null,
+        variante_nombre: productoPadre ? varianteNombre.trim() || null : null,
       };
 
       await api.put(`/productos/${product.id}`, payload);
@@ -653,6 +691,23 @@ export default function EditProductModal({
                   )}
               </div>
 
+              {/* Precio mayorista */}
+              <div className="col-md-4 col-12">
+                <Form.Label>Precio de mayorista</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="precio_mayorista"
+                  value={form.precio_mayorista}
+                  onChange={handleChange}
+                  placeholder="Opcional"
+                />
+                <small className="text-muted">
+                  Solo se usa al exportar el catálogo en PDF.
+                </small>
+              </div>
+
               {/* Descuento */}
               <div className="col-md-4 col-12">
                 <Form.Label>Descuento (%)</Form.Label>
@@ -722,6 +777,37 @@ export default function EditProductModal({
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Variante */}
+              <div className="col-12">
+                <hr className="my-2" />
+                <Form.Label className="fw-bold mb-1">
+                  ¿Es una variante de otro producto? (opcional)
+                </Form.Label>
+                <div className="text-muted small mb-2">
+                  Úsalo cuando el mismo producto viene en distintos
+                  colores/opciones (ej. "Silla para niño" en Azul, Gris y
+                  Rosa).
+                </div>
+                <div className="row g-2">
+                  <div className="col-md-8 col-12">
+                    <ProductoPadreSelector
+                      padreSeleccionado={productoPadre}
+                      onSeleccionar={setProductoPadre}
+                      onQuitar={() => setProductoPadre(null)}
+                      excluirId={product?.id}
+                    />
+                  </div>
+                  <div className="col-md-4 col-12">
+                    <Form.Control
+                      placeholder="Nombre de la variante (ej. Azul)"
+                      value={varianteNombre}
+                      onChange={(e) => setVarianteNombre(e.target.value)}
+                      disabled={!productoPadre}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </Modal.Body>

@@ -68,6 +68,13 @@ const ProductCard = ({ producto }) => {
           {producto.nombre}
         </Link>
 
+        {producto.total_variantes > 1 && (
+          <span className="product-card-variantes">
+            <i className="bi bi-palette me-1"></i>
+            {producto.total_variantes} opciones disponibles
+          </span>
+        )}
+
         <div className="mt-2 mb-2">
           {producto.descuento > 0 && (
             <span className="text-decoration-line-through text-secondary small me-2">

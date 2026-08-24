@@ -14,6 +14,34 @@ const requireRoles =
     next();
   };
 
+// ✅ Valida el "producto padre" de una variante: debe existir, no puede ser
+// el propio producto (al editar) y no puede él mismo ser ya una variante
+// de otro producto (solo se permiten 2 niveles: principal + variantes).
+const validarProductoPadre = async (padreId, idPropio) => {
+  if (padreId == null) return { ok: true };
+  if (idPropio != null && Number(padreId) === Number(idPropio)) {
+    return {
+      ok: false,
+      message: "Un producto no puede ser variante de sí mismo.",
+    };
+  }
+  const [rows] = await db.query(
+    "SELECT id, producto_padre_id FROM productos WHERE id = ? LIMIT 1",
+    [padreId],
+  );
+  if (!rows.length) {
+    return { ok: false, message: "El producto principal seleccionado no existe." };
+  }
+  if (rows[0].producto_padre_id != null) {
+    return {
+      ok: false,
+      message:
+        "El producto seleccionado ya es una variante de otro producto; elige el producto principal en su lugar.",
+    };
+  }
+  return { ok: true };
+};
+
 // ========================
 // Helpers
 // ========================
@@ -224,7 +252,7 @@ router.get("/", async (req, res) => {
     const { nombre } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         p.*,
 
         -- Categoría
@@ -241,13 +269,18 @@ router.get("/", async (req, res) => {
         -- ✅ Impuesto
         i.id AS impuesto_id,
         i.nombre AS impuesto_nombre,
-        i.porcentaje AS impuesto_porcentaje
+        i.porcentaje AS impuesto_porcentaje,
+
+        -- ✅ Producto principal (si este es una variante)
+        pp.nombre AS producto_padre_nombre,
+        pp.codigo AS producto_padre_codigo
 
       FROM productos p
       LEFT JOIN categorias c ON p.categoria_id = c.id
       LEFT JOIN ubicaciones u ON p.ubicacion_id = u.id
       LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
       LEFT JOIN impuestos i ON p.impuesto_id = i.id
+      LEFT JOIN productos pp ON p.producto_padre_id = pp.id
       WHERE p.activo = 1
     `;
 
@@ -353,6 +386,7 @@ router.post("/", async (req, res) => {
 
       // ✅ precios
       precio,
+      precio_mayorista,
       precio_costo,
 
       imagen,
@@ -360,6 +394,10 @@ router.post("/", async (req, res) => {
       // ✅ medidas
       contenido_medida,
       unidad_medida_id,
+
+      // ✅ variantes (ej. mismo producto en otro color)
+      producto_padre_id,
+      variante_nombre,
 
       usuario_id,
     } = req.body;
@@ -403,10 +441,14 @@ router.post("/", async (req, res) => {
 
     // ✅ Precios
     const precioVenta = toNumberOrNull(precio);
+    const precioMayorista = toNumberOrNull(precio_mayorista); // opcional, solo para el catálogo PDF
     const costo = toNumberOrNull(precio_costo); // puede ser NULL
 
     if (precioVenta === null || precioVenta < 0) {
       return res.status(400).json({ message: "Precio inválido" });
+    }
+    if (precioMayorista !== null && precioMayorista < 0) {
+      return res.status(400).json({ message: "Precio de mayorista inválido" });
     }
     if (costo !== null && costo < 0) {
       return res.status(400).json({ message: "Precio de costo inválido" });
@@ -426,16 +468,27 @@ router.post("/", async (req, res) => {
     // ✅ Descuento
     const desc = leerDescuentoPct(req.body);
 
+    // ✅ Variante (opcional)
+    const padreIdFinal = mustBePositiveInt(producto_padre_id);
+    const varianteNombreFinal = toNullIfEmpty(variante_nombre);
+    if (padreIdFinal !== null) {
+      const chequeo = await validarProductoPadre(padreIdFinal, null);
+      if (!chequeo.ok) {
+        return res.status(400).json({ message: chequeo.message });
+      }
+    }
+
     await db.query(
       `INSERT INTO productos (
         codigo, nombre, lote, fecha_vencimiento,
         descripcion, categoria_id, ubicacion_id,
         impuesto_id,
         stock, stock_minimo,
-        precio, precio_costo, descuento,
+        precio, precio_mayorista, precio_costo, descuento,
         imagen,
-        contenido_medida, unidad_medida_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contenido_medida, unidad_medida_id,
+        producto_padre_id, variante_nombre
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigoFinal,
         nombreFinal,
@@ -451,12 +504,16 @@ router.post("/", async (req, res) => {
         toNumberOrNull(stock_minimo) ?? 1,
 
         precioVenta,
+        precioMayorista,
         costo,
         desc,
 
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
+
+        padreIdFinal,
+        varianteNombreFinal,
       ],
     );
 
@@ -507,6 +564,7 @@ router.put("/:id", async (req, res) => {
 
       // ✅ precios
       precio,
+      precio_mayorista,
       precio_costo,
 
       imagen,
@@ -514,6 +572,10 @@ router.put("/:id", async (req, res) => {
       // ✅ medidas
       contenido_medida,
       unidad_medida_id,
+
+      // ✅ variantes (ej. mismo producto en otro color)
+      producto_padre_id,
+      variante_nombre,
 
       usuario_id,
     } = req.body;
@@ -557,10 +619,14 @@ router.put("/:id", async (req, res) => {
 
     // ✅ Precios
     const precioVenta = toNumberOrNull(precio);
+    const precioMayorista = toNumberOrNull(precio_mayorista);
     const costo = toNumberOrNull(precio_costo);
 
     if (precioVenta === null || precioVenta < 0) {
       return res.status(400).json({ message: "Precio inválido" });
+    }
+    if (precioMayorista !== null && precioMayorista < 0) {
+      return res.status(400).json({ message: "Precio de mayorista inválido" });
     }
     if (costo !== null && costo < 0) {
       return res.status(400).json({ message: "Precio de costo inválido" });
@@ -589,6 +655,16 @@ router.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
+    // ✅ Variante (opcional)
+    const padreIdFinal = mustBePositiveInt(producto_padre_id);
+    const varianteNombreFinal = toNullIfEmpty(variante_nombre);
+    if (padreIdFinal !== null) {
+      const chequeo = await validarProductoPadre(padreIdFinal, id);
+      if (!chequeo.ok) {
+        return res.status(400).json({ message: chequeo.message });
+      }
+    }
+
     await db.query(
       `UPDATE productos SET
         codigo=?,
@@ -602,11 +678,14 @@ router.put("/:id", async (req, res) => {
         stock=?,
         stock_minimo=?,
         precio=?,
+        precio_mayorista=?,
         precio_costo=?,
         descuento=?,
         imagen=?,
         contenido_medida=?,
-        unidad_medida_id=?
+        unidad_medida_id=?,
+        producto_padre_id=?,
+        variante_nombre=?
        WHERE id=?`,
       [
         codigoFinal,
@@ -622,11 +701,16 @@ router.put("/:id", async (req, res) => {
         toNumberOrNull(stock) ?? 0,
         toNumberOrNull(stock_minimo) ?? 1,
         precioVenta,
+        precioMayorista,
         costo,
         desc,
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
+
+        padreIdFinal,
+        varianteNombreFinal,
+
         id,
       ],
     );

@@ -101,6 +101,25 @@ const ProductDetailPage = () => {
             <p className="text-secondary">{producto.descripcion}</p>
           )}
 
+          {Array.isArray(producto.variantes) && producto.variantes.length > 1 && (
+            <div className="mb-3">
+              <div className="fw-semibold small mb-2">Opciones disponibles:</div>
+              <div className="variant-swatches">
+                {producto.variantes.map((v) => (
+                  <Link
+                    key={v.id}
+                    to={`/producto/${v.id}`}
+                    className={`variant-swatch ${
+                      String(v.id) === String(producto.id) ? "active" : ""
+                    } ${v.stock <= 0 ? "disabled" : ""}`}
+                  >
+                    {v.variante_nombre || "General"}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           <ul className="list-unstyled small text-secondary">
             <li><strong>Código:</strong> {producto.codigo}</li>
             {producto.contenido_medida && producto.unidad_nombre && (

@@ -3,9 +3,12 @@ import { Button, Modal } from "react-bootstrap";
 import { CheckCircleFill } from "react-bootstrap-icons";
 import api from "../../api/axios";
 import { renderCategoriaOptions } from "../../utils/categoriasOptions.jsx";
+import ProductoPadreSelector from "../../components/ProductoPadreSelector.jsx";
 
 export default function AddProductPage() {
   const [categorias, setCategorias] = useState([]);
+  const [productoPadre, setProductoPadre] = useState(null);
+  const [varianteNombre, setVarianteNombre] = useState("");
   const [ubicaciones, setUbicaciones] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [impuestos, setImpuestos] = useState([]); // ✅ NUEVO
@@ -33,6 +36,7 @@ export default function AddProductPage() {
     // ✅ PRECIOS + DESCUENTO (DB)
     precio_costo: "", // opcional
     precio: "", // ✅ precio de venta (obligatorio)
+    precio_mayorista: "", // opcional, solo se usa en el catálogo PDF
     descuento: "", // opcional (0-100)
 
     // ✅ Medidas (DB)
@@ -323,6 +327,19 @@ const handleSubmit = async (e) => {
       return;
     }
 
+    // ✅ Precio de mayorista (opcional, solo para el catálogo PDF)
+    const mayoristaStr = String(form.precio_mayorista ?? "").trim();
+    const mayoristaNum =
+      mayoristaStr === "" ? null : Number(mayoristaStr.replace(",", "."));
+    if (
+      mayoristaNum !== null &&
+      (!Number.isFinite(mayoristaNum) || mayoristaNum < 0)
+    ) {
+      alert("Precio de mayorista inválido.");
+      setLoading(false);
+      return;
+    }
+
     // ✅ Descuento (opcional)
     const descStr = String(form.descuento ?? "").trim();
     const descNum = descStr === "" ? 0 : Number(descStr.replace(",", "."));
@@ -379,6 +396,7 @@ const handleSubmit = async (e) => {
 
       // ✅ precios
       precio: pv,
+      precio_mayorista: mayoristaNum,
       precio_costo: costoNum,
       descuento: descNum,
 
@@ -390,6 +408,10 @@ const handleSubmit = async (e) => {
 
       imagen: imageUrl || null,
       usuario_id,
+
+      // ✅ variante (opcional)
+      producto_padre_id: productoPadre?.id || null,
+      variante_nombre: productoPadre ? varianteNombre.trim() || null : null,
     };
 
     console.log("✅ Payload enviado a /productos:", payload);
@@ -416,12 +438,16 @@ const handleSubmit = async (e) => {
 
       precio_costo: "",
       precio: "",
+      precio_mayorista: "",
       descuento: "",
 
       contenido_medida: "",
       unidad_medida_id: "",
       imagen: "",
     });
+
+    setProductoPadre(null);
+    setVarianteNombre("");
 
     // ✅ re-seleccionar impuesto por defecto (ISV 15%) si está disponible
     setForm((f) => {
@@ -754,6 +780,23 @@ const verificarCodigoUnico = async (codigoRaw) => {
         </div>
 
         <div className="col-md-4 col-12">
+          <label className="form-label">Precio de mayorista</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="form-control"
+            name="precio_mayorista"
+            value={form.precio_mayorista}
+            onChange={handleChange}
+            placeholder="Opcional"
+          />
+          <small className="text-muted">
+            Solo se usa al exportar el catálogo en PDF.
+          </small>
+        </div>
+
+        <div className="col-md-4 col-12">
           <label className="form-label">Descuento (%)</label>
           <input
             type="number"
@@ -829,6 +872,36 @@ const verificarCodigoUnico = async (codigoRaw) => {
               />
             </div>
           )}
+        </div>
+
+        <div className="col-12">
+          <hr className="my-2" />
+          <label className="form-label fw-bold mb-1">
+            ¿Es una variante de otro producto? (opcional)
+          </label>
+          <div className="text-muted small mb-2">
+            Úsalo cuando el mismo producto viene en distintos colores/opciones
+            (ej. "Silla para niño" en Azul, Gris y Rosa). Cada variante sigue
+            teniendo su propio código, stock y precio.
+          </div>
+          <div className="row g-2">
+            <div className="col-md-8 col-12">
+              <ProductoPadreSelector
+                padreSeleccionado={productoPadre}
+                onSeleccionar={setProductoPadre}
+                onQuitar={() => setProductoPadre(null)}
+              />
+            </div>
+            <div className="col-md-4 col-12">
+              <input
+                className="form-control"
+                placeholder="Nombre de la variante (ej. Azul)"
+                value={varianteNombre}
+                onChange={(e) => setVarianteNombre(e.target.value)}
+                disabled={!productoPadre}
+              />
+            </div>
+          </div>
         </div>
 
         <div className="col-md-6 col-12 d-flex align-items-end">

@@ -179,6 +179,20 @@ body.sidebar-mobile-open {
   }
 }
 
+/* Variantes de producto (mismo modelo, distinto color/opción) */
+.inventory-variant-row {
+  padding-left: 1.25rem;
+  color: #495057;
+}
+.inventory-variant-branch {
+  color: #adb5bd;
+  margin-right: 0.2rem;
+}
+.inventory-card--variant {
+  margin-left: 1rem;
+  border-left: 2px solid #dee2e6 !important;
+}
+
 /* Imagen/miniatura clickeable que abre el modal de detalle */
 .inventory-img-clickable {
   cursor: pointer;

@@ -490,6 +490,53 @@ a {
   font-weight: 600;
 }
 
+.product-card-variantes {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.76rem;
+  color: var(--gold);
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+/* Selector de color/variante en la página de detalle */
+.variant-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.variant-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--brand-light);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: #6b5459;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.variant-swatch:hover {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+
+.variant-swatch.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  font-weight: 600;
+}
+
+.variant-swatch.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
 .product-detail-img {
   aspect-ratio: 1 / 1;
   object-fit: cover;

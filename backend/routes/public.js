@@ -31,7 +31,9 @@ const SELECT_PRODUCTO_PUBLICO = `
     c.nombre AS categoria,
     um.nombre AS unidad_nombre,
     um.abreviatura AS unidad_abreviatura,
-    p.contenido_medida
+    p.contenido_medida,
+    p.producto_padre_id,
+    p.variante_nombre
   FROM productos p
   LEFT JOIN categorias c ON p.categoria_id = c.id
   LEFT JOIN unidades_medida um ON p.unidad_medida_id = um.id
@@ -69,7 +71,31 @@ router.get("/productos", async (req, res) => {
     query += " ORDER BY p.nombre ASC";
 
     const [rows] = await db.query(query, params);
-    return res.json(rows);
+
+    // Agrupa variantes (mismo producto, distinto color/opción) en una sola
+    // "tarjeta" por familia, para no repetir el mismo modelo varias veces
+    // en el catálogo. El detalle (/productos/:id) trae todas las variantes.
+    const porFamilia = new Map();
+    for (const p of rows) {
+      const familiaId = p.producto_padre_id || p.id;
+      if (!porFamilia.has(familiaId)) porFamilia.set(familiaId, []);
+      porFamilia.get(familiaId).push(p);
+    }
+
+    const resultado = [...porFamilia.values()].map((miembros) => {
+      // Preferir el producto principal (sin padre) como representante;
+      // si no está en stock, usar el primer miembro disponible.
+      const representante =
+        miembros.find((m) => !m.producto_padre_id) || miembros[0];
+      return {
+        ...representante,
+        total_variantes: miembros.length,
+      };
+    });
+
+    resultado.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    return res.json(resultado);
   } catch (error) {
     console.error("❌ Error GET /public/productos:", error);
     return res.status(500).json({ message: "Error al obtener productos" });
@@ -91,7 +117,25 @@ router.get("/productos/:id", async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
-    return res.json(rows[0]);
+    const producto = rows[0];
+
+    // Si es (o tiene) variantes, trae a toda la familia para el selector de
+    // color/opción — incluye variantes agotadas (para mostrarlas
+    // deshabilitadas) pero no las desactivadas.
+    const familiaId = producto.producto_padre_id || producto.id;
+    const [variantesRows] = await db.query(
+      `SELECT id, variante_nombre, precio, stock, imagen, producto_padre_id
+       FROM productos
+       WHERE activo = 1 AND (id = ? OR producto_padre_id = ?)
+       ORDER BY variante_nombre ASC`,
+      [familiaId, familiaId],
+    );
+
+    if (variantesRows.length > 1) {
+      producto.variantes = variantesRows;
+    }
+
+    return res.json(producto);
   } catch (error) {
     console.error("❌ Error GET /public/productos/:id:", error);
     return res.status(500).json({ message: "Error al obtener el producto" });
