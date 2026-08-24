@@ -210,6 +210,27 @@ export default function EditProductModal({
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Al elegir el producto principal, copia sus datos (nombre, categoría,
+  // precio, etc.) — así solo falta cambiar código, imagen y color.
+  const handleSeleccionarPadre = (p) => {
+    setProductoPadre(p);
+    setForm((f) => ({
+      ...f,
+      nombre: p.nombre || f.nombre,
+      descripcion: p.descripcion ?? f.descripcion,
+      categoria_id: p.categoria_id != null ? String(p.categoria_id) : f.categoria_id,
+      ubicacion_id: p.ubicacion_id != null ? String(p.ubicacion_id) : f.ubicacion_id,
+      impuesto_id: p.impuesto_id != null ? String(p.impuesto_id) : f.impuesto_id,
+      precio: p.precio != null ? String(p.precio) : f.precio,
+      precio_mayorista:
+        p.precio_mayorista != null ? String(p.precio_mayorista) : f.precio_mayorista,
+      contenido_medida:
+        p.contenido_medida != null ? String(p.contenido_medida) : f.contenido_medida,
+      unidad_medida_id:
+        p.unidad_medida_id != null ? String(p.unidad_medida_id) : f.unidad_medida_id,
+    }));
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0] || null;
     setImagenFile(file);
@@ -788,13 +809,14 @@ export default function EditProductModal({
                 <div className="text-muted small mb-2">
                   Úsalo cuando el mismo producto viene en distintos
                   colores/opciones (ej. "Silla para niño" en Azul, Gris y
-                  Rosa).
+                  Rosa). Al elegirlo se copian el nombre, categoría, precio,
+                  etc. del producto principal.
                 </div>
                 <div className="row g-2">
                   <div className="col-md-8 col-12">
                     <ProductoPadreSelector
                       padreSeleccionado={productoPadre}
-                      onSeleccionar={setProductoPadre}
+                      onSeleccionar={handleSeleccionarPadre}
                       onQuitar={() => setProductoPadre(null)}
                       excluirId={product?.id}
                     />

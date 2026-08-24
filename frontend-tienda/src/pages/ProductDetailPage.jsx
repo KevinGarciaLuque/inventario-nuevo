@@ -103,7 +103,9 @@ const ProductDetailPage = () => {
 
           {Array.isArray(producto.variantes) && producto.variantes.length > 1 && (
             <div className="mb-3">
-              <div className="fw-semibold small mb-2">Opciones disponibles:</div>
+              <div className="fw-semibold small mb-2">
+                Color: <span className="fw-normal">{producto.variante_nombre || "—"}</span>
+              </div>
               <div className="variant-swatches">
                 {producto.variantes.map((v) => (
                   <Link
@@ -113,7 +115,15 @@ const ProductDetailPage = () => {
                       String(v.id) === String(producto.id) ? "active" : ""
                     } ${v.stock <= 0 ? "disabled" : ""}`}
                   >
-                    {v.variante_nombre || "General"}
+                    <span className="variant-swatch__img">
+                      <img src={getImgSrc(v.imagen)} alt={v.variante_nombre || "Opción"} />
+                    </span>
+                    <span className="variant-swatch__label">
+                      {v.variante_nombre || "General"}
+                    </span>
+                    {v.stock <= 0 && (
+                      <span className="variant-swatch__agotado">Agotado</span>
+                    )}
                   </Link>
                 ))}
               </div>
