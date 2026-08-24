@@ -130,15 +130,51 @@ const ProductDetailPage = () => {
             </div>
           )}
 
-          <ul className="list-unstyled small text-secondary">
-            <li><strong>Código:</strong> {producto.codigo}</li>
-            {producto.contenido_medida && producto.unidad_nombre && (
-              <li>
-                <strong>Contenido:</strong> {producto.contenido_medida} {producto.unidad_abreviatura || producto.unidad_nombre}
-              </li>
-            )}
-            <li><strong>Disponibilidad:</strong> {producto.stock > 0 ? "En stock" : "Agotado"}</li>
-          </ul>
+          <table className="product-specs">
+            <tbody>
+              {producto.marca && (
+                <tr>
+                  <th>Marca</th>
+                  <td>{producto.marca}</td>
+                </tr>
+              )}
+              {producto.variante_nombre && (
+                <tr>
+                  <th>Color</th>
+                  <td>{producto.variante_nombre}</td>
+                </tr>
+              )}
+              {producto.categoria && (
+                <tr>
+                  <th>Categoría</th>
+                  <td>{producto.categoria}</td>
+                </tr>
+              )}
+              <tr>
+                <th>Código</th>
+                <td>{producto.codigo}</td>
+              </tr>
+              {producto.dimensiones && (
+                <tr>
+                  <th>Dimensiones</th>
+                  <td>{producto.dimensiones}</td>
+                </tr>
+              )}
+              {producto.contenido_medida && producto.unidad_nombre && (
+                <tr>
+                  <th>Contenido</th>
+                  <td>
+                    {producto.contenido_medida}{" "}
+                    {producto.unidad_abreviatura || producto.unidad_nombre}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <th>Disponibilidad</th>
+                <td>{producto.stock > 0 ? "En stock" : "Agotado"}</td>
+              </tr>
+            </tbody>
+          </table>
 
           <div className="d-flex align-items-center gap-2 my-4">
             <label className="me-2 fw-semibold">Cantidad:</label>

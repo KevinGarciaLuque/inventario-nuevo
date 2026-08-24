@@ -24,6 +24,7 @@ export default function AddProductPage() {
   const [form, setForm] = useState({
     codigo: "",
     nombre: "",
+    marca: "", // opcional, ficha técnica de la tienda
     lote: "",
     fecha_vencimiento: "",
     descripcion: "",
@@ -42,6 +43,7 @@ export default function AddProductPage() {
     // ✅ Medidas (DB)
     contenido_medida: "",
     unidad_medida_id: "",
+    dimensiones: "", // opcional, ej. "120cm x 180cm x 62cm"
 
     imagen: "",
   });
@@ -249,6 +251,7 @@ export default function AddProductPage() {
     setForm((f) => ({
       ...f,
       nombre: p.nombre || f.nombre,
+      marca: p.marca ?? f.marca,
       descripcion: p.descripcion ?? f.descripcion,
       categoria_id: p.categoria_id != null ? String(p.categoria_id) : f.categoria_id,
       ubicacion_id: p.ubicacion_id != null ? String(p.ubicacion_id) : f.ubicacion_id,
@@ -260,7 +263,45 @@ export default function AddProductPage() {
         p.contenido_medida != null ? String(p.contenido_medida) : f.contenido_medida,
       unidad_medida_id:
         p.unidad_medida_id != null ? String(p.unidad_medida_id) : f.unidad_medida_id,
+      dimensiones: p.dimensiones ?? f.dimensiones,
     }));
+    // Si ya había escrito el nombre de la variante, sugiere el código ahora
+    actualizarCodigoSugerido(p, varianteNombre);
+  };
+
+  // Muchos proveedores usan el MISMO código de modelo para todos los
+  // colores (ej. "EML-1134"), pero acá cada variante necesita un código
+  // único (es lo que identifica exactamente qué se escaneó/vendió). Se
+  // sugiere automáticamente "CÓDIGO-COLOR" y el usuario lo puede editar.
+  const codigoAutoGeneradoRef = useRef(false);
+
+  const generarCodigoSugerido = (padre, variante) => {
+    if (!padre?.codigo || !String(variante || "").trim()) return "";
+    const sufijo = String(variante)
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return sufijo ? `${padre.codigo}-${sufijo}` : padre.codigo;
+  };
+
+  const actualizarCodigoSugerido = (padre, variante) => {
+    if (!padre) return;
+    setForm((f) => {
+      if (f.codigo.trim() !== "" && !codigoAutoGeneradoRef.current) return f;
+      const sugerido = generarCodigoSugerido(padre, variante);
+      if (!sugerido) return f;
+      codigoAutoGeneradoRef.current = true;
+      verificarCodigoUnico(sugerido);
+      return { ...f, codigo: sugerido };
+    });
+  };
+
+  const handleVarianteNombreChange = (val) => {
+    setVarianteNombre(val);
+    actualizarCodigoSugerido(productoPadre, val);
   };
 
 
@@ -402,6 +443,7 @@ const handleSubmit = async (e) => {
     const payload = {
       codigo: codigoTrim,
       nombre: String(form.nombre || "").trim(),
+      marca: String(form.marca || "").trim() || null,
       lote: (form.lote || "").trim() || null,
       fecha_vencimiento: form.fecha_vencimiento || null,
       descripcion: String(form.descripcion || "").trim() || null,
@@ -426,6 +468,7 @@ const handleSubmit = async (e) => {
         ? Number(contenidoStr.replace(",", "."))
         : null,
       unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+      dimensiones: String(form.dimensiones || "").trim() || null,
 
       imagen: imageUrl || null,
       usuario_id,
@@ -448,6 +491,7 @@ const handleSubmit = async (e) => {
     setForm({
       codigo: "",
       nombre: "",
+      marca: "",
       lote: "",
       fecha_vencimiento: "",
       descripcion: "",
@@ -464,11 +508,13 @@ const handleSubmit = async (e) => {
 
       contenido_medida: "",
       unidad_medida_id: "",
+      dimensiones: "",
       imagen: "",
     });
 
     setProductoPadre(null);
     setVarianteNombre("");
+    codigoAutoGeneradoRef.current = false;
 
     // ✅ re-seleccionar impuesto por defecto (ISV 15%) si está disponible
     setForm((f) => {
@@ -571,6 +617,7 @@ const verificarCodigoUnico = async (codigoRaw) => {
             value={form.codigo}
             onChange={(e) => {
               handleChange(e);
+              codigoAutoGeneradoRef.current = false;
 
               const val = e.target.value;
 
@@ -603,6 +650,20 @@ const verificarCodigoUnico = async (codigoRaw) => {
             onChange={handleChange}
             required
           />
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Marca</label>
+          <input
+            className="form-control"
+            name="marca"
+            value={form.marca}
+            onChange={handleChange}
+            placeholder="Opcional"
+          />
+          <small className="text-muted">
+            Aparece en la ficha del producto en la tienda si la llenas.
+          </small>
         </div>
 
         <div className="col-md-4 col-12">
@@ -662,6 +723,18 @@ const verificarCodigoUnico = async (codigoRaw) => {
           <small className="text-muted">
             Las unidades se administran en el módulo “Unidades de Medida”.
           </small>
+        </div>
+
+        <div className="col-md-4 col-12">
+          <label className="form-label">Dimensiones</label>
+          <input
+            className="form-control"
+            name="dimensiones"
+            value={form.dimensiones}
+            onChange={handleChange}
+            placeholder='Ej: 120cm x 180cm x 62cm'
+          />
+          <small className="text-muted">(Opcional)</small>
         </div>
 
         {/* ✅ IMPUESTO (NUEVO) */}
@@ -903,9 +976,10 @@ const verificarCodigoUnico = async (codigoRaw) => {
           <div className="text-muted small mb-2">
             Úsalo cuando el mismo producto viene en distintos colores/opciones
             (ej. "Silla para niño" en Azul, Gris y Rosa). Al elegirlo se
-            copian el nombre, categoría, precio, etc. del producto principal
-            — solo te falta poner el código, subir la imagen de este color y
-            escribir el nombre de la variante.
+            copian el nombre, categoría, precio, etc. del producto principal.
+            Si el proveedor usa el mismo código para todos los colores (ej.
+            "EML-1134"), aquí se sugiere automáticamente "EML-1134-AZUL" para
+            que siga siendo único — puedes editarlo si prefieres otro.
           </div>
           <div className="row g-2">
             <div className="col-md-8 col-12">
@@ -920,7 +994,7 @@ const verificarCodigoUnico = async (codigoRaw) => {
                 className="form-control"
                 placeholder="Nombre de la variante (ej. Azul)"
                 value={varianteNombre}
-                onChange={(e) => setVarianteNombre(e.target.value)}
+                onChange={(e) => handleVarianteNombreChange(e.target.value)}
                 disabled={!productoPadre}
               />
             </div>

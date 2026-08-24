@@ -24,10 +24,12 @@ export default function EditProductModal({
   const [form, setForm] = useState({
     codigo: "",
     nombre: "",
+    marca: "",
     lote: "",
     fecha_vencimiento: "",
     contenido_medida: "",
     unidad_medida_id: "",
+    dimensiones: "",
     impuesto_id: "",
     descripcion: "",
     categoria_id: "",
@@ -136,6 +138,7 @@ export default function EditProductModal({
     setForm({
       codigo: product.codigo || "",
       nombre: product.nombre || "",
+      marca: product.marca || "",
       lote: product.lote || "",
       fecha_vencimiento: product.fecha_vencimiento
         ? String(product.fecha_vencimiento).slice(0, 10)
@@ -148,6 +151,7 @@ export default function EditProductModal({
         product.unidad_medida_id != null
           ? String(product.unidad_medida_id)
           : "",
+      dimensiones: product.dimensiones || "",
       impuesto_id:
         product.impuesto_id != null ? String(product.impuesto_id) : "",
       descripcion: product.descripcion || "",
@@ -217,6 +221,7 @@ export default function EditProductModal({
     setForm((f) => ({
       ...f,
       nombre: p.nombre || f.nombre,
+      marca: p.marca ?? f.marca,
       descripcion: p.descripcion ?? f.descripcion,
       categoria_id: p.categoria_id != null ? String(p.categoria_id) : f.categoria_id,
       ubicacion_id: p.ubicacion_id != null ? String(p.ubicacion_id) : f.ubicacion_id,
@@ -228,6 +233,7 @@ export default function EditProductModal({
         p.contenido_medida != null ? String(p.contenido_medida) : f.contenido_medida,
       unidad_medida_id:
         p.unidad_medida_id != null ? String(p.unidad_medida_id) : f.unidad_medida_id,
+      dimensiones: p.dimensiones ?? f.dimensiones,
     }));
   };
 
@@ -413,6 +419,7 @@ export default function EditProductModal({
       const payload = {
         codigo: codigoTrim,
         nombre: String(form.nombre || "").trim(),
+        marca: String(form.marca || "").trim() || null,
         lote: String(form.lote || "").trim() || null,
         fecha_vencimiento: form.fecha_vencimiento || null,
         descripcion: String(form.descripcion || "").trim() || null,
@@ -434,6 +441,7 @@ export default function EditProductModal({
           ? Number(contenidoStr.replace(",", "."))
           : null,
         unidad_medida_id: tieneUnidad ? Number(unidadIdStr) : null,
+        dimensiones: String(form.dimensiones || "").trim() || null,
 
         imagen: imageUrl || null,
         usuario_id: usuario_id || undefined,
@@ -524,6 +532,17 @@ export default function EditProductModal({
                 />
               </div>
 
+              {/* Marca */}
+              <div className="col-md-4 col-12">
+                <Form.Label>Marca</Form.Label>
+                <Form.Control
+                  name="marca"
+                  value={form.marca}
+                  onChange={handleChange}
+                  placeholder="Opcional"
+                />
+              </div>
+
               {/* Lote */}
               <div className="col-md-4 col-12">
                 <Form.Label>Lote</Form.Label>
@@ -580,6 +599,18 @@ export default function EditProductModal({
                 <small className="text-muted">
                   Las unidades se administran en el módulo “Unidades de Medida”.
                 </small>
+              </div>
+
+              {/* Dimensiones */}
+              <div className="col-md-4 col-12">
+                <Form.Label>Dimensiones</Form.Label>
+                <Form.Control
+                  name="dimensiones"
+                  value={form.dimensiones}
+                  onChange={handleChange}
+                  placeholder='Ej: 120cm x 180cm x 62cm'
+                />
+                <small className="text-muted">(Opcional)</small>
               </div>
 
               {/* Impuesto */}

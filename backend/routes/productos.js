@@ -372,6 +372,7 @@ router.post("/", async (req, res) => {
     const {
       codigo,
       nombre,
+      marca,
       lote,
       fecha_vencimiento,
       descripcion,
@@ -394,6 +395,7 @@ router.post("/", async (req, res) => {
       // ✅ medidas
       contenido_medida,
       unidad_medida_id,
+      dimensiones,
 
       // ✅ variantes (ej. mismo producto en otro color)
       producto_padre_id,
@@ -480,18 +482,19 @@ router.post("/", async (req, res) => {
 
     await db.query(
       `INSERT INTO productos (
-        codigo, nombre, lote, fecha_vencimiento,
+        codigo, nombre, marca, lote, fecha_vencimiento,
         descripcion, categoria_id, ubicacion_id,
         impuesto_id,
         stock, stock_minimo,
         precio, precio_mayorista, precio_costo, descuento,
         imagen,
-        contenido_medida, unidad_medida_id,
+        contenido_medida, unidad_medida_id, dimensiones,
         producto_padre_id, variante_nombre
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         codigoFinal,
         nombreFinal,
+        toNullIfEmpty(marca),
         loteFinal,
         fechaVencFinal,
         toNullIfEmpty(descripcion),
@@ -511,6 +514,7 @@ router.post("/", async (req, res) => {
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
+        toNullIfEmpty(dimensiones),
 
         padreIdFinal,
         varianteNombreFinal,
@@ -550,6 +554,7 @@ router.put("/:id", async (req, res) => {
     const {
       codigo,
       nombre,
+      marca,
       lote,
       fecha_vencimiento,
       descripcion,
@@ -572,6 +577,7 @@ router.put("/:id", async (req, res) => {
       // ✅ medidas
       contenido_medida,
       unidad_medida_id,
+      dimensiones,
 
       // ✅ variantes (ej. mismo producto en otro color)
       producto_padre_id,
@@ -669,6 +675,7 @@ router.put("/:id", async (req, res) => {
       `UPDATE productos SET
         codigo=?,
         nombre=?,
+        marca=?,
         lote=?,
         fecha_vencimiento=?,
         descripcion=?,
@@ -684,12 +691,14 @@ router.put("/:id", async (req, res) => {
         imagen=?,
         contenido_medida=?,
         unidad_medida_id=?,
+        dimensiones=?,
         producto_padre_id=?,
         variante_nombre=?
        WHERE id=?`,
       [
         codigoFinal,
         nombreFinal,
+        toNullIfEmpty(marca),
         loteFinal,
         fechaVencFinal,
         toNullIfEmpty(descripcion),
@@ -707,6 +716,7 @@ router.put("/:id", async (req, res) => {
         imagenFinal,
         contenidoFinal,
         unidadIdFinal,
+        toNullIfEmpty(dimensiones),
 
         padreIdFinal,
         varianteNombreFinal,

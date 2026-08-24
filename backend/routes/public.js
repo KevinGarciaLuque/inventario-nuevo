@@ -20,6 +20,7 @@ const SELECT_PRODUCTO_PUBLICO = `
     p.id,
     p.codigo,
     p.nombre,
+    p.marca,
     p.descripcion,
     p.precio,
     p.descuento,
@@ -32,6 +33,7 @@ const SELECT_PRODUCTO_PUBLICO = `
     um.nombre AS unidad_nombre,
     um.abreviatura AS unidad_abreviatura,
     p.contenido_medida,
+    p.dimensiones,
     p.producto_padre_id,
     p.variante_nombre
   FROM productos p

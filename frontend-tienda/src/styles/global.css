@@ -578,6 +578,41 @@ a {
   background: var(--cream);
 }
 
+/* Tabla de especificaciones (ficha técnica) — solo muestra las filas que
+   tengan dato; sin datos vacíos ni "-" sueltos. */
+.product-specs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.product-specs tr {
+  border-bottom: 1px solid var(--brand-light);
+}
+
+.product-specs tr:first-child th,
+.product-specs tr:first-child td {
+  padding-top: 0;
+}
+
+.product-specs th,
+.product-specs td {
+  padding: 0.55rem 0;
+  text-align: left;
+  font-weight: 400;
+  vertical-align: top;
+}
+
+.product-specs th {
+  width: 40%;
+  color: #8a7175;
+  font-weight: 600;
+}
+
+.product-specs td {
+  color: var(--ink);
+}
+
 /* Cart */
 .cart-row-img {
   width: 72px;
