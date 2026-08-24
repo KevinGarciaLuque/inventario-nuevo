@@ -121,9 +121,15 @@ const ProductDetailPage = () => {
                     <span className="variant-swatch__label">
                       {v.variante_nombre || "General"}
                     </span>
-                    {v.stock <= 0 && (
-                      <span className="variant-swatch__agotado">Agotado</span>
-                    )}
+                    <span
+                      className={
+                        v.stock > 0
+                          ? "variant-swatch__stock"
+                          : "variant-swatch__agotado"
+                      }
+                    >
+                      {v.stock > 0 ? `${v.stock} disp.` : "Agotado"}
+                    </span>
                   </Link>
                 ))}
               </div>
@@ -132,6 +138,10 @@ const ProductDetailPage = () => {
 
           <table className="product-specs">
             <tbody>
+              <tr>
+                <th>Código</th>
+                <td>{producto.codigo}</td>
+              </tr>
               {producto.marca && (
                 <tr>
                   <th>Marca</th>
@@ -150,10 +160,6 @@ const ProductDetailPage = () => {
                   <td>{producto.categoria}</td>
                 </tr>
               )}
-              <tr>
-                <th>Código</th>
-                <td>{producto.codigo}</td>
-              </tr>
               {producto.dimensiones && (
                 <tr>
                   <th>Dimensiones</th>
@@ -170,8 +176,10 @@ const ProductDetailPage = () => {
                 </tr>
               )}
               <tr>
-                <th>Disponibilidad</th>
-                <td>{producto.stock > 0 ? "En stock" : "Agotado"}</td>
+                <th>Unidades disponibles</th>
+                <td>
+                  {producto.stock > 0 ? `${producto.stock} disponibles` : "Agotado"}
+                </td>
               </tr>
             </tbody>
           </table>

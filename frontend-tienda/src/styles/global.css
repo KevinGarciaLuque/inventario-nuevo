@@ -553,6 +553,11 @@ a {
   font-weight: 600;
 }
 
+.variant-swatch__stock {
+  font-size: 0.62rem;
+  color: #7a9b7e;
+}
+
 .variant-swatch:hover {
   border-color: var(--brand);
 }
