@@ -475,7 +475,7 @@ const handleSubmit = async (e) => {
 
       // ✅ variante (opcional)
       producto_padre_id: productoPadre?.id || null,
-      variante_nombre: productoPadre ? varianteNombre.trim() || null : null,
+      variante_nombre: varianteNombre.trim() || null,
     };
 
     console.log("✅ Payload enviado a /productos:", payload);
@@ -971,32 +971,35 @@ const verificarCodigoUnico = async (codigoRaw) => {
         <div className="col-12">
           <hr className="my-2" />
           <label className="form-label fw-bold mb-1">
-            ¿Es una variante de otro producto? (opcional)
+            Color / opción de este producto (opcional)
           </label>
           <div className="text-muted small mb-2">
             Úsalo cuando el mismo producto viene en distintos colores/opciones
-            (ej. "Silla para niño" en Azul, Gris y Rosa). Al elegirlo se
-            copian el nombre, categoría, precio, etc. del producto principal.
-            Si el proveedor usa el mismo código para todos los colores (ej.
-            "EML-1134"), aquí se sugiere automáticamente "EML-1134-AZUL" para
-            que siga siendo único — puedes editarlo si prefieres otro.
+            (ej. "Silla para niño" en Azul, Gris y Rosa). Ponle el nombre del
+            color de <strong>este</strong> producto (ej. "Azul") — si es el
+            primero, déjalo sin "producto principal"; si estás agregando otro
+            color del mismo modelo, búscalo abajo para copiar sus datos y
+            enlazarlos.
           </div>
           <div className="row g-2">
+            <div className="col-md-4 col-12">
+              <input
+                className="form-control"
+                placeholder="Nombre de este color/opción (ej. Azul)"
+                value={varianteNombre}
+                onChange={(e) => handleVarianteNombreChange(e.target.value)}
+              />
+            </div>
             <div className="col-md-8 col-12">
               <ProductoPadreSelector
                 padreSeleccionado={productoPadre}
                 onSeleccionar={handleSeleccionarPadre}
                 onQuitar={() => setProductoPadre(null)}
               />
-            </div>
-            <div className="col-md-4 col-12">
-              <input
-                className="form-control"
-                placeholder="Nombre de la variante (ej. Azul)"
-                value={varianteNombre}
-                onChange={(e) => handleVarianteNombreChange(e.target.value)}
-                disabled={!productoPadre}
-              />
+              <small className="text-muted">
+                Producto principal (opcional) — solo si este color es una
+                variante de otro producto que ya creaste.
+              </small>
             </div>
           </div>
         </div>

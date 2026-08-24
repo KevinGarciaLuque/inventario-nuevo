@@ -448,7 +448,7 @@ export default function EditProductModal({
 
         // ✅ variante (opcional)
         producto_padre_id: productoPadre?.id || null,
-        variante_nombre: productoPadre ? varianteNombre.trim() || null : null,
+        variante_nombre: varianteNombre.trim() || null,
       };
 
       await api.put(`/productos/${product.id}`, payload);
@@ -835,15 +835,22 @@ export default function EditProductModal({
               <div className="col-12">
                 <hr className="my-2" />
                 <Form.Label className="fw-bold mb-1">
-                  ¿Es una variante de otro producto? (opcional)
+                  Color / opción de este producto (opcional)
                 </Form.Label>
                 <div className="text-muted small mb-2">
-                  Úsalo cuando el mismo producto viene en distintos
-                  colores/opciones (ej. "Silla para niño" en Azul, Gris y
-                  Rosa). Al elegirlo se copian el nombre, categoría, precio,
-                  etc. del producto principal.
+                  Ponle el nombre del color de <strong>este</strong> producto
+                  (ej. "Azul"). Si además es una variante de otro producto que
+                  ya creaste (mismo modelo, otro color), búscalo abajo para
+                  copiar sus datos y enlazarlos.
                 </div>
                 <div className="row g-2">
+                  <div className="col-md-4 col-12">
+                    <Form.Control
+                      placeholder="Nombre de este color/opción (ej. Azul)"
+                      value={varianteNombre}
+                      onChange={(e) => setVarianteNombre(e.target.value)}
+                    />
+                  </div>
                   <div className="col-md-8 col-12">
                     <ProductoPadreSelector
                       padreSeleccionado={productoPadre}
@@ -851,14 +858,10 @@ export default function EditProductModal({
                       onQuitar={() => setProductoPadre(null)}
                       excluirId={product?.id}
                     />
-                  </div>
-                  <div className="col-md-4 col-12">
-                    <Form.Control
-                      placeholder="Nombre de la variante (ej. Azul)"
-                      value={varianteNombre}
-                      onChange={(e) => setVarianteNombre(e.target.value)}
-                      disabled={!productoPadre}
-                    />
+                    <small className="text-muted">
+                      Producto principal (opcional) — solo si este color es
+                      una variante de otro producto.
+                    </small>
                   </div>
                 </div>
               </div>
