@@ -608,6 +608,48 @@ const verificarCodigoUnico = async (codigoRaw) => {
         onSubmit={handleSubmit}
         className="bg-white p-4 shadow rounded row g-3 add-product-form"
       >
+        <div className="col-12">
+          <div className="variant-step-box">
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <span className="variant-step-badge">1</span>
+              <label className="form-label fw-bold mb-0">
+                ¿Es un color/opción de un producto que ya existe? (opcional)
+              </label>
+            </div>
+            <div className="text-muted small mb-2">
+              Si el mismo producto viene en varios colores (ej. "Silla para
+              niño" en Azul, Gris y Rosa), búscalo aquí <strong>primero</strong> —
+              se copian su nombre, categoría, precio, etc. abajo y solo te
+              falta el código, la imagen y el nombre de este color. Si este es
+              el primer color/único, sáltalo y llena el formulario normal.
+            </div>
+            <div className="row g-2">
+              <div className="col-md-8 col-12">
+                <ProductoPadreSelector
+                  padreSeleccionado={productoPadre}
+                  onSeleccionar={handleSeleccionarPadre}
+                  onQuitar={() => setProductoPadre(null)}
+                />
+              </div>
+              <div className="col-md-4 col-12">
+                <input
+                  className="form-control"
+                  placeholder="Nombre de este color/opción (ej. Azul)"
+                  value={varianteNombre}
+                  onChange={(e) => handleVarianteNombreChange(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12">
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <span className="variant-step-badge variant-step-badge--muted">2</span>
+            <span className="fw-bold text-muted">Datos del producto</span>
+          </div>
+        </div>
+
         <div className="col-md-4 col-12">
           <label className="form-label">Código</label>
 
@@ -968,42 +1010,6 @@ const verificarCodigoUnico = async (codigoRaw) => {
           )}
         </div>
 
-        <div className="col-12">
-          <hr className="my-2" />
-          <label className="form-label fw-bold mb-1">
-            Color / opción de este producto (opcional)
-          </label>
-          <div className="text-muted small mb-2">
-            Úsalo cuando el mismo producto viene en distintos colores/opciones
-            (ej. "Silla para niño" en Azul, Gris y Rosa). Ponle el nombre del
-            color de <strong>este</strong> producto (ej. "Azul") — si es el
-            primero, déjalo sin "producto principal"; si estás agregando otro
-            color del mismo modelo, búscalo abajo para copiar sus datos y
-            enlazarlos.
-          </div>
-          <div className="row g-2">
-            <div className="col-md-4 col-12">
-              <input
-                className="form-control"
-                placeholder="Nombre de este color/opción (ej. Azul)"
-                value={varianteNombre}
-                onChange={(e) => handleVarianteNombreChange(e.target.value)}
-              />
-            </div>
-            <div className="col-md-8 col-12">
-              <ProductoPadreSelector
-                padreSeleccionado={productoPadre}
-                onSeleccionar={handleSeleccionarPadre}
-                onQuitar={() => setProductoPadre(null)}
-              />
-              <small className="text-muted">
-                Producto principal (opcional) — solo si este color es una
-                variante de otro producto que ya creaste.
-              </small>
-            </div>
-          </div>
-        </div>
-
         <div className="col-md-6 col-12 d-flex align-items-end">
           <button
             type="submit"
@@ -1024,6 +1030,29 @@ const verificarCodigoUnico = async (codigoRaw) => {
       </form>
 
       <style>{`
+        .variant-step-box {
+          background: #fff8e1;
+          border: 1px solid #ffe4a3;
+          border-radius: 12px;
+          padding: 1rem 1.1rem;
+        }
+        .variant-step-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: #ffc107;
+          color: #1a1d2e;
+          font-weight: 700;
+          font-size: 0.8rem;
+          flex-shrink: 0;
+        }
+        .variant-step-badge--muted {
+          background: #e9ecef;
+          color: #6c757d;
+        }
         @media (max-width: 991.98px) {
           .add-product-form > div { margin-bottom: 0.4rem !important; }
         }
