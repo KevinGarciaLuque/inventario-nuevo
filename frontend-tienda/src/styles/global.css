@@ -323,18 +323,19 @@ a {
 
 /* Las franjas invisibles de los controles (15% del ancho) no deben tapar
    el contenido del slide (título, texto, botón) — solo la flechita en sí
-   debe capturar el click. Además, se sube la flecha arriba del slide para
-   que no choque visualmente con el botón (que queda abajo a la izquierda). */
+   debe capturar el click. */
 .hero-carousel .carousel-control-prev,
 .hero-carousel .carousel-control-next {
   pointer-events: none;
-  align-items: flex-start;
-  padding-top: 1.25rem;
 }
 
 .hero-carousel .carousel-control-prev-icon,
 .hero-carousel .carousel-control-next-icon {
   pointer-events: auto;
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  padding: 1.1rem;
+  background-size: 55%;
 }
 
 @media (max-width: 575.98px) {
@@ -355,6 +356,8 @@ a {
 .category-carousel {
   overflow: hidden;
   width: 100%;
+  padding: 14px 0;
+  margin: -14px 0;
   -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0, #000 4%, #000 96%, transparent 100%);
 }

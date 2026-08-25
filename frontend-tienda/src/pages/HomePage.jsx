@@ -41,6 +41,21 @@ const HomePage = () => {
     [categorias],
   );
 
+  // El loop infinito se logra duplicando la tira y desplazándola -50%.
+  // Si hay pocas categorías, una sola tanda no llena el ancho de pantallas
+  // grandes y se ve un hueco antes de reiniciar. Repetimos la tanda base
+  // hasta cubrir un ancho holgado antes de duplicarla para el loop.
+  const { categoriasLoop, duracionLoop } = useMemo(() => {
+    if (categoriasPrincipales.length === 0) return { categoriasLoop: [], duracionLoop: 28 };
+    const minTiles = 14;
+    const repeticiones = Math.max(1, Math.ceil(minTiles / categoriasPrincipales.length));
+    const tanda = Array.from({ length: repeticiones }, () => categoriasPrincipales).flat();
+    return {
+      categoriasLoop: [...tanda, ...tanda],
+      duracionLoop: 28 * repeticiones,
+    };
+  }, [categoriasPrincipales]);
+
   return (
     <div className="home-page">
       <HeroCarousel />
@@ -52,8 +67,11 @@ const HomePage = () => {
         )}
         {categoriasPrincipales.length > 0 && (
           <div className="category-carousel">
-            <div className="category-carousel-track">
-              {[...categoriasPrincipales, ...categoriasPrincipales].map((cat, idx) => (
+            <div
+              className="category-carousel-track"
+              style={{ animationDuration: `${duracionLoop}s` }}
+            >
+              {categoriasLoop.map((cat, idx) => (
                 <Link
                   to={`/categoria/${cat.id}`}
                   className="category-tile"
