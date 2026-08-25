@@ -321,6 +321,19 @@ a {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
 }
 
+/* Las franjas invisibles de los controles (15% del ancho) no deben tapar
+   el contenido del slide (título, texto, botón) — solo la flechita en sí
+   debe capturar el click. */
+.hero-carousel .carousel-control-prev,
+.hero-carousel .carousel-control-next {
+  pointer-events: none;
+}
+
+.hero-carousel .carousel-control-prev-icon,
+.hero-carousel .carousel-control-next-icon {
+  pointer-events: auto;
+}
+
 @media (max-width: 575.98px) {
   .hero-slide {
     min-height: 340px;

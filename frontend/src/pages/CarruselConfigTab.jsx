@@ -11,6 +11,45 @@ import {
 } from "react-icons/bs";
 import api from "../api/axios";
 
+const CARRUSEL_ANCHO = 1920;
+const CARRUSEL_ALTO = 750;
+
+// Recorta y reescala la imagen (estilo "cover", centrada) al tamaño exacto
+// del carrusel, sin importar las dimensiones originales que suba el admin.
+const recortarImagenParaCarrusel = (file, targetW, targetH) =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+
+      const escala = Math.max(targetW / img.width, targetH / img.height);
+      const anchoDibujo = img.width * escala;
+      const altoDibujo = img.height * escala;
+      const dx = (targetW - anchoDibujo) / 2;
+      const dy = (targetH - altoDibujo) / 2;
+
+      ctx.drawImage(img, dx, dy, anchoDibujo, altoDibujo);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) =>
+          blob ? resolve(blob) : reject(new Error("No se pudo procesar la imagen")),
+        "image/jpeg",
+        0.88,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo leer la imagen"));
+    };
+    img.src = url;
+  });
+
 const SLIDE_VACIO = {
   id: null,
   imagen_url: "",
@@ -59,8 +98,9 @@ export default function CarruselConfigTab() {
     if (!file) return;
     try {
       setSubiendo(true);
+      const blob = await recortarImagenParaCarrusel(file, CARRUSEL_ANCHO, CARRUSEL_ALTO);
       const data = new FormData();
-      data.append("imagen", file);
+      data.append("imagen", blob, "slide.jpg");
       const res = await api.post("/upload", data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -157,7 +197,11 @@ export default function CarruselConfigTab() {
                   onChange={(e) => subirImagen(e.target.files?.[0])}
                   disabled={subiendo}
                 />
-                {subiendo && <small className="text-muted">Subiendo imagen...</small>}
+                {subiendo && <small className="text-muted">Ajustando y subiendo imagen...</small>}
+                <small className="text-muted d-block mt-1">
+                  Cualquier imagen sirve: se recorta y ajusta automáticamente al tamaño
+                  del carrusel (1920x750px).
+                </small>
                 {form.imagen_url && (
                   <div
                     className="mt-2 rounded border"
