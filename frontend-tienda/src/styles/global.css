@@ -288,6 +288,14 @@ a {
   color: #fff;
   align-items: center;
   text-align: center;
+  /* Las imágenes se suben en 1920x750 (ver CarruselConfigTab). Mantener esa
+     proporción en cualquier ancho evita que "cover" recorte los costados en
+     celular/tablet; el max-height limita que crezca demasiado en pantallas
+     grandes y el min-height evita un banner demasiado bajo en teléfonos muy
+     angostos. */
+  aspect-ratio: 1920 / 750;
+  min-height: 220px;
+  max-height: 480px;
 }
 
 .hero-slide-overlay {
@@ -344,8 +352,18 @@ a {
     min-height: 340px;
     padding: 2.5rem 1.25rem;
   }
+  .hero-slide--imagen {
+    min-height: 220px;
+    padding: 1.75rem 1.25rem;
+  }
   .hero-slide-title {
     font-size: 1.6rem;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .hero-slide--imagen {
+    padding: 2.25rem 1.5rem;
   }
 }
 
