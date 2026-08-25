@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios.js";
 import ProductCard from "../components/ProductCard.jsx";
@@ -41,20 +41,105 @@ const HomePage = () => {
     [categorias],
   );
 
-  // El loop infinito se logra duplicando la tira y desplazándola -50%.
+  // El loop infinito se logra duplicando la tira y desplazándola con JS.
   // Si hay pocas categorías, una sola tanda no llena el ancho de pantallas
   // grandes y se ve un hueco antes de reiniciar. Repetimos la tanda base
   // hasta cubrir un ancho holgado antes de duplicarla para el loop.
-  const { categoriasLoop, duracionLoop } = useMemo(() => {
-    if (categoriasPrincipales.length === 0) return { categoriasLoop: [], duracionLoop: 28 };
+  const categoriasLoop = useMemo(() => {
+    if (categoriasPrincipales.length === 0) return [];
     const minTiles = 14;
     const repeticiones = Math.max(1, Math.ceil(minTiles / categoriasPrincipales.length));
     const tanda = Array.from({ length: repeticiones }, () => categoriasPrincipales).flat();
-    return {
-      categoriasLoop: [...tanda, ...tanda],
-      duracionLoop: 28 * repeticiones,
-    };
+    return [...tanda, ...tanda];
   }, [categoriasPrincipales]);
+
+  // Auto-scroll continuo + arrastre manual (mouse o dedo). Se controla todo
+  // con un transform aplicado a mano en vez de una animación CSS, para poder
+  // combinar el desplazamiento automático con el drag del usuario.
+  const trackRef = useRef(null);
+  const offsetRef = useRef(0);
+  const halfWidthRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const isHoverRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartOffsetRef = useRef(0);
+  const movedRef = useRef(false);
+
+  const applyTransform = useCallback(() => {
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translateX(${-offsetRef.current}px)`;
+    }
+  }, []);
+
+  useEffect(() => {
+    const medir = () => {
+      if (trackRef.current) {
+        halfWidthRef.current = trackRef.current.scrollWidth / 2;
+      }
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [categoriasLoop]);
+
+  useEffect(() => {
+    if (categoriasLoop.length === 0) return undefined;
+    const SPEED_PX_S = 40;
+    let lastTime = null;
+    let frameId;
+
+    const step = (time) => {
+      if (lastTime == null) lastTime = time;
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+      const half = halfWidthRef.current;
+      if (!isDraggingRef.current && !isHoverRef.current && half > 0) {
+        let next = offsetRef.current + SPEED_PX_S * dt;
+        next = ((next % half) + half) % half;
+        offsetRef.current = next;
+        applyTransform();
+      }
+      frameId = requestAnimationFrame(step);
+    };
+    frameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameId);
+  }, [categoriasLoop, applyTransform]);
+
+  const handlePointerDown = useCallback((e) => {
+    if (!trackRef.current) return;
+    isDraggingRef.current = true;
+    movedRef.current = false;
+    dragStartXRef.current = e.clientX;
+    dragStartOffsetRef.current = offsetRef.current;
+    trackRef.current.setPointerCapture(e.pointerId);
+  }, []);
+
+  const handlePointerMove = useCallback(
+    (e) => {
+      if (!isDraggingRef.current) return;
+      const delta = dragStartXRef.current - e.clientX;
+      if (Math.abs(delta) > 3) movedRef.current = true;
+      const half = halfWidthRef.current;
+      let next = dragStartOffsetRef.current + delta;
+      if (half > 0) next = ((next % half) + half) % half;
+      offsetRef.current = next;
+      applyTransform();
+    },
+    [applyTransform],
+  );
+
+  const handlePointerUp = useCallback((e) => {
+    isDraggingRef.current = false;
+    if (trackRef.current?.hasPointerCapture?.(e.pointerId)) {
+      trackRef.current.releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  const handleTileClick = useCallback((e) => {
+    if (movedRef.current) {
+      e.preventDefault();
+    }
+  }, []);
 
   return (
     <div className="home-page">
@@ -66,16 +151,30 @@ const HomePage = () => {
           <p className="text-secondary container">Aún no hay categorías disponibles.</p>
         )}
         {categoriasPrincipales.length > 0 && (
-          <div className="category-carousel">
+          <div
+            className="category-carousel"
+            onMouseEnter={() => {
+              isHoverRef.current = true;
+            }}
+            onMouseLeave={() => {
+              isHoverRef.current = false;
+            }}
+          >
             <div
               className="category-carousel-track"
-              style={{ animationDuration: `${duracionLoop}s` }}
+              ref={trackRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
               {categoriasLoop.map((cat, idx) => (
                 <Link
                   to={`/categoria/${cat.id}`}
                   className="category-tile"
                   key={`${cat.id}-${idx}`}
+                  onClick={handleTileClick}
+                  draggable={false}
                 >
                   <span
                     className="category-circle"

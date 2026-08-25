@@ -286,14 +286,14 @@ a {
   background-size: cover;
   background-position: center;
   color: #fff;
-  align-items: flex-start;
-  text-align: left;
+  align-items: center;
+  text-align: center;
 }
 
 .hero-slide-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.15) 70%);
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .hero-slide-contenido {
@@ -301,7 +301,8 @@ a {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  max-width: 640px;
 }
 
 .hero-carousel .carousel-indicators [data-bs-target] {
@@ -365,20 +366,14 @@ a {
 .category-carousel-track {
   display: flex;
   width: max-content;
-  animation: category-scroll 28s linear infinite;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.category-carousel:hover .category-carousel-track {
-  animation-play-state: paused;
-}
-
-@keyframes category-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
+.category-carousel-track:active {
+  cursor: grabbing;
 }
 
 .category-tile {
