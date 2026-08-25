@@ -263,9 +263,11 @@ a {
 }
 
 .hero-slide-title {
-  font-size: 2.25rem;
+  width: 100%;
+  font-size: clamp(1.35rem, 4.5vw, 2.25rem);
   font-weight: 700;
   margin-bottom: 0.75rem;
+  overflow-wrap: break-word;
 }
 
 .hero-slide--carteras .hero-slide-title,
@@ -275,10 +277,14 @@ a {
 }
 
 .hero-slide-text {
+  width: 100%;
   max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 1.5rem;
   opacity: 0.95;
-  font-size: 1.05rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+  overflow-wrap: break-word;
 }
 
 .hero-slide--imagen {
@@ -310,7 +316,9 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
   max-width: 640px;
+  box-sizing: border-box;
 }
 
 .hero-carousel .carousel-indicators [data-bs-target] {
