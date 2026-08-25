@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
 // Agregar una categoría (o subcategoría si viene categoria_padre_id)
 router.post("/", async (req, res) => {
   try {
-    const { nombre, descripcion, categoria_padre_id } = req.body;
+    const { nombre, descripcion, categoria_padre_id, imagen } = req.body;
     const padreId = categoria_padre_id ? Number(categoria_padre_id) : null;
 
     if (padreId) {
@@ -30,8 +30,8 @@ router.post("/", async (req, res) => {
     }
 
     await db.query(
-      "INSERT INTO categorias (nombre, descripcion, categoria_padre_id) VALUES (?, ?, ?)",
-      [nombre, descripcion, padreId]
+      "INSERT INTO categorias (nombre, descripcion, categoria_padre_id, imagen) VALUES (?, ?, ?, ?)",
+      [nombre, descripcion, padreId, imagen || null]
     );
     res.json({ message: "Categoría agregada correctamente" });
   } catch (error) {
@@ -43,7 +43,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, categoria_padre_id } = req.body;
+    const { nombre, descripcion, categoria_padre_id, imagen } = req.body;
     const padreId = categoria_padre_id ? Number(categoria_padre_id) : null;
 
     if (padreId && padreId === Number(id)) {
@@ -53,8 +53,8 @@ router.put("/:id", async (req, res) => {
     }
 
     await db.query(
-      "UPDATE categorias SET nombre=?, descripcion=?, categoria_padre_id=? WHERE id=?",
-      [nombre, descripcion, padreId, id]
+      "UPDATE categorias SET nombre=?, descripcion=?, categoria_padre_id=?, imagen=? WHERE id=?",
+      [nombre, descripcion, padreId, imagen || null, id]
     );
     res.json({ message: "Categoría actualizada correctamente" });
   } catch (error) {

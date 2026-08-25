@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios.js";
 import ProductCard from "../components/ProductCard.jsx";
@@ -36,29 +36,53 @@ const HomePage = () => {
     };
   }, []);
 
+  const categoriasPrincipales = useMemo(
+    () => categorias.filter((cat) => !cat.categoria_padre_id),
+    [categorias],
+  );
+
   return (
     <div className="home-page">
       <HeroCarousel />
 
-      <section className="container py-5">
-        <h2 className="h4 fw-bold mb-4">Categorías</h2>
+      <section className="py-5 category-carousel-section">
+        <h2 className="h4 fw-bold mb-4 container">Categorías</h2>
         {categorias.length === 0 && !cargando && (
-          <p className="text-secondary">Aún no hay categorías disponibles.</p>
+          <p className="text-secondary container">Aún no hay categorías disponibles.</p>
         )}
-        <div className="row g-3">
-          {categorias
-            .filter((cat) => !cat.categoria_padre_id)
-            .map((cat) => (
-            <div className="col-6 col-md-3" key={cat.id}>
-              <Link to={`/categoria/${cat.id}`} className="category-tile">
-                <span className="category-emoji">
-                  {CATEGORIA_EMOJI[cat.nombre?.toLowerCase()] || "🛍️"}
-                </span>
-                <span className="fw-semibold">{cat.nombre}</span>
-              </Link>
+        {categoriasPrincipales.length > 0 && (
+          <div className="category-carousel">
+            <div className="category-carousel-track">
+              {[...categoriasPrincipales, ...categoriasPrincipales].map((cat, idx) => (
+                <Link
+                  to={`/categoria/${cat.id}`}
+                  className="category-tile"
+                  key={`${cat.id}-${idx}`}
+                >
+                  <span
+                    className="category-circle"
+                    style={
+                      cat.imagen
+                        ? {
+                            backgroundImage: `url(${cat.imagen})`,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }
+                        : undefined
+                    }
+                  >
+                    {!cat.imagen && (
+                      <span className="category-emoji">
+                        {CATEGORIA_EMOJI[cat.nombre?.toLowerCase()] || "🛍️"}
+                      </span>
+                    )}
+                  </span>
+                  <span className="fw-semibold">{cat.nombre}</span>
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </section>
 
       <section className="container py-5">

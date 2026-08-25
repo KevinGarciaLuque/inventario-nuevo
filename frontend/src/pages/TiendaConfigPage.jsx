@@ -3,6 +3,7 @@ import { Badge, Tabs, Tab } from "react-bootstrap";
 import { BsCheckCircleFill, BsStarFill, BsStar, BsTrash, BsPlus } from "react-icons/bs";
 import api from "../api/axios";
 import CarruselConfigTab from "./CarruselConfigTab";
+import CategoriaImagenesTab from "./CategoriaImagenesTab";
 
 const CAMPOS_CONFIG = [
   { key: "facebook_url", label: "Facebook (URL)", placeholder: "https://facebook.com/tuempresa" },
@@ -224,6 +225,10 @@ export default function TiendaConfigPage() {
 
         <Tab eventKey="carrusel" title="Carrusel de inicio">
           <CarruselConfigTab />
+        </Tab>
+
+        <Tab eventKey="categorias" title="Imágenes de categorías">
+          <CategoriaImagenesTab />
         </Tab>
       </Tabs>
     </div>

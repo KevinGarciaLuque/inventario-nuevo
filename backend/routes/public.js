@@ -148,7 +148,7 @@ router.get("/productos/:id", async (req, res) => {
 router.get("/categorias", async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, nombre, descripcion, categoria_padre_id FROM categorias ORDER BY categoria_padre_id IS NULL DESC, nombre ASC",
+      "SELECT id, nombre, descripcion, categoria_padre_id, imagen FROM categorias ORDER BY categoria_padre_id IS NULL DESC, nombre ASC",
     );
     return res.json(rows);
   } catch (error) {
