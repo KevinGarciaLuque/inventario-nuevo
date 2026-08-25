@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS tienda_carrusel (
   texto VARCHAR(300) NULL,
   boton_texto VARCHAR(60) NULL,
   boton_link VARCHAR(255) NULL,
+  texto_color VARCHAR(20) NULL DEFAULT '#ffffff',
   orden INT NOT NULL DEFAULT 0,
   activo TINYINT(1) NOT NULL DEFAULT 1,
   creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

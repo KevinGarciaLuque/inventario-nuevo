@@ -57,6 +57,7 @@ const SLIDE_VACIO = {
   texto: "",
   boton_texto: "",
   boton_link: "",
+  texto_color: "#ffffff",
   activo: true,
 };
 
@@ -124,6 +125,7 @@ export default function CarruselConfigTab() {
       texto: slide.texto || "",
       boton_texto: slide.boton_texto || "",
       boton_link: slide.boton_link || "",
+      texto_color: slide.texto_color || "#ffffff",
       activo: !!slide.activo,
     });
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -234,6 +236,32 @@ export default function CarruselConfigTab() {
                   onChange={(e) => handleChange("texto", e.target.value)}
                   placeholder="Ej. Para toda ocasión, con estilo y calidad."
                 />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small fw-semibold">Color del texto</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input
+                    type="color"
+                    className="form-control form-control-color"
+                    value={form.texto_color || "#ffffff"}
+                    onChange={(e) => handleChange("texto_color", e.target.value)}
+                    title="Color del título y el texto"
+                  />
+                  <span
+                    className="px-2 py-1 rounded small"
+                    style={{
+                      color: form.texto_color || "#ffffff",
+                      background: "#333",
+                      border: "1px solid #555",
+                    }}
+                  >
+                    Vista previa del texto
+                  </span>
+                </div>
+                <small className="text-muted d-block mt-1">
+                  Úsalo si el color por defecto (blanco) no se lee bien sobre tu imagen.
+                </small>
               </div>
 
               <div className="row g-2 mb-3">

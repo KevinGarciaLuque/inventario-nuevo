@@ -67,9 +67,21 @@ const HeroCarousel = () => {
               <div className="hero-slide-overlay" />
               <div className="hero-slide-contenido">
                 {slide.titulo && (
-                  <h1 className="hero-slide-title brand-name">{slide.titulo}</h1>
+                  <h1
+                    className="hero-slide-title brand-name"
+                    style={{ color: slide.texto_color || "#ffffff" }}
+                  >
+                    {slide.titulo}
+                  </h1>
                 )}
-                {slide.texto && <p className="hero-slide-text">{slide.texto}</p>}
+                {slide.texto && (
+                  <p
+                    className="hero-slide-text"
+                    style={{ color: slide.texto_color || "#ffffff" }}
+                  >
+                    {slide.texto}
+                  </p>
+                )}
                 {slide.boton_texto && slide.boton_link && (
                   esLinkExterno(slide.boton_link) ? (
                     <a

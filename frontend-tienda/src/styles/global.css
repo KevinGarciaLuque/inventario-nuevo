@@ -323,10 +323,13 @@ a {
 
 /* Las franjas invisibles de los controles (15% del ancho) no deben tapar
    el contenido del slide (título, texto, botón) — solo la flechita en sí
-   debe capturar el click. */
+   debe capturar el click. Además, se sube la flecha arriba del slide para
+   que no choque visualmente con el botón (que queda abajo a la izquierda). */
 .hero-carousel .carousel-control-prev,
 .hero-carousel .carousel-control-next {
   pointer-events: none;
+  align-items: flex-start;
+  padding-top: 1.25rem;
 }
 
 .hero-carousel .carousel-control-prev-icon,

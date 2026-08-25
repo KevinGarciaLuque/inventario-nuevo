@@ -27,6 +27,7 @@ router.post("/", async (req, res) => {
     const texto = s(req.body.texto);
     const boton_texto = s(req.body.boton_texto);
     const boton_link = s(req.body.boton_link);
+    const texto_color = s(req.body.texto_color);
     const activo = req.body.activo === false ? 0 : 1;
 
     if (!imagen_url) {
@@ -38,9 +39,18 @@ router.post("/", async (req, res) => {
     );
 
     const [result] = await db.query(
-      `INSERT INTO tienda_carrusel (imagen_url, titulo, texto, boton_texto, boton_link, orden, activo)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [imagen_url, titulo || null, texto || null, boton_texto || null, boton_link || null, maxOrden + 1, activo],
+      `INSERT INTO tienda_carrusel (imagen_url, titulo, texto, boton_texto, boton_link, texto_color, orden, activo)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        imagen_url,
+        titulo || null,
+        texto || null,
+        boton_texto || null,
+        boton_link || null,
+        texto_color || "#ffffff",
+        maxOrden + 1,
+        activo,
+      ],
     );
 
     return res.json({ id: result.insertId, message: "Slide agregado" });
@@ -61,6 +71,7 @@ router.put("/:id", async (req, res) => {
     const texto = s(req.body.texto);
     const boton_texto = s(req.body.boton_texto);
     const boton_link = s(req.body.boton_link);
+    const texto_color = s(req.body.texto_color);
     const activo = req.body.activo === false ? 0 : 1;
 
     if (!imagen_url) {
@@ -69,9 +80,18 @@ router.put("/:id", async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE tienda_carrusel
-       SET imagen_url = ?, titulo = ?, texto = ?, boton_texto = ?, boton_link = ?, activo = ?
+       SET imagen_url = ?, titulo = ?, texto = ?, boton_texto = ?, boton_link = ?, texto_color = ?, activo = ?
        WHERE id = ?`,
-      [imagen_url, titulo || null, texto || null, boton_texto || null, boton_link || null, activo, id],
+      [
+        imagen_url,
+        titulo || null,
+        texto || null,
+        boton_texto || null,
+        boton_link || null,
+        texto_color || "#ffffff",
+        activo,
+        id,
+      ],
     );
 
     if (result.affectedRows === 0) {

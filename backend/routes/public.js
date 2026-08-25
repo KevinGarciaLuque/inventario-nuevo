@@ -222,7 +222,7 @@ router.get("/config", async (req, res) => {
 router.get("/carrusel", async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, imagen_url, titulo, texto, boton_texto, boton_link
+      `SELECT id, imagen_url, titulo, texto, boton_texto, boton_link, texto_color
        FROM tienda_carrusel
        WHERE activo = 1
        ORDER BY orden ASC, id ASC`,
