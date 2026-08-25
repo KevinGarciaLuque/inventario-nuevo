@@ -144,6 +144,7 @@ app.use("/api/facturas", auth, require("./routes/facturas"));
 app.use("/api/clientes", auth, require("./routes/clientes"));
 app.use("/api/clientes-web", auth, require("./routes/clientes_web"));
 app.use("/api/tienda-config", auth, require("./routes/tienda_config"));
+app.use("/api/tienda-carrusel", auth, require("./routes/tienda_carrusel"));
 app.use("/api/unidades", auth, require("./routes/unidades"));
 app.use("/api/caja", auth, require("./routes/caja"));
 app.use("/api/impuestos", auth, require("./routes/impuestos"));

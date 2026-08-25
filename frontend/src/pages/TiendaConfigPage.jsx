@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Badge } from "react-bootstrap";
+import { Badge, Tabs, Tab } from "react-bootstrap";
 import { BsCheckCircleFill, BsStarFill, BsStar, BsTrash, BsPlus } from "react-icons/bs";
 import api from "../api/axios";
+import CarruselConfigTab from "./CarruselConfigTab";
 
 const CAMPOS_CONFIG = [
   { key: "facebook_url", label: "Facebook (URL)", placeholder: "https://facebook.com/tuempresa" },
@@ -111,7 +112,9 @@ export default function TiendaConfigPage() {
         <div className={`alert alert-${mensaje.tipo} py-2`}>{mensaje.texto}</div>
       )}
 
-      <div className="row g-4">
+      <Tabs defaultActiveKey="contacto" className="mb-4">
+        <Tab eventKey="contacto" title="Redes y contacto">
+      <div className="row g-4 mt-0">
         <div className="col-lg-7">
           <div className="bg-white shadow-sm rounded p-4">
             <h5 className="mb-3">Redes sociales y contacto</h5>
@@ -217,6 +220,12 @@ export default function TiendaConfigPage() {
           </div>
         </div>
       </div>
+        </Tab>
+
+        <Tab eventKey="carrusel" title="Carrusel de inicio">
+          <CarruselConfigTab />
+        </Tab>
+      </Tabs>
     </div>
   );
 }

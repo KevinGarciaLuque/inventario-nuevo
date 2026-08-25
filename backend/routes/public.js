@@ -218,4 +218,20 @@ router.get("/config", async (req, res) => {
   }
 });
 
+// GET /api/public/carrusel -> slides activos del carrusel de inicio, ordenados
+router.get("/carrusel", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, imagen_url, titulo, texto, boton_texto, boton_link
+       FROM tienda_carrusel
+       WHERE activo = 1
+       ORDER BY orden ASC, id ASC`,
+    );
+    return res.json(rows);
+  } catch (error) {
+    console.error("❌ Error GET /public/carrusel:", error);
+    return res.status(500).json({ message: "Error al obtener el carrusel" });
+  }
+});
+
 module.exports = router;
