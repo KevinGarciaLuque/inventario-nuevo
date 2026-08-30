@@ -140,6 +140,7 @@ app.use("/api/bitacora", auth, require("./routes/bitacora"));
 app.use("/api/upload", auth, require("./routes/upload"));
 app.use("/api/cai", auth, require("./routes/cai"));
 app.use("/api/ventas", auth, require("./routes/ventas"));
+app.use("/api/pedidos", auth, require("./routes/pedidos"));
 app.use("/api/facturas", auth, require("./routes/facturas"));
 app.use("/api/clientes", auth, require("./routes/clientes"));
 app.use("/api/clientes-web", auth, require("./routes/clientes_web"));

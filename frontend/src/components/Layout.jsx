@@ -15,6 +15,7 @@ import LocationsPage from "../pages/LocationsPage";
 import MovimientosPage from "../pages/MovimientosPage";
 import RegistrarMovimientoPage from "../pages/RegistrarMovimientoPage";
 import RegistrarVentaPage from "../pages/RegistrarVenta/RegistrarVentaPage";
+import PedidosPage from "../pages/Pedidos/PedidosPage";
 import ReportsPage from "../pages/ReportsPage";
 import UnidadesMedidaPage from "../pages/UnidadesMedida/UnidadesMedidaPage";
 import UsersPage from "../pages/UsersPage";
@@ -52,6 +53,14 @@ export default function Layout({ onLogout }) {
     return "inventory";
   });
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // ✅ Pedido web que se está por cobrar (se precarga en Registrar Venta)
+  const [pedidoParaCobrar, setPedidoParaCobrar] = useState(null);
+
+  const irACobrarPedido = (pedido) => {
+    setPedidoParaCobrar(pedido);
+    setCurrentPage("ventas");
+  };
 
   // ✅ Desktop: colapsado/expandido
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -168,7 +177,17 @@ export default function Layout({ onLogout }) {
 
       // ✅ Ventas
       case "ventas":
-        return <RegistrarVentaPage onChangePage={setCurrentPage} />;
+        return (
+          <RegistrarVentaPage
+            onChangePage={setCurrentPage}
+            pedidoInicial={pedidoParaCobrar}
+            onPedidoCobrado={() => setPedidoParaCobrar(null)}
+          />
+        );
+
+      // ✅ Pedidos web
+      case "pedidos":
+        return <PedidosPage onCobrarPedido={irACobrarPedido} />;
 
       // ✅ Facturación
       case "cai":
@@ -254,7 +273,7 @@ export default function Layout({ onLogout }) {
 
       {/* Main content */}
       <div className="d-flex flex-column flex-grow-1 overflow-hidden main-content-responsive">
-        <Navbar onLogout={onLogout} />
+        <Navbar onLogout={onLogout} onChangePage={setCurrentPage} />
 
         <main className="flex-grow-1 p-4 overflow-auto main-content-inner">
           <div className="container-fluid py-3">

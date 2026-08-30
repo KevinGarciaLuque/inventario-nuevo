@@ -15,17 +15,30 @@ export const mensajeMayorista = (producto) =>
   `• ${producto.nombre} (código: ${producto.codigo})\n` +
   `¿Me pueden dar más información?`;
 
-// Botón "Enviar pedido por WhatsApp" desde el carrito
-export const mensajePedido = (items) => {
-  const lineas = items.map(
-    (it) =>
-      `• ${it.cantidad}x ${it.nombre} — ${money(it.precio * it.cantidad)}`,
-  );
+// Botón "Enviar pedido por WhatsApp" desde el carrito.
+// `datos` = { nombre, telefono, direccion, entrega: "envio" | "recoge" }
+export const mensajePedido = (items, datos = {}) => {
+  const lineas = items.map((it) => {
+    const cod = it.codigo ? ` (código: ${it.codigo})` : "";
+    return `• ${it.cantidad}x ${it.nombre}${cod} — ${money(it.precio * it.cantidad)}`;
+  });
   const total = items.reduce((sum, it) => sum + it.precio * it.cantidad, 0);
+
+  const entregaTexto =
+    datos.entrega === "envio" ? "Envío a domicilio" : "Recoger en el local";
+
+  const datosCliente = [
+    `\n\nDatos del cliente:`,
+    `Nombre: ${datos.nombre || "-"}`,
+    datos.telefono ? `Teléfono: ${datos.telefono}` : null,
+    `Entrega: ${entregaTexto}`,
+    datos.entrega === "envio" ? `Dirección: ${datos.direccion || "-"}` : null,
+  ].filter(Boolean);
 
   return (
     `Hola, quiero hacer este pedido:\n\n` +
     lineas.join("\n") +
-    `\n\nTotal aproximado: ${money(total)}`
+    `\n\nTotal aproximado: ${money(total)}` +
+    datosCliente.join("\n")
   );
 };

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "../context/UserContext";
+import NotificacionesPedidos from "./NotificacionesPedidos";
 import "../styles/Navbar.css";
 
-export default function Navbar({ onLogout }) {
+export default function Navbar({ onLogout, onChangePage = () => {} }) {
   const { user, logout } = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef();
@@ -51,6 +52,10 @@ export default function Navbar({ onLogout }) {
             </div>
           </div>
         </div>
+
+        {/* ── ACCIONES DERECHA ── */}
+        <div className="nb-actions d-flex align-items-center gap-2">
+          <NotificacionesPedidos onChangePage={onChangePage} />
 
         {/* ── USUARIO ── */}
         <div
@@ -109,6 +114,7 @@ export default function Navbar({ onLogout }) {
               </button>
             </li>
           </ul>
+        </div>
         </div>
       </div>
 

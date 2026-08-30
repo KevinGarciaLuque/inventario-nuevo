@@ -4,7 +4,7 @@ import api from "../../../api/axios";
 import generarReciboPDF from "../../../utils/generarReciboPDF";
 import { limpiarCodigo } from "../utils/ventaUtils";
 
-export default function useVenta({ user }) {
+export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado = () => {} }) {
   // =======================
   // CONSTANTES
   // =======================
@@ -79,6 +79,10 @@ export default function useVenta({ user }) {
     cliente_telefono: "",
     cliente_direccion: "",
   });
+
+  // ✅ Pedido web que se está cobrando (si aplica)
+  const [pedidoId, setPedidoId] = useState(pedidoInicial?.id || null);
+  const pedidoPrecargadoRef = useRef(false);
 
   const [refreshCaiTrigger, setRefreshCaiTrigger] = useState(0);
   const [resetPagoTrigger, setResetPagoTrigger] = useState(0);
@@ -189,6 +193,55 @@ export default function useVenta({ user }) {
     cargarImpuestos(); // ✅ IMPORTANTE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // =======================
+  // ✅ PRECARGA DESDE PEDIDO WEB
+  // =======================
+  useEffect(() => {
+    if (!pedidoInicial || pedidoPrecargadoRef.current) return;
+    if (!productos.length) return;
+
+    pedidoPrecargadoRef.current = true;
+    setPedidoId(pedidoInicial.id);
+
+    const nuevoCarrito = [];
+    for (const it of pedidoInicial.items || []) {
+      const prod = productos.find((p) => p.id === it.producto_id);
+      if (!prod) {
+        mostrarToast(`"${it.nombre}" ya no está disponible en inventario.`);
+        continue;
+      }
+
+      const descuentoPct = Math.max(0, Math.min(100, Number(prod.descuento || 0)));
+      const precioUnitario = Number(prod.precio ?? 0);
+      const precioFinal = Number(
+        (precioUnitario * (1 - descuentoPct / 100)).toFixed(2),
+      );
+      const cantidad = Math.max(1, Number(it.cantidad) || 1);
+      const impuestoId =
+        prod.impuesto_id ?? prod.id_impuesto ?? prod.impuestoId ?? null;
+
+      nuevoCarrito.push({
+        ...prod,
+        cantidad,
+        precio_unitario: precioUnitario,
+        descuento_pct: descuentoPct,
+        precio_final: precioFinal,
+        subtotal_linea: Number((precioFinal * cantidad).toFixed(2)),
+        impuesto_id: impuestoId,
+      });
+    }
+
+    setCarrito(nuevoCarrito);
+    setVenta((prev) => ({
+      ...prev,
+      cliente_nombre: pedidoInicial.cliente_nombre || "",
+      cliente_telefono: pedidoInicial.cliente_telefono || "",
+      cliente_direccion: pedidoInicial.cliente_direccion || "",
+    }));
+    mostrarToast(`Pedido web #${pedidoInicial.id} cargado.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productos, pedidoInicial]);
 
   // =======================
   // BUSCAR Y AGREGAR PRODUCTOS
@@ -734,6 +787,8 @@ function getTasaItem(item) {
         tipo_cliente: tipoCliente || null,
         descuento_cliente_id: descuentoSeleccionadoId || null,
         descuento_cliente_monto: descuentoClienteMonto || 0,
+
+        pedido_id: pedidoId || null,
       });
 
     const dataRecibo = {
@@ -790,6 +845,13 @@ function getTasaItem(item) {
       });
 
       setRefreshCaiTrigger((prev) => prev + 1);
+
+      // ✅ si esta venta cerró un pedido web, avisar al Layout
+      if (pedidoId) {
+        setPedidoId(null);
+        pedidoPrecargadoRef.current = true;
+        onPedidoCobrado();
+      }
 
       // reset
       setCarrito([]);

@@ -11,9 +11,13 @@ import CarritoVenta from "./components/CarritoVenta";
 import TotalesVenta from "./components/TotalesVenta";
 import ModalesVenta from "./components/ModalesVenta";
 
-export default function RegistrarVentaPage({ onChangePage = () => {} }) {
+export default function RegistrarVentaPage({
+  onChangePage = () => {},
+  pedidoInicial = null,
+  onPedidoCobrado = () => {},
+}) {
   const { user } = useUser();
-  const v = useVenta({ user });
+  const v = useVenta({ user, pedidoInicial, onPedidoCobrado });
 
   if (v.cajaLoading) {
     return (
@@ -93,6 +97,15 @@ export default function RegistrarVentaPage({ onChangePage = () => {} }) {
 
   return (
     <div className="container py-4">
+      {pedidoInicial && (
+        <div className="alert alert-info d-flex align-items-center gap-2">
+          <i className="bi bi-globe" />
+          Cobrando <strong>Pedido Web #{pedidoInicial.id}</strong> —{" "}
+          {pedidoInicial.cliente_nombre}. Al registrar la venta se descuenta el
+          inventario y el pedido queda como cobrado.
+        </div>
+      )}
+
       <VentasHeader
         usarRTN={v.usarRTN}
         setUsarRTN={v.setUsarRTN}

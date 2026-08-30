@@ -234,4 +234,112 @@ router.get("/carrusel", async (req, res) => {
   }
 });
 
+// POST /api/public/pedidos
+// Registra un pedido hecho desde el carrito de la tienda. Revalida precios y
+// códigos contra la BD (nunca confía en lo que manda el cliente) y lo deja como
+// "nuevo" para que aparezca en la campanita / módulo de pedidos del panel.
+router.post("/pedidos", async (req, res) => {
+  const cliente_nombre = s(req.body.cliente_nombre);
+  const cliente_telefono = s(req.body.cliente_telefono);
+  const cliente_direccion = s(req.body.cliente_direccion);
+  const entrega = s(req.body.entrega).toLowerCase() === "envio" ? "envio" : "recoge";
+  const notas = s(req.body.notas);
+  const itemsIn = Array.isArray(req.body.items) ? req.body.items : [];
+
+  if (!cliente_nombre) {
+    return res.status(400).json({ message: "El nombre del cliente es obligatorio." });
+  }
+  if (entrega === "envio" && !cliente_direccion) {
+    return res
+      .status(400)
+      .json({ message: "La dirección es obligatoria para envío a domicilio." });
+  }
+  if (!itemsIn.length) {
+    return res.status(400).json({ message: "El pedido no tiene productos." });
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const lineas = [];
+    let total = 0;
+
+    for (const raw of itemsIn) {
+      const producto_id = toNumberOrNull(raw.producto_id);
+      const cantidad = Number(raw.cantidad);
+
+      if (!producto_id || !Number.isInteger(cantidad) || cantidad <= 0) {
+        throw new Error("Producto o cantidad inválida en el pedido.");
+      }
+
+      const [rows] = await conn.query(
+        `SELECT id, codigo, nombre, precio, descuento
+         FROM productos
+         WHERE id = ? AND activo = 1
+         LIMIT 1`,
+        [producto_id],
+      );
+      if (!rows.length) {
+        throw new Error(`Producto no encontrado (ID ${producto_id}).`);
+      }
+
+      const p = rows[0];
+      const descPct = Math.max(0, Math.min(100, Number(p.descuento) || 0));
+      const precioUnit = Number((Number(p.precio) * (1 - descPct / 100)).toFixed(2));
+      const subtotal = Number((precioUnit * cantidad).toFixed(2));
+      total += subtotal;
+
+      lineas.push({
+        producto_id: p.id,
+        codigo: p.codigo || null,
+        nombre: p.nombre,
+        cantidad,
+        precio_unitario: precioUnit,
+        subtotal,
+      });
+    }
+
+    total = Number(total.toFixed(2));
+
+    const [result] = await conn.query(
+      `INSERT INTO pedidos_web
+        (cliente_nombre, cliente_telefono, cliente_direccion, entrega, total_aprox, notas)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        cliente_nombre,
+        cliente_telefono || null,
+        cliente_direccion || null,
+        entrega,
+        total,
+        notas || null,
+      ],
+    );
+
+    const pedido_id = result.insertId;
+
+    for (const l of lineas) {
+      await conn.query(
+        `INSERT INTO pedido_web_items
+          (pedido_id, producto_id, codigo, nombre, cantidad, precio_unitario, subtotal)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [pedido_id, l.producto_id, l.codigo, l.nombre, l.cantidad, l.precio_unitario, l.subtotal],
+      );
+    }
+
+    await conn.commit();
+    return res.json({ id: pedido_id, total, items: lineas });
+  } catch (error) {
+    try {
+      await conn.rollback();
+    } catch {}
+    console.error("❌ Error POST /public/pedidos:", error);
+    return res
+      .status(400)
+      .json({ message: error.message || "No se pudo registrar el pedido." });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

@@ -52,6 +52,7 @@ const MENU_BY_ROLE = {
       title: "REGISTRAR VENTAS",
       items: [
         { key: "ventas", label: "Registrar Venta", icon: <FaCashRegister /> },
+        { key: "pedidos", label: "Pedidos Web", icon: <FaGlobe /> },
         { key: "movimientos", label: "Movimientos", icon: <FaExchangeAlt /> },
         {
           key: "registrar-movimiento",
@@ -206,6 +207,7 @@ const MENU_BY_ROLE = {
           icon: <FaCashRegister />,
         },
         { key: "ventas", label: "Registrar Venta", icon: <FaCashRegister /> },
+        { key: "pedidos", label: "Pedidos Web", icon: <FaGlobe /> },
         {
           key: "facturas",
           label: "Facturas Emitidas",

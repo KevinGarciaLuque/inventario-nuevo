@@ -311,6 +311,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     cambio = 0,
     monto_tarjeta = 0,
     edad_cliente = null, // ✅ NUEVO (opcional)
+    pedido_id = null, // ✅ NUEVO: si la venta nace de un pedido web
   } = req.body || {};
 
   if (!Array.isArray(productos) || productos.length === 0) {
@@ -336,6 +337,23 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       });
     }
     const caja_id = cajaEstado.caja.id;
+
+    // ✅ Si la venta viene de un pedido web, validar que exista y esté "listo"
+    const pedidoWebId = pedido_id != null ? Number(pedido_id) : null;
+    if (pedidoWebId) {
+      const [pedRows] = await connection.query(
+        "SELECT id, estado FROM pedidos_web WHERE id = ? LIMIT 1",
+        [pedidoWebId],
+      );
+      if (!pedRows.length) {
+        throw new Error(`Pedido web no encontrado (ID ${pedidoWebId}).`);
+      }
+      if (pedRows[0].estado !== "listo") {
+        throw new Error(
+          `El pedido #${pedidoWebId} no está "listo para cobrar" (estado actual: ${pedRows[0].estado}).`,
+        );
+      }
+    }
 
     // =========================
     // 1) Validar stock y calcular totales
@@ -745,6 +763,16 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       [siguiente, cai.id],
     );
 
+    // =========================
+    // 10.1) Cerrar pedido web (si aplica)
+    // =========================
+    if (pedidoWebId) {
+      await connection.query(
+        "UPDATE pedidos_web SET estado = 'cobrado', venta_id = ?, procesado_por = ? WHERE id = ?",
+        [venta_id, usuario_id, pedidoWebId],
+      );
+    }
+
     await connection.commit();
 
     const restantes = Number(cai.rango_fin) - siguiente;
@@ -781,7 +809,8 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       msg.toLowerCase().includes("cantidad inválida") ||
       msg.toLowerCase().includes("no hay cai activo") ||
       msg.toLowerCase().includes("cai agotado") ||
-      msg.toLowerCase().includes("combo")
+      msg.toLowerCase().includes("combo") ||
+      msg.toLowerCase().includes("pedido")
     ) {
       return res.status(400).json({ message: msg });
     }
