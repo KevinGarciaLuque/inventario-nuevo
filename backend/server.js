@@ -41,8 +41,11 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5174",
-  "https://sistemaposthn.com",
-  "https://www.sistemaposthn.com",
+  // Tienda pública
+  "https://tiendaslauren.com",
+  "https://www.tiendaslauren.com",
+  // Panel de administración
+  "https://panel.tiendaslauren.com",
   process.env.FRONTEND_URL, // ✅ opcional (puedes setearlo en Railway)
   process.env.TIENDA_URL, // ✅ dominio de la tienda web pública (opcional)
 ].filter(Boolean);
