@@ -88,9 +88,9 @@ export default function Login() {
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
             <h1 className="inicio-titulo text-white text-center w-100 mb-0">
-              SISTEMA
+              TIENDAS
               <br />
-              DE INVENTARIO
+              LAUREN
             </h1>
           </motion.div>
 
