@@ -11,7 +11,9 @@ import { renderCategoriaOptions } from "../utils/categoriasOptions.jsx";
 import generarCatalogoPDF from "../utils/generarCatalogoPDF";
 import { FaFilePdf } from "react-icons/fa";
 
-const API_URL = "http://localhost:3000";
+// Base del backend (sin el sufijo /api) para servir /uploads.
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
+  .replace(/\/api\/?$/, "");
 
 const getImgSrc = (imagen) => {
   if (!imagen) return "";
