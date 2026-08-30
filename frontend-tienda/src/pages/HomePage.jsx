@@ -111,14 +111,27 @@ const HomePage = () => {
     movedRef.current = false;
     dragStartXRef.current = e.clientX;
     dragStartOffsetRef.current = offsetRef.current;
-    trackRef.current.setPointerCapture(e.pointerId);
+    // Nota: NO capturamos el puntero aquí. Si lo hiciéramos, un clic simple
+    // sobre una categoría dispararía el `click` en este <div> y no en el
+    // <Link>, y la navegación no ocurriría. Capturamos recién al arrastrar.
   }, []);
 
   const handlePointerMove = useCallback(
     (e) => {
       if (!isDraggingRef.current) return;
       const delta = dragStartXRef.current - e.clientX;
-      if (Math.abs(delta) > 3) movedRef.current = true;
+
+      if (!movedRef.current && Math.abs(delta) > 5) {
+        movedRef.current = true;
+        try {
+          trackRef.current?.setPointerCapture(e.pointerId);
+        } catch {
+          /* algunos navegadores lanzan si el pointer ya se soltó */
+        }
+      }
+
+      if (!movedRef.current) return;
+
       const half = halfWidthRef.current;
       let next = dragStartOffsetRef.current + delta;
       if (half > 0) next = ((next % half) + half) % half;
