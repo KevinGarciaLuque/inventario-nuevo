@@ -28,8 +28,9 @@ export default function ProductModal({ product, onClose }) {
 
   const getImgSrc = () => {
     if (!imagen) return "";
+    const idx = String(imagen).indexOf("/uploads/");
+    if (idx !== -1) return API_URL + imagen.slice(idx);
     if (imagen.startsWith("http")) return imagen;
-    if (imagen.startsWith("/uploads")) return API_URL + imagen;
     if (imagen.startsWith("uploads")) return `${API_URL}/${imagen}`;
     return `${API_URL}/uploads/${imagen}`;
   };

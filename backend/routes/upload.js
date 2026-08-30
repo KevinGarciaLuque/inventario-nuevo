@@ -89,14 +89,14 @@ router.post("/", upload.single("imagen"), (req, res) => {
     return res.status(400).json({ message: "No se subió ninguna imagen" });
   }
 
-  // Usa variable de entorno BACKEND_URL, o localhost por defecto
-  const urlBase = process.env.BACKEND_URL || "http://localhost:3000";
-  // Construye la URL completa para la imagen
-  const imageUrl = `${urlBase}/uploads/${req.file.filename}`;
+  // ✅ Guardamos SOLO la ruta relativa (/uploads/archivo). El frontend le
+  // antepone el dominio del backend actual (VITE_API_URL sin /api). Así, si el
+  // dominio del backend cambia, no quedan URLs absolutas rotas en la BD.
+  const relativePath = `/uploads/${req.file.filename}`;
 
   res.json({
-    path: imageUrl, // ✅ URL absoluta para usar en el frontend
-    filename: req.file.filename, // solo si lo necesitas
+    path: relativePath,
+    filename: req.file.filename,
   });
 });
 

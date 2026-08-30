@@ -17,8 +17,10 @@ const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
 
 const getImgSrc = (imagen) => {
   if (!imagen) return "";
+  // Reconstruye contra el backend actual aunque la BD tenga un dominio viejo.
+  const idx = String(imagen).indexOf("/uploads/");
+  if (idx !== -1) return API_URL + imagen.slice(idx);
   if (imagen.startsWith("http")) return imagen;
-  if (imagen.startsWith("/uploads")) return API_URL + imagen;
   if (imagen.startsWith("uploads")) return `${API_URL}/${imagen}`;
   return `${API_URL}/uploads/${imagen}`;
 };

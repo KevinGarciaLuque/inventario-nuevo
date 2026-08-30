@@ -16,8 +16,13 @@ const PLACEHOLDER =
 
 export const getImgSrc = (imagen) => {
   if (!imagen) return PLACEHOLDER;
+
+  // Si la URL apunta a /uploads/... (aunque sea con un dominio viejo guardado
+  // en la BD), la reconstruimos contra el backend actual.
+  const idx = String(imagen).indexOf("/uploads/");
+  if (idx !== -1) return UPLOADS_BASE_URL + imagen.slice(idx);
+
   if (imagen.startsWith("http")) return imagen;
-  if (imagen.startsWith("/uploads")) return UPLOADS_BASE_URL + imagen;
   if (imagen.startsWith("uploads")) return `${UPLOADS_BASE_URL}/${imagen}`;
   return `${UPLOADS_BASE_URL}/uploads/${imagen}`;
 };

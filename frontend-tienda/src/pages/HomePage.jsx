@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios.js";
+import { getImgSrc } from "../utils/img.js";
 import ProductCard from "../components/ProductCard.jsx";
 import HeroCarousel from "../components/HeroCarousel.jsx";
 
@@ -194,7 +195,7 @@ const HomePage = () => {
                     style={
                       cat.imagen
                         ? {
-                            backgroundImage: `url(${cat.imagen})`,
+                            backgroundImage: `url(${getImgSrc(cat.imagen)})`,
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                           }

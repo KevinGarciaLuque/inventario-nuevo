@@ -6,8 +6,9 @@ const FILES_BASE_URL = API_BASE_URL.replace(/\/api\/?$/i, "");
 
 export const getImgSrc = (imagen) => {
   if (!imagen) return "/default.jpg";
+  const idx = String(imagen).indexOf("/uploads/");
+  if (idx !== -1) return FILES_BASE_URL + imagen.slice(idx);
   if (imagen.startsWith("http")) return imagen;
-  if (imagen.startsWith("/uploads")) return FILES_BASE_URL + imagen;
   if (imagen.startsWith("uploads")) return `${FILES_BASE_URL}/${imagen}`;
   return `${FILES_BASE_URL}/uploads/${imagen}`;
 };

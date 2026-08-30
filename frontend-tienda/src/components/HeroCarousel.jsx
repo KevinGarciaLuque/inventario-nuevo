@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import logo from "../assets/LaurenLogo.png";
 import { SITE_INFO } from "../config/site.js";
 import api from "../api/axios.js";
+import { getImgSrc } from "../utils/img.js";
 
 const SLIDES_DEFAULT = [
   {
@@ -62,7 +63,11 @@ const HeroCarousel = () => {
           <Carousel.Item key={slide.id}>
             <div
               className="hero-slide hero-slide--imagen"
-              style={{ backgroundImage: `url(${slide.imagen_url})` }}
+              style={
+                slide.imagen_url
+                  ? { backgroundImage: `url(${getImgSrc(slide.imagen_url)})` }
+                  : undefined
+              }
             >
               <div className="hero-slide-overlay" />
               <div className="hero-slide-contenido">

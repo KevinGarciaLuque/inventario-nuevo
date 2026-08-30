@@ -179,12 +179,13 @@ export default function EditProductModal({
 
     // preview imagen
     const img = product.imagen;
+    const uploadsIdx = img ? String(img).indexOf("/uploads/") : -1;
     if (!img) {
       setPreview(null);
+    } else if (uploadsIdx !== -1) {
+      setPreview(API_ROOT + String(img).slice(uploadsIdx));
     } else if (String(img).startsWith("http")) {
       setPreview(img);
-    } else if (String(img).startsWith("/uploads")) {
-      setPreview(API_ROOT + img);
     } else {
       setPreview(API_ROOT + "/uploads/" + img);
     }

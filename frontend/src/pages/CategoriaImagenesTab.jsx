@@ -4,6 +4,16 @@ import api from "../api/axios";
 
 const TAMANO_IMG = 400;
 
+// Reconstruye la URL de /uploads contra el backend actual (la BD puede tener
+// guardado un dominio viejo).
+const API_ROOT = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
+  .replace(/\/api\/?$/, "");
+const resolverImg = (img) => {
+  if (!img) return undefined;
+  const idx = String(img).indexOf("/uploads/");
+  return idx !== -1 ? API_ROOT + String(img).slice(idx) : img;
+};
+
 // Recorta y reescala la imagen (estilo "cover", centrada) a un cuadrado,
 // ideal para mostrarla luego como círculo en la tienda.
 const recortarImagenCuadrada = (file, tamano) =>
@@ -131,7 +141,7 @@ export default function CategoriaImagenesTab() {
                   style={{
                     width: 80,
                     height: 80,
-                    backgroundImage: cat.imagen ? `url(${cat.imagen})` : undefined,
+                    backgroundImage: cat.imagen ? `url(${resolverImg(cat.imagen)})` : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     backgroundColor: "#f5f5f5",

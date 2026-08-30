@@ -14,6 +14,16 @@ import api from "../api/axios";
 const CARRUSEL_ANCHO = 1920;
 const CARRUSEL_ALTO = 750;
 
+// Reconstruye la URL de /uploads contra el backend actual (la BD puede tener
+// guardado un dominio viejo).
+const API_ROOT = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
+  .replace(/\/api\/?$/, "");
+const resolverImg = (img) => {
+  if (!img) return "";
+  const idx = String(img).indexOf("/uploads/");
+  return idx !== -1 ? API_ROOT + String(img).slice(idx) : img;
+};
+
 // Recorta y reescala la imagen (estilo "cover", centrada) al tamaño exacto
 // del carrusel, sin importar las dimensiones originales que suba el admin.
 const recortarImagenParaCarrusel = (file, targetW, targetH) =>
@@ -209,7 +219,7 @@ export default function CarruselConfigTab() {
                     className="mt-2 rounded border"
                     style={{
                       height: 120,
-                      backgroundImage: `url(${form.imagen_url})`,
+                      backgroundImage: `url(${resolverImg(form.imagen_url)})`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                     }}
@@ -333,7 +343,7 @@ export default function CarruselConfigTab() {
                       style={{
                         width: 72,
                         height: 48,
-                        backgroundImage: `url(${slide.imagen_url})`,
+                        backgroundImage: `url(${resolverImg(slide.imagen_url)})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundColor: "#f0f0f0",
