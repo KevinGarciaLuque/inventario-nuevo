@@ -83,13 +83,7 @@
 
 .venta-payment-tab svg {
   flex-shrink: 0;
-}
-
-/* En pantallas anchas caben las 4 en una fila */
-@media (min-width: 1400px) {
-  .venta-payment-tabs {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  font-size: 0.9rem;
 }
 
 .venta-payment-tab:hover {
