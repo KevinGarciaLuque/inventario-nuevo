@@ -28,6 +28,7 @@ export const CartProvider = ({ children }) => {
   const [flights, setFlights] = useState([]);
   const [bump, setBump] = useState(0);
   const audioCtxRef = useRef(null);
+  const handledFlightsRef = useRef(new Set());
 
   // Sonido tipo "pop/ding" sintetizado con Web Audio (sin archivos externos)
   const playDropSound = useCallback(() => {
@@ -39,29 +40,20 @@ export const CartProvider = ({ children }) => {
       if (ctx.state === "suspended") ctx.resume();
 
       const now = ctx.currentTime;
-      const master = ctx.createGain();
-      master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-      master.connect(ctx.destination);
 
-      // dos notas cortas ascendentes
-      [
-        { f: 660, t: 0 },
-        { f: 990, t: 0.08 },
-      ].forEach(({ f, t }) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(f, now + t);
-        g.gain.setValueAtTime(0.0001, now + t);
-        g.gain.exponentialRampToValueAtTime(1, now + t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.22);
-        osc.connect(g);
-        g.connect(master);
-        osc.start(now + t);
-        osc.stop(now + t + 0.25);
-      });
+      // Un solo "pop": nota que sube rápido y se apaga
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.09);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
     } catch {
       /* silencioso: audio no disponible */
     }
@@ -129,6 +121,11 @@ export const CartProvider = ({ children }) => {
 
   const finishFlight = useCallback(
     (id) => {
+      // La animación de salida (AnimatePresence) vuelve a disparar
+      // onAnimationComplete; sólo actuamos la primera vez por vuelo.
+      if (handledFlightsRef.current.has(id)) return;
+      handledFlightsRef.current.add(id);
+
       setFlights((prev) => prev.filter((f) => f.id !== id));
       setBump((b) => b + 1);
       playDropSound();
@@ -138,6 +135,9 @@ export const CartProvider = ({ children }) => {
       } catch {
         /* no soportado */
       }
+
+      // Limpieza para no acumular ids en memoria
+      setTimeout(() => handledFlightsRef.current.delete(id), 3000);
     },
     [playDropSound],
   );
