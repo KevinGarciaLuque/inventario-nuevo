@@ -42,13 +42,14 @@ router.get("/", requireRoles("admin", "cajero"), async (req, res) => {
         f.numero_factura,
         f.fecha_emision,
         f.total_factura,
+        f.tipo,
         v.usuario_id,
         u.nombre AS cajero,
         c.cai_codigo
       FROM facturas f
       INNER JOIN ventas v ON v.id = f.venta_id
       INNER JOIN usuarios u ON u.id = v.usuario_id
-      INNER JOIN cai c ON c.id = f.cai_id
+      LEFT JOIN cai c ON c.id = f.cai_id
       WHERE 1=1
     `;
     const params = [];
@@ -104,7 +105,7 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
         f.id,
         f.numero_factura, f.fecha_emision,
         f.cliente_nombre, f.cliente_rtn, f.cliente_direccion,
-        f.total_factura,
+        f.total_factura, f.tipo,
         v.id AS venta_id, v.usuario_id, v.metodo_pago, v.efectivo, v.cambio, v.monto_tarjeta,
         u.nombre AS cajero,
         c.cai_codigo, c.rango_inicio, c.rango_fin,
@@ -112,7 +113,7 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
       FROM facturas f
       JOIN ventas v ON f.venta_id = v.id
       JOIN usuarios u ON v.usuario_id = u.id
-      JOIN cai c ON f.cai_id = c.id
+      LEFT JOIN cai c ON f.cai_id = c.id
       WHERE f.id = ?`,
       [facturaId]
     );
@@ -175,6 +176,7 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
     // 4) Respuesta completa para generar PDF
     res.json({
       numero_factura: factura.numero_factura,
+      tipo: factura.tipo || "factura",
       fecha_emision: factura.fecha_emision,
       cliente_nombre: factura.cliente_nombre,
       cliente_rtn: factura.cliente_rtn,
@@ -197,13 +199,15 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
 
       user: { nombre: factura.cajero, id: factura.usuario_id },
 
-      cai: {
-        cai_codigo: factura.cai_codigo,
-        rango_inicio: String(factura.rango_inicio),
-        rango_fin: String(factura.rango_fin),
-        fecha_autorizacion: factura.fecha_autorizacion,
-        fecha_limite_emision: factura.fecha_limite_emision,
-      },
+      cai: factura.cai_codigo
+        ? {
+            cai_codigo: factura.cai_codigo,
+            rango_inicio: String(factura.rango_inicio),
+            rango_fin: String(factura.rango_fin),
+            fecha_autorizacion: factura.fecha_autorizacion,
+            fecha_limite_emision: factura.fecha_limite_emision,
+          }
+        : {},
     });
   } catch (error) {
     console.error("Error al obtener detalle de factura:", error);

@@ -42,6 +42,9 @@ const generarReciboPDF = ({
   user,
   cai = {},
 
+  // ✅ "factura" (con CAI) | "recibo" (sin CAI)
+  tipo = "factura",
+
   cliente_nombre,
   cliente_rtn,
   cliente_telefono,
@@ -184,6 +187,10 @@ const generarReciboPDF = ({
 
   const linea = (doc, y) => doc.line(X_IZQ, y, X_DER, y);
 
+  // ✅ Tipo de documento
+  const esFactura = String(tipo || "factura").toLowerCase() !== "recibo";
+  const TITULO_DOC = esFactura ? "FACTURA" : "RECIBO DE VENTA";
+
   // ==========================
   // IMPRESIÓN DESDE WEB (print dialog auto)
   // ==========================
@@ -278,25 +285,36 @@ const generarReciboPDF = ({
     linea(doc, posY);
     posY += 5;
 
-    // ===== CAI
-    doc.setFontSize(9);
-    doc.text(`CAI: ${cai.cai_codigo || "-"}`, X_IZQ, posY);
-    posY += 4;
-    doc.text(
-      `Rango: ${cai.rango_inicio || "-"} - ${cai.rango_fin || "-"}`,
-      X_IZQ,
-      posY,
-    );
-    posY += 4;
-    doc.text(`Autorizado: ${cai.fecha_autorizacion || "-"}`, X_IZQ, posY);
-    posY += 4;
-    doc.text(`Vence: ${cai.fecha_limite_emision || "-"}`, X_IZQ, posY);
-    posY += 6;
+    // ===== CAI (solo en Factura)
+    if (esFactura) {
+      doc.setFontSize(9);
+      doc.text(`CAI: ${cai.cai_codigo || "-"}`, X_IZQ, posY);
+      posY += 4;
+      doc.text(
+        `Rango: ${cai.rango_inicio || "-"} - ${cai.rango_fin || "-"}`,
+        X_IZQ,
+        posY,
+      );
+      posY += 4;
+      doc.text(`Autorizado: ${cai.fecha_autorizacion || "-"}`, X_IZQ, posY);
+      posY += 4;
+      doc.text(`Vence: ${cai.fecha_limite_emision || "-"}`, X_IZQ, posY);
+      posY += 6;
+    }
 
     // ===== TÍTULO
     doc.setFont("helvetica", "bold").setFontSize(11);
-    doc.text("FACTURA", X_CENTRO, posY, { align: "center" });
+    doc.text(TITULO_DOC, X_CENTRO, posY, { align: "center" });
     posY += 5;
+
+    if (!esFactura) {
+      doc.setFont("helvetica", "normal").setFontSize(8);
+      doc.text("Documento no fiscal - no genera crédito fiscal", X_CENTRO, posY, {
+        align: "center",
+      });
+      posY += 5;
+      doc.setFontSize(9);
+    }
 
     if (esCopia) {
       doc.setFontSize(10);
@@ -571,13 +589,22 @@ const generarReciboPDF = ({
     posY += 8;
 
     doc.setFont("helvetica", "normal").setFontSize(9);
-    doc.text("La factura es beneficio de todos.", X_CENTRO, posY, {
-      align: "center",
-    });
-    posY += 6;
-
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("EXÍJALA", X_CENTRO, posY, { align: "center" });
+    if (esFactura) {
+      doc.text("La factura es beneficio de todos.", X_CENTRO, posY, {
+        align: "center",
+      });
+      posY += 6;
+      doc.setFont("helvetica", "bold").setFontSize(12);
+      doc.text("EXÍJALA", X_CENTRO, posY, { align: "center" });
+    } else {
+      doc.text("Este documento NO es una factura.", X_CENTRO, posY, {
+        align: "center",
+      });
+      posY += 5;
+      doc.text("Si necesita factura, solicítela.", X_CENTRO, posY, {
+        align: "center",
+      });
+    }
 
     // ✅ dejamos un “aire” final para que nunca se coma la última línea
     posY += 10;

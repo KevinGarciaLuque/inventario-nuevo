@@ -34,7 +34,7 @@ router.get("/me", auth, async (req, res) => {
     }
 
     const [rows] = await db.query(
-      "SELECT id, nombre, email, rol, creado_en FROM usuarios WHERE id = ?",
+      "SELECT id, nombre, email, rol, activo, creado_en FROM usuarios WHERE id = ?",
       [req.user.id]
     );
 
@@ -58,7 +58,7 @@ router.get("/", auth, async (req, res) => {
     if (!SOLO_ADMIN(req, res)) return;
 
     const [rows] = await db.query(
-      "SELECT id, nombre, email, rol, creado_en FROM usuarios ORDER BY creado_en DESC"
+      "SELECT id, nombre, email, rol, activo, creado_en FROM usuarios ORDER BY creado_en DESC"
     );
 
     return res.json(rows);
@@ -263,18 +263,122 @@ router.delete("/:id", auth, async (req, res) => {
         .json({ message: "No puedes eliminar a un superadministrador" });
     }
 
-    const [result] = await db.query("DELETE FROM usuarios WHERE id=?", [
-      Number(id),
-    ]);
+    // Borrado forzado: solo superadmin y con ?force=1
+    const force =
+      req.user?.rol === "superadmin" &&
+      ["1", "true"].includes(String(req.query.force).toLowerCase());
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+    if (force) {
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        // Conservamos el historial pero desvinculamos al usuario eliminado
+        await conn.query(
+          "UPDATE bitacora SET usuario_id = NULL WHERE usuario_id = ?",
+          [Number(id)]
+        );
+        await conn.query(
+          "UPDATE movimientos SET usuario_id = NULL WHERE usuario_id = ?",
+          [Number(id)]
+        );
+        await conn.query(
+          "UPDATE cierres_caja SET usuario_id = NULL WHERE usuario_id = ?",
+          [Number(id)]
+        );
+        await conn.query(
+          "UPDATE venta_descuentos SET creado_por = NULL WHERE creado_por = ?",
+          [Number(id)]
+        );
+        const [r] = await conn.query("DELETE FROM usuarios WHERE id = ?", [
+          Number(id),
+        ]);
+        await conn.commit();
+        if (r.affectedRows === 0) {
+          return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+        return res.json({
+          message: "Usuario eliminado (su historial se conservó sin asignar)",
+        });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
     }
 
-    return res.json({ message: "Usuario eliminado correctamente" });
+    try {
+      const [result] = await db.query("DELETE FROM usuarios WHERE id=?", [
+        Number(id),
+      ]);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+
+      return res.json({ message: "Usuario eliminado correctamente" });
+    } catch (e) {
+      // FK: el usuario tiene registros asociados
+      if (e.code === "ER_ROW_IS_REFERENCED_2" || e.errno === 1451) {
+        return res.status(409).json({
+          message:
+            "El usuario tiene registros asociados (movimientos, cierres de caja o bitácora). Desactívalo en su lugar.",
+          requiereFuerza: req.user?.rol === "superadmin",
+        });
+      }
+      throw e;
+    }
   } catch (error) {
     console.error("DELETE /usuarios/:id:", error);
     return res.status(500).json({ message: "Error al eliminar usuario" });
+  }
+});
+
+/* =====================================================
+   ACTIVAR / DESACTIVAR USUARIO (soft-delete)
+   👉 SOLO ADMIN / SUPERADMIN
+===================================================== */
+router.patch("/:id/estado", auth, async (req, res) => {
+  try {
+    if (!SOLO_ADMIN(req, res)) return;
+
+    const { id } = req.params;
+    const activo = req.body?.activo ? 1 : 0;
+
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: "ID inválido" });
+    }
+
+    if (Number(id) === Number(req.user?.id)) {
+      return res
+        .status(400)
+        .json({ message: "No puedes cambiar el estado de tu propio usuario" });
+    }
+
+    const [target] = await db.query(
+      "SELECT rol FROM usuarios WHERE id = ?",
+      [Number(id)]
+    );
+    if (!target.length) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+    if (target[0].rol === "superadmin" && req.user?.rol !== "superadmin") {
+      return res
+        .status(403)
+        .json({ message: "No puedes modificar a un superadministrador" });
+    }
+
+    await db.query("UPDATE usuarios SET activo = ? WHERE id = ?", [
+      activo,
+      Number(id),
+    ]);
+
+    return res.json({
+      message: activo ? "Usuario activado" : "Usuario desactivado",
+    });
+  } catch (error) {
+    console.error("PATCH /usuarios/:id/estado:", error);
+    return res.status(500).json({ message: "Error al cambiar el estado" });
   }
 });
 

@@ -100,9 +100,17 @@ export default function UsersPage() {
     setDeleteConfirm({ show: true, userId: id, nombre, email });
   };
 
+  // Modal de borrado forzado (superadmin)
+  const [forceConfirm, setForceConfirm] = useState({
+    show: false,
+    userId: null,
+    nombre: "",
+  });
+
   // Confirmar eliminación
   const handleDelete = async () => {
     const id = deleteConfirm.userId;
+    const nombre = deleteConfirm.nombre;
     setDeleteConfirm({ show: false, userId: null, nombre: "", email: "" });
     if (!id) return;
     try {
@@ -114,11 +122,70 @@ export default function UsersPage() {
         message: "El usuario fue eliminado correctamente.",
       });
     } catch (e) {
+      // El usuario tiene registros asociados
+      if (e?.response?.status === 409) {
+        if (e.response.data?.requiereFuerza) {
+          setForceConfirm({ show: true, userId: id, nombre });
+          return;
+        }
+        showModal({
+          type: "error",
+          title: "No se pudo eliminar",
+          message:
+            (e.response.data?.message || "") +
+            " Usa el botón para desactivarlo.",
+        });
+        return;
+      }
       showModal({
         type: "error",
         title: "No se pudo eliminar",
         message:
           e?.response?.data?.message || "El usuario no pudo ser eliminado.",
+      });
+    }
+  };
+
+  // Eliminar de todas formas (superadmin) — conserva el historial sin asignar
+  const handleForceDelete = async () => {
+    const id = forceConfirm.userId;
+    setForceConfirm({ show: false, userId: null, nombre: "" });
+    if (!id) return;
+    try {
+      await api.delete(`/usuarios/${id}?force=1`);
+      cargarUsuarios();
+      showModal({
+        type: "success",
+        title: "¡Usuario eliminado!",
+        message: "Se eliminó el usuario y su historial quedó sin asignar.",
+      });
+    } catch (e) {
+      showModal({
+        type: "error",
+        title: "No se pudo eliminar",
+        message: e?.response?.data?.message || "El usuario no pudo ser eliminado.",
+      });
+    }
+  };
+
+  // Activar / desactivar usuario
+  const handleToggleEstado = async (u) => {
+    try {
+      await api.patch(`/usuarios/${u.id}/estado`, { activo: !u.activo });
+      cargarUsuarios();
+      showModal({
+        type: "success",
+        title: u.activo ? "Usuario desactivado" : "Usuario activado",
+        message: u.activo
+          ? "El usuario ya no podrá iniciar sesión."
+          : "El usuario puede iniciar sesión nuevamente.",
+      });
+    } catch (e) {
+      showModal({
+        type: "error",
+        title: "Error",
+        message:
+          e?.response?.data?.message || "No se pudo cambiar el estado.",
       });
     }
   };
@@ -262,14 +329,15 @@ export default function UsersPage() {
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th>Estado</th>
               <th>Creado en</th>
-              <th style={{ width: 170 }}>Acciones</th>
+              <th style={{ width: 210 }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {usuarios.length > 0 ? (
               usuarios.map((u) => (
-                <tr key={u.id}>
+                <tr key={u.id} className={u.activo ? "" : "table-light text-muted"}>
                   <td>{u.nombre}</td>
                   <td>{u.email}</td>
                   <td>
@@ -285,6 +353,13 @@ export default function UsersPage() {
                       {ROL_LABEL[u.rol] || u.rol}
                     </span>
                   </td>
+                  <td>
+                    <span
+                      className={`badge bg-${u.activo ? "success" : "secondary"}`}
+                    >
+                      {u.activo ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
                   <td>{u.creado_en?.split("T")[0]}</td>
                   <td>
                     {["admin", "superadmin"].includes(user?.rol) &&
@@ -296,6 +371,18 @@ export default function UsersPage() {
                           onClick={() => handleEdit(u)}
                         >
                           <i className="bi bi-pencil-square"></i>
+                        </button>
+                        <button
+                          className={`btn btn-sm me-1 btn-outline-${
+                            u.activo ? "dark" : "success"
+                          }`}
+                          style={{ borderRadius: 8 }}
+                          title={u.activo ? "Desactivar" : "Activar"}
+                          onClick={() => handleToggleEstado(u)}
+                        >
+                          <i
+                            className={`bi bi-toggle-${u.activo ? "on" : "off"}`}
+                          ></i>
                         </button>
                         <button
                           className="btn btn-danger btn-sm me-1"
@@ -318,7 +405,7 @@ export default function UsersPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted">
+                <td colSpan={6} className="text-center text-muted">
                   No hay usuarios
                 </td>
               </tr>
@@ -353,6 +440,40 @@ export default function UsersPage() {
         }
         subtitulo="Esta acción no se puede deshacer."
       />
+
+      {/* MODAL BORRADO FORZADO (SUPERADMIN) */}
+      <Modal
+        show={forceConfirm.show}
+        onHide={() => setForceConfirm({ show: false, userId: null, nombre: "" })}
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          <i
+            className="bi bi-exclamation-octagon-fill text-danger mb-3"
+            style={{ fontSize: 56 }}
+          />
+          <h5 className="fw-bold text-danger mb-2">Este usuario tiene registros</h5>
+          <p className="text-muted mb-3">
+            <span className="fw-bold">{forceConfirm.nombre}</span> tiene
+            movimientos, cierres de caja o bitácora asociados. Si lo eliminas de
+            todas formas, esos registros se conservarán pero quedarán{" "}
+            <span className="fw-bold">sin usuario asignado</span>.
+          </p>
+          <div className="d-flex gap-2 justify-content-center">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                setForceConfirm({ show: false, userId: null, nombre: "" })
+              }
+            >
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleForceDelete}>
+              Eliminar de todas formas
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
 
       {/* MODAL CAMBIAR CONTRASEÑA */}
       <Modal

@@ -172,7 +172,33 @@ export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado =
     }
   };
 
+  // ✅ true = emite Factura (con CAI) | false = emite Recibo (sin CAI)
+  const [emitirConCai, setEmitirConCai] = useState(true);
+
+  const consultarConfigFacturacion = async () => {
+    try {
+      const res = await api.get("/cai/config");
+      return res.data?.emitir_con_cai !== false;
+    } catch {
+      return true;
+    }
+  };
+
   const consultarCai = async () => {
+    const conCai = await consultarConfigFacturacion();
+    setEmitirConCai(conCai);
+
+    // En modo Recibo no necesitamos CAI ni alertar por su ausencia
+    if (!conCai) {
+      try {
+        const res = await api.get("/cai/activo");
+        setCai(res.data);
+      } catch {
+        setCai(null);
+      }
+      return;
+    }
+
     try {
       const res = await api.get("/cai/activo");
       setCai(res.data);
@@ -793,6 +819,7 @@ function getTasaItem(item) {
 
     const dataRecibo = {
       numeroFactura: data?.numeroFactura || data?.numero_factura || "",
+      tipo: data?.tipo || "factura",
 
       // detalle
       carrito: Array.isArray(carrito) ? carrito : [],
@@ -916,6 +943,7 @@ function getTasaItem(item) {
 
     // cai
     cai,
+    emitirConCai,
     modalSinCai,
     setModalSinCai,
     refreshCaiTrigger,

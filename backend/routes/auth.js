@@ -14,6 +14,11 @@ router.post("/login", async (req, res) => {
     }
     const user = rows[0];
 
+    // Usuario desactivado (soft-delete): no puede iniciar sesión
+    if (user.activo === 0) {
+      return res.status(403).json({ message: "Usuario desactivado. Contacta al administrador." });
+    }
+
     // Compatibilidad: contraseñas hasheadas (bcrypt) o "planas" para demo
     let match = false;
     if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {

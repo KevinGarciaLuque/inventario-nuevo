@@ -704,36 +704,70 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     }
 
     // =========================
-    // 7) Obtener CAI activo
+    // 7) Determinar tipo de documento: Factura (con CAI) o Recibo (sin CAI)
     // =========================
-    const [caiRows] = await connection.query(
-      "SELECT * FROM cai WHERE activo = 1 LIMIT 1",
-    );
-    if (!caiRows.length) throw new Error("No hay CAI activo configurado");
-
-    const cai = caiRows[0];
-
-    if (Number(cai.correlativo_actual) >= Number(cai.rango_fin)) {
-      throw new Error("CAI agotado: el correlativo llegó al máximo permitido");
+    let emitirConCai = true;
+    try {
+      const [cfgRows] = await connection.query(
+        "SELECT valor FROM configuracion WHERE clave = 'emitir_con_cai' LIMIT 1",
+      );
+      emitirConCai = !cfgRows.length || cfgRows[0].valor === "1";
+    } catch (e) {
+      // Si la tabla configuracion aún no existe, se mantiene el modo factura
+      console.warn("configuracion no disponible, se asume modo Factura:", e.code);
+      emitirConCai = true;
     }
 
-    const siguiente = Number(cai.correlativo_actual) + 1;
-    const correlativo = String(siguiente).padStart(8, "0");
-    const numeroFactura = `${cai.sucursal}-${cai.punto_emision}-${cai.tipo_documento}-${correlativo}`;
+    let numeroFactura;
+    let tipoDocumento = "factura";
+    let caiIdFk = null;
+    let cai = null; // solo se llena en modo factura
+    let siguienteCai = null;
+
+    if (emitirConCai) {
+      const [caiRows] = await connection.query(
+        "SELECT * FROM cai WHERE activo = 1 LIMIT 1",
+      );
+      if (!caiRows.length) throw new Error("No hay CAI activo configurado");
+
+      cai = caiRows[0];
+
+      if (Number(cai.correlativo_actual) >= Number(cai.rango_fin)) {
+        throw new Error("CAI agotado: el correlativo llegó al máximo permitido");
+      }
+
+      siguienteCai = Number(cai.correlativo_actual) + 1;
+      const correlativo = String(siguienteCai).padStart(8, "0");
+      numeroFactura = `${cai.sucursal}-${cai.punto_emision}-${cai.tipo_documento}-${correlativo}`;
+      caiIdFk = cai.id;
+    } else {
+      tipoDocumento = "recibo";
+      const [recRows] = await connection.query(
+        "SELECT * FROM recibo_correlativo WHERE id = 1 FOR UPDATE",
+      );
+      const rec = recRows[0] || { prefijo: "REC", actual: 0 };
+      const siguienteRec = Number(rec.actual) + 1;
+      numeroFactura = `${rec.prefijo || "REC"}-${String(siguienteRec).padStart(8, "0")}`;
+      await connection.query(
+        "UPDATE recibo_correlativo SET actual = ? WHERE id = 1",
+        [siguienteRec],
+      );
+    }
 
     // =========================
-    // 8) Insertar factura
+    // 8) Insertar documento (factura o recibo)
     // =========================
     const [facturaResult] = await connection.query(
       `INSERT INTO facturas (
-        numero_factura, venta_id, cai_id, total_factura,
+        numero_factura, venta_id, cai_id, tipo, total_factura,
         cliente_nombre, cliente_rtn, cliente_direccion,
         metodo_pago, efectivo, cambio, monto_tarjeta
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         numeroFactura,
         venta_id,
-        cai.id,
+        caiIdFk,
+        tipoDocumento,
         total_con_impuesto,
         toStr(cliente_nombre),
         toStr(cliente_rtn),
@@ -748,7 +782,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const factura_id = facturaResult.insertId;
 
     // =========================
-    // 9) Vincular venta con factura + guardar CAI string en ventas (columna "cai")
+    // 9) Vincular venta con documento + guardar número en ventas (columna "cai")
     // =========================
     await connection.query(
       "UPDATE ventas SET factura_id = ?, cai = ? WHERE id = ?",
@@ -756,12 +790,14 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     );
 
     // =========================
-    // 10) Actualizar correlativo CAI
+    // 10) Actualizar correlativo CAI (solo en modo factura)
     // =========================
-    await connection.query(
-      "UPDATE cai SET correlativo_actual = ? WHERE id = ?",
-      [siguiente, cai.id],
-    );
+    if (emitirConCai) {
+      await connection.query(
+        "UPDATE cai SET correlativo_actual = ? WHERE id = ?",
+        [siguienteCai, cai.id],
+      );
+    }
 
     // =========================
     // 10.1) Cerrar pedido web (si aplica)
@@ -775,18 +811,23 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     await connection.commit();
 
-    const restantes = Number(cai.rango_fin) - siguiente;
-
     let alerta = null;
-    if (restantes <= 20) {
-      alerta = `Atención: Solo quedan ${restantes} facturas disponibles en el CAI.`;
+    if (emitirConCai) {
+      const restantes = Number(cai.rango_fin) - siguienteCai;
+      if (restantes <= 20) {
+        alerta = `Atención: Solo quedan ${restantes} facturas disponibles en el CAI.`;
+      }
     }
 
     return res.json({
-      message: "Venta y factura registrada correctamente",
+      message:
+        tipoDocumento === "recibo"
+          ? "Venta y recibo registrados correctamente"
+          : "Venta y factura registrada correctamente",
       venta_id,
       factura_id,
       numeroFactura,
+      tipo: tipoDocumento,
       alerta,
       descuentos_aplicados,
       total_descuento,

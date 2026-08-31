@@ -110,6 +110,7 @@ export default function RegistrarVentaPage({
         usarRTN={v.usarRTN}
         setUsarRTN={v.setUsarRTN}
         refreshCaiTrigger={v.refreshCaiTrigger}
+        emitirConCai={v.emitirConCai}
       />
 
       <ClientesSection

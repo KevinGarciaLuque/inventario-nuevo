@@ -19,8 +19,12 @@ export default function CaiPage() {
     activo: true,
   });
 
+  const [emitirConCai, setEmitirConCai] = useState(true);
+  const [guardandoConfig, setGuardandoConfig] = useState(false);
+
   useEffect(() => {
     cargarCai();
+    cargarConfig();
   }, []);
 
   const cargarCai = async () => {
@@ -29,6 +33,38 @@ export default function CaiPage() {
       setCaiList(res.data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const cargarConfig = async () => {
+    try {
+      const res = await api.get("/cai/config");
+      setEmitirConCai(res.data?.emitir_con_cai !== false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const cambiarModoFacturacion = async (valor) => {
+    setGuardandoConfig(true);
+    setEmitirConCai(valor);
+    try {
+      const res = await api.put("/cai/config", { emitir_con_cai: valor });
+      setModal({
+        show: true,
+        type: "success",
+        message: res.data?.message || "Configuración actualizada",
+      });
+    } catch (err) {
+      console.error(err);
+      setEmitirConCai(!valor);
+      setModal({
+        show: true,
+        type: "error",
+        message: "No se pudo actualizar la configuración",
+      });
+    } finally {
+      setGuardandoConfig(false);
     }
   };
 
@@ -90,6 +126,40 @@ export default function CaiPage() {
   return (
     <div className="container py-4">
       <h2 className="mb-4 text-center">Control de CAI</h2>
+
+      <div
+        className={`border rounded p-3 shadow-sm mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 ${
+          emitirConCai ? "bg-light" : "bg-info-subtle"
+        }`}
+      >
+        <div>
+          <h5 className="mb-1">Modo de facturación</h5>
+          <div className="text-muted">
+            {emitirConCai ? (
+              <>
+                Actualmente se emiten <strong>Facturas</strong> con CAI (fiscal).
+              </>
+            ) : (
+              <>
+                Actualmente se emiten <strong>Recibos</strong> sin CAI (no
+                fiscal). El CAI no se consume.
+              </>
+            )}
+          </div>
+        </div>
+        <Form.Check
+          type="switch"
+          id="switch-modo-cai"
+          disabled={guardandoConfig}
+          checked={emitirConCai}
+          onChange={(e) => cambiarModoFacturacion(e.target.checked)}
+          label={
+            <span className="fw-semibold">
+              {emitirConCai ? "Facturar con CAI" : "Emitir Recibos"}
+            </span>
+          }
+        />
+      </div>
 
       <Form
         onSubmit={crearCai}

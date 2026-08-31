@@ -60,6 +60,41 @@ router.post("/", async (req, res) => {
   }
 });
 
+// ✅ Configuración de facturación (switch Factura/Recibo)
+router.get("/config", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT valor FROM configuracion WHERE clave = 'emitir_con_cai' LIMIT 1"
+    );
+    const emitir_con_cai = rows.length ? rows[0].valor === "1" : true;
+    res.json({ emitir_con_cai });
+  } catch (error) {
+    console.error("❌ Error al obtener config de facturación:", error);
+    res.status(500).json({ message: "Error al obtener la configuración" });
+  }
+});
+
+router.put("/config", async (req, res) => {
+  try {
+    const valor = req.body?.emitir_con_cai ? "1" : "0";
+    await db.query(
+      `INSERT INTO configuracion (clave, valor) VALUES ('emitir_con_cai', ?)
+       ON DUPLICATE KEY UPDATE valor = VALUES(valor)`,
+      [valor]
+    );
+    res.json({
+      message:
+        valor === "1"
+          ? "✅ Facturación con CAI activada (se emitirán Facturas)"
+          : "✅ Facturación con CAI desactivada (se emitirán Recibos)",
+      emitir_con_cai: valor === "1",
+    });
+  } catch (error) {
+    console.error("❌ Error al actualizar config de facturación:", error);
+    res.status(500).json({ message: "Error al actualizar la configuración" });
+  }
+});
+
 // ✅ Obtener el CAI activo
 router.get("/activo", async (req, res) => {
   try {

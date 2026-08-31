@@ -73,6 +73,7 @@ export default function FacturasPage() {
 
         user: datosFactura.user,
         cai: datosFactura.cai,
+        tipo: datosFactura.tipo || "factura",
 
         cliente_nombre: datosFactura.cliente_nombre || "Consumidor Final",
         cliente_rtn: datosFactura.cliente_rtn || "",
@@ -154,7 +155,8 @@ export default function FacturasPage() {
           <thead className="table-primary sticky-top">
             <tr>
               <th>#</th>
-              <th>Número Factura</th>
+              <th>Tipo</th>
+              <th>Número</th>
               <th>CAI</th>
               <th>Fecha</th>
               <th>Total (ISV)</th>
@@ -165,7 +167,7 @@ export default function FacturasPage() {
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center text-muted py-4">
+                <td colSpan={7} className="text-center text-muted py-4">
                   No hay facturas para mostrar.
                 </td>
               </tr>
@@ -173,8 +175,17 @@ export default function FacturasPage() {
               filtradas.map((f, index) => (
                 <tr key={f.id}>
                   <td>{index + 1}</td>
+                  <td>
+                    <span
+                      className={`badge bg-${
+                        f.tipo === "recibo" ? "info" : "primary"
+                      }`}
+                    >
+                      {f.tipo === "recibo" ? "Recibo" : "Factura"}
+                    </span>
+                  </td>
                   <td>{f.numero_factura}</td>
-                  <td>{f.cai_codigo}</td>
+                  <td>{f.cai_codigo || "-"}</td>
                   <td>
                     {f.fecha_emision
                       ? new Date(f.fecha_emision).toLocaleString("es-HN")
