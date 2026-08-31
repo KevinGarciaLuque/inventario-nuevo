@@ -133,6 +133,9 @@ app.use("/api/auth", require("./routes/auth"));
 // ✅ Tienda web pública (catálogo + registro de clientes) - NO protegido
 app.use("/api/public", require("./routes/public"));
 
+// ✅ SSE de pedidos web (se autentica por query token, no por header)
+app.use("/api/pedidos-stream", require("./routes/pedidos_stream"));
+
 // ✅ Rutas protegidas
 app.use("/api/usuarios", auth, require("./routes/usuarios"));
 app.use("/api/productos", auth, require("./routes/productos"));

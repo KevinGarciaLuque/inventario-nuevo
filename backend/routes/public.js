@@ -328,6 +328,19 @@ router.post("/pedidos", async (req, res) => {
     }
 
     await conn.commit();
+
+    // 🔔 Notificar en tiempo real al panel (campanita)
+    try {
+      require("../lib/pedidosBus").emit("nuevo", {
+        id: pedido_id,
+        cliente_nombre,
+        total,
+        entrega,
+      });
+    } catch (e) {
+      console.warn("pedidosBus emit falló:", e.message);
+    }
+
     return res.json({ id: pedido_id, total, items: lineas });
   } catch (error) {
     try {
