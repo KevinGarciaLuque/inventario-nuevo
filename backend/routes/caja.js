@@ -169,7 +169,8 @@ router.post("/cerrar", requireRoles("admin", "cajero"), async (req, res) => {
       `SELECT
         IFNULL(SUM(total_con_impuesto), 0) AS total_ventas,
         IFNULL(SUM(CASE WHEN metodo_pago='efectivo' THEN total_con_impuesto ELSE 0 END), 0) AS total_efectivo,
-        IFNULL(SUM(CASE WHEN metodo_pago='tarjeta' THEN total_con_impuesto ELSE 0 END), 0) AS total_tarjeta
+        IFNULL(SUM(CASE WHEN metodo_pago='tarjeta' THEN total_con_impuesto ELSE 0 END), 0) AS total_tarjeta,
+        IFNULL(SUM(CASE WHEN metodo_pago='transferencia' THEN total_con_impuesto ELSE 0 END), 0) AS total_transferencia
       FROM ventas
       WHERE caja_id = ?`,
       [cajaId]
@@ -178,6 +179,7 @@ router.post("/cerrar", requireRoles("admin", "cajero"), async (req, res) => {
     const total_ventas = Number(totalesRows[0]?.total_ventas || 0);
     const total_efectivo = Number(totalesRows[0]?.total_efectivo || 0);
     const total_tarjeta = Number(totalesRows[0]?.total_tarjeta || 0);
+    const total_transferencia = Number(totalesRows[0]?.total_transferencia || 0);
 
     // 3) Diferencia (lo contado vs lo esperado)
     const esperado_efectivo = Number(
@@ -224,6 +226,7 @@ router.post("/cerrar", requireRoles("admin", "cajero"), async (req, res) => {
         total_ventas,
         total_efectivo,
         total_tarjeta,
+        total_transferencia,
         efectivo_contado,
         esperado_efectivo,
         diferencia,
@@ -263,7 +266,8 @@ router.get("/historial", requireRoles("admin", "cajero"), async (req, res) => {
         COUNT(DISTINCT f.id) AS total_facturas,
         -- ✅ totales por método (desde facturas; o puedes usar ventas si prefieres)
         IFNULL(SUM(CASE WHEN f.metodo_pago='efectivo' THEN f.total_factura ELSE 0 END), 0) AS total_facturado_efectivo,
-        IFNULL(SUM(CASE WHEN f.metodo_pago='tarjeta' THEN f.total_factura ELSE 0 END), 0) AS total_facturado_tarjeta
+        IFNULL(SUM(CASE WHEN f.metodo_pago='tarjeta' THEN f.total_factura ELSE 0 END), 0) AS total_facturado_tarjeta,
+        IFNULL(SUM(CASE WHEN f.metodo_pago='transferencia' THEN f.total_factura ELSE 0 END), 0) AS total_facturado_transferencia
       FROM cierres_caja cc
       JOIN usuarios u ON u.id = cc.usuario_id
       LEFT JOIN ventas v ON v.caja_id = cc.id
@@ -381,6 +385,8 @@ router.get("/:id/facturas", requireRoles("admin", "cajero"), async (req, res) =>
       monto_efectivo: 0,
       facturas_tarjeta: 0,
       monto_tarjeta: 0,
+      facturas_transferencia: 0,
+      monto_transferencia: 0,
       facturas_otro: 0,
       monto_otro: 0,
     };
@@ -396,6 +402,9 @@ router.get("/:id/facturas", requireRoles("admin", "cajero"), async (req, res) =>
       } else if (mp === "tarjeta") {
         resumen.facturas_tarjeta += 1;
         resumen.monto_tarjeta += monto;
+      } else if (mp === "transferencia") {
+        resumen.facturas_transferencia += 1;
+        resumen.monto_transferencia += monto;
       } else {
         resumen.facturas_otro += 1;
         resumen.monto_otro += monto;
@@ -406,6 +415,7 @@ router.get("/:id/facturas", requireRoles("admin", "cajero"), async (req, res) =>
     resumen.total_monto = Number(resumen.total_monto.toFixed(2));
     resumen.monto_efectivo = Number(resumen.monto_efectivo.toFixed(2));
     resumen.monto_tarjeta = Number(resumen.monto_tarjeta.toFixed(2));
+    resumen.monto_transferencia = Number(resumen.monto_transferencia.toFixed(2));
     resumen.monto_otro = Number(resumen.monto_otro.toFixed(2));
 
     return res.json({ resumen, facturas });

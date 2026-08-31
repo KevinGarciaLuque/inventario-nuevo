@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import { Form } from "react-bootstrap";
-import { FaMoneyBillWave, FaCreditCard, FaRandom } from "react-icons/fa";
+import {
+  FaMoneyBillWave,
+  FaCreditCard,
+  FaRandom,
+  FaExchangeAlt,
+} from "react-icons/fa";
 import "../pages/RegistrarVenta/ventaPanel.css";
 
 const METODOS = [
   { value: "efectivo", label: "Efectivo", icon: FaMoneyBillWave },
   { value: "tarjeta", label: "Tarjeta", icon: FaCreditCard },
+  { value: "transferencia", label: "Transferencia", icon: FaExchangeAlt },
   { value: "mixto", label: "Mixto", icon: FaRandom },
 ];
 
@@ -40,11 +46,13 @@ export default function MetodosPagos({
     }
     setCambio(cambioCalculado);
 
+    const soloEfectivo = metodo === "efectivo" || metodo === "mixto";
+
     onCambioCalculado({
       metodo,
-      efectivo: metodo === "tarjeta" ? 0 : pagoEfectivo,
+      efectivo: soloEfectivo ? pagoEfectivo : 0,
       cambio: cambioCalculado,
-      monto_tarjeta: metodo === "tarjeta" ? totalNum : pagoTarjeta,
+      monto_tarjeta: metodo === "tarjeta" ? totalNum : metodo === "mixto" ? pagoTarjeta : 0,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [efectivo, montoTarjeta, metodo, total]);
@@ -111,6 +119,13 @@ export default function MetodosPagos({
         <div className="venta-info-box mt-3">
           Se cobrará el total (<strong>L {totalNum.toFixed(2)}</strong>) completo
           con tarjeta. No aplica cambio.
+        </div>
+      )}
+
+      {metodo === "transferencia" && (
+        <div className="venta-info-box mt-3">
+          Se cobrará el total (<strong>L {totalNum.toFixed(2)}</strong>) completo
+          por transferencia bancaria. No aplica cambio.
         </div>
       )}
 

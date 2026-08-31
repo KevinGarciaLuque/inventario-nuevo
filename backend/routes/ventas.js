@@ -311,6 +311,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     cambio = 0,
     monto_tarjeta = 0,
     edad_cliente = null, // ✅ NUEVO (opcional)
+    descuento_id = null, // ✅ Descuento elegido por el cajero (alcance VENTA)
     pedido_id = null, // ✅ NUEVO: si la venta nace de un pedido web
   } = req.body || {};
 
@@ -566,11 +567,39 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
         .filter(Boolean);
     }
 
-    const descuentosAplicables = await cargarDescuentosAplicables(connection, {
+    const autoAplicables = await cargarDescuentosAplicables(connection, {
       edad: edad_cliente,
       productoIds: productoIdsCarrito,
       categoriaIds: categoriaIdsCarrito,
     });
+
+    // ✅ Descuento elegido manualmente por el cajero (debe estar activo y vigente)
+    let manualAplicable = [];
+    if (descuento_id != null && String(descuento_id).trim() !== "") {
+      const [dRows] = await connection.query(
+        `SELECT * FROM descuentos
+         WHERE id = ?
+           AND activo = 1
+           AND (fecha_inicio IS NULL OR fecha_inicio <= CURDATE())
+           AND (fecha_fin IS NULL OR fecha_fin >= CURDATE())
+         LIMIT 1`,
+        [Number(descuento_id)],
+      );
+      if (!dRows.length) {
+        throw new Error(
+          "El descuento seleccionado no está disponible o ya no está vigente.",
+        );
+      }
+      manualAplicable = dRows;
+    }
+
+    // El manual va primero (mayor prioridad); evitamos duplicarlo si también
+    // apareció en los automáticos.
+    const idsManual = new Set(manualAplicable.map((d) => d.id));
+    const descuentosAplicables = [
+      ...manualAplicable,
+      ...autoAplicables.filter((d) => !idsManual.has(d.id)),
+    ];
 
     const totalesConDescuento = aplicarDescuentos({
       totalConImpuestoBruto: total, // total con ISV incluido
@@ -851,6 +880,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       msg.toLowerCase().includes("no hay cai activo") ||
       msg.toLowerCase().includes("cai agotado") ||
       msg.toLowerCase().includes("combo") ||
+      msg.toLowerCase().includes("descuento") ||
       msg.toLowerCase().includes("pedido")
     ) {
       return res.status(400).json({ message: msg });

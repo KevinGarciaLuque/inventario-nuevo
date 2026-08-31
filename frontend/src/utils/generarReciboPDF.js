@@ -536,6 +536,7 @@ const generarReciboPDF = ({
     const ETIQUETA_METODO = {
       efectivo: "Efectivo",
       tarjeta: "Tarjeta",
+      transferencia: "Transferencia",
       mixto: "Mixto (Efectivo + Tarjeta)",
     };
 
@@ -557,6 +558,9 @@ const generarReciboPDF = ({
       doc.text(`Pagado en efectivo: ${formatoLempiras(efectivo)}`, X_IZQ, posY);
       posY += 4;
       doc.text(`Cambio entregado: ${formatoLempiras(cambio)}`, X_IZQ, posY);
+      posY += 4;
+    } else if (metodo === "transferencia") {
+      doc.text("Pago realizado por transferencia", X_IZQ, posY);
       posY += 4;
     } else {
       doc.text("Pago realizado con tarjeta", X_IZQ, posY);

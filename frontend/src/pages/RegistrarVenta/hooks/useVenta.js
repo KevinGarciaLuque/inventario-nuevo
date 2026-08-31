@@ -217,6 +217,7 @@ export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado =
     consultarCai();
     cargarProductos();
     cargarImpuestos(); // ✅ IMPORTANTE
+    cargarDescuentosVenta();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -542,18 +543,24 @@ export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado =
   };
 
   // =======================
-  // ✅ CARGAR DESCUENTOS POR TIPO
+  // ✅ CARGAR DESCUENTOS APLICABLES A LA VENTA
+  //    (descuentos activos, vigentes y de alcance VENTA)
   // =======================
-  const cargarDescuentosPorTipo = async (tipo) => {
-    if (!tipo) {
-      setDescuentos([]);
-      return;
-    }
-
+  const cargarDescuentosVenta = async () => {
     setDescuentosLoading(true);
     try {
-      const res = await api.get(`/descuentos?tipo=${encodeURIComponent(tipo)}`);
-      setDescuentos(Array.isArray(res.data) ? res.data : []);
+      const res = await api.get("/descuentos", {
+        params: { activos: 1, alcance: "VENTA" },
+      });
+      const hoy = new Date().toISOString().slice(0, 10);
+      const vigentes = (Array.isArray(res.data) ? res.data : []).filter((d) => {
+        const desde = d?.fecha_inicio ? String(d.fecha_inicio).slice(0, 10) : null;
+        const hasta = d?.fecha_fin ? String(d.fecha_fin).slice(0, 10) : null;
+        if (desde && hoy < desde) return false;
+        if (hasta && hoy > hasta) return false;
+        return true;
+      });
+      setDescuentos(vigentes);
     } catch (e) {
       console.error(e);
       setDescuentos([]);
@@ -561,18 +568,6 @@ export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado =
       setDescuentosLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!TIPOS_CON_DESCUENTO.includes(tipoCliente)) {
-      setDescuentos([]);
-      setDescuentoSeleccionadoId("");
-      return;
-    }
-
-    setDescuentoSeleccionadoId("");
-    cargarDescuentosPorTipo(tipoCliente);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tipoCliente]);
 
 
   const descuentoClienteObj = useMemo(() => {
@@ -684,15 +679,24 @@ function getTasaItem(item) {
   const descuentoClienteMonto = useMemo(() => {
     if (!descuentoClienteObj) return 0;
 
-    const base = Number(total || 0);
-    const porcentaje = Number(descuentoClienteObj.porcentaje ?? 0) || 0;
-    const monto = Number(descuentoClienteObj.monto ?? 0) || 0;
+    const totalCI = Number(total || 0); // total con ISV incluido
+    if (totalCI <= 0) return 0;
+
+    const tipo = String(descuentoClienteObj.tipo || "PORCENTAJE").toUpperCase();
+    const valor = Number(descuentoClienteObj.valor ?? 0) || 0;
+    const aplicaSobre = String(
+      descuentoClienteObj.aplica_sobre || "SUBTOTAL",
+    ).toUpperCase();
+
+    // Misma lógica que el backend (aplicarDescuentos):
+    // base = total con ISV si aplica_sobre = TOTAL, si no el subtotal neto
+    const base = aplicaSobre === "TOTAL" ? totalCI : round2(totalCI / 1.15);
 
     let desc = 0;
-    if (porcentaje > 0) desc = base * (porcentaje / 100);
-    else desc = monto;
+    if (tipo === "PORCENTAJE") desc = base * (valor / 100);
+    else desc = Math.min(valor, base); // MONTO_FIJO
 
-    return round2(Math.max(0, Math.min(base, desc)));
+    return round2(Math.max(0, Math.min(totalCI, desc)));
   }, [descuentoClienteObj, total]);
 
   const totalConDescCliente = useMemo(() => {
@@ -810,9 +814,8 @@ function getTasaItem(item) {
         cambio: venta.cambio,
         monto_tarjeta: venta.monto_tarjeta || 0,
 
-        tipo_cliente: tipoCliente || null,
-        descuento_cliente_id: descuentoSeleccionadoId || null,
-        descuento_cliente_monto: descuentoClienteMonto || 0,
+        // ✅ Descuento seleccionado manualmente por el cajero (lo aplica el backend)
+        descuento_id: descuentoSeleccionadoId || null,
 
         pedido_id: pedidoId || null,
       });

@@ -302,6 +302,13 @@ export default function FacturasPage() {
               )}
 
               {String(facturaVista.metodo_pago || "").toLowerCase() ===
+                "transferencia" && (
+                <div className="mt-2">
+                  <b>Método de pago:</b> Transferencia
+                </div>
+              )}
+
+              {String(facturaVista.metodo_pago || "").toLowerCase() ===
                 "mixto" && (
                 <div className="mt-2">
                   <b>Método de pago:</b> Mixto (Efectivo + Tarjeta) <br />

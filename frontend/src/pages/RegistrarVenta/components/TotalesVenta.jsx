@@ -24,8 +24,6 @@ export default function TotalesVenta({
   descuentoClienteNombre = "",
 
   // ✅ props para el SELECT (van desde useVenta)
-  tipoCliente = "",
-  setTipoCliente = () => {},
   descuentos = [],
   descuentosLoading = false,
   descuentoSeleccionadoId = "",
@@ -37,21 +35,16 @@ export default function TotalesVenta({
 }) {
   const totalFinal = Number(totalConDescCliente ?? total ?? 0);
 
-  const TIPOS_CON_DESCUENTO = [
-    "tercera_edad",
-    "cuarta_edad",
-    "discapacitado",
-    "empleado",
-    "preferencial",
-  ];
-  const tipoAplica = TIPOS_CON_DESCUENTO.includes(tipoCliente);
+  const descuentosDisponibles = (descuentos || []).filter(
+    (d) => d?.activo !== false && d?.activo !== 0,
+  );
 
-  const ETIQUETA_TIPO_CLIENTE = {
-    tercera_edad: "Tercera edad",
-    cuarta_edad: "Cuarta edad",
-    discapacitado: "Discapacitado",
-    empleado: "Empleado",
-    preferencial: "Preferencial",
+  const etiquetaDescuento = (d) => {
+    const tipo = String(d?.tipo || "").toUpperCase();
+    const valor = Number(d?.valor ?? 0);
+    if (tipo === "PORCENTAJE") return `${d.nombre} (${valor}%)`;
+    if (tipo === "MONTO_FIJO") return `${d.nombre} (L ${valor.toFixed(2)})`;
+    return d?.nombre || "Descuento";
   };
 
   const hayDetalleImpuestos =
@@ -107,6 +100,7 @@ export default function TotalesVenta({
   const metodoResumen = (() => {
     const m = venta?.metodo_pago || "efectivo";
     if (m === "tarjeta") return "Pago con tarjeta";
+    if (m === "transferencia") return "Pago por transferencia";
     if (m === "mixto") {
       return `Tarjeta L ${Number(venta?.monto_tarjeta || 0).toFixed(2)} + Efectivo L ${Number(
         venta?.efectivo || 0,
@@ -140,62 +134,25 @@ export default function TotalesVenta({
           </div>
 
           <div className="mb-3">
-            <label className="venta-field-label">Tipo de cliente</label>
+            <label className="venta-field-label">Descuento a aplicar</label>
             <FormSelect
-              value={tipoCliente || ""}
-              onChange={(e) => {
-                setTipoCliente(e.target.value);
-                setDescuentoSeleccionadoId("");
-              }}
+              value={descuentoSeleccionadoId || ""}
+              onChange={(e) => setDescuentoSeleccionadoId(e.target.value)}
+              disabled={descuentosLoading}
             >
-              <option value="">-- Seleccionar --</option>
-              {Object.entries(ETIQUETA_TIPO_CLIENTE).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              <option value="">
+                {descuentosLoading
+                  ? "Cargando descuentos..."
+                  : descuentosDisponibles.length === 0
+                    ? "No hay descuentos disponibles"
+                    : "-- Sin descuento --"}
+              </option>
+              {descuentosDisponibles.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {etiquetaDescuento(d)}
                 </option>
               ))}
             </FormSelect>
-          </div>
-
-          <div className="mb-3">
-            <label className="venta-field-label">Descuento a aplicar</label>
-
-            {!tipoAplica ? (
-              <input
-                className="form-control"
-                disabled
-                value="Selecciona primero un tipo de cliente"
-              />
-            ) : (
-              <FormSelect
-                value={descuentoSeleccionadoId || ""}
-                onChange={(e) => setDescuentoSeleccionadoId(e.target.value)}
-                disabled={descuentosLoading}
-              >
-                <option value="">
-                  {descuentosLoading
-                    ? "Cargando descuentos..."
-                    : (descuentos || []).filter((d) => d?.activo !== false)
-                          .length === 0
-                      ? "No hay descuentos configurados para este tipo"
-                      : "-- Seleccionar descuento --"}
-                </option>
-
-                {(descuentos || [])
-                  .filter((d) => d?.activo !== false)
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nombre}
-                      {Number(d.porcentaje || 0) > 0
-                        ? ` (${d.porcentaje}%)`
-                        : ""}
-                      {Number(d.monto || 0) > 0
-                        ? ` (L ${Number(d.monto).toFixed(2)})`
-                        : ""}
-                    </option>
-                  ))}
-              </FormSelect>
-            )}
           </div>
 
           {descuentosLoading ? (

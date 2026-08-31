@@ -27,6 +27,45 @@ export const CartProvider = ({ children }) => {
   const cartIconRef = useRef(null);
   const [flights, setFlights] = useState([]);
   const [bump, setBump] = useState(0);
+  const audioCtxRef = useRef(null);
+
+  // Sonido tipo "pop/ding" sintetizado con Web Audio (sin archivos externos)
+  const playDropSound = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) audioCtxRef.current = new AudioCtx();
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") ctx.resume();
+
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      master.connect(ctx.destination);
+
+      // dos notas cortas ascendentes
+      [
+        { f: 660, t: 0 },
+        { f: 990, t: 0.08 },
+      ].forEach(({ f, t }) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(f, now + t);
+        g.gain.setValueAtTime(0.0001, now + t);
+        g.gain.exponentialRampToValueAtTime(1, now + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.22);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(now + t);
+        osc.stop(now + t + 0.25);
+      });
+    } catch {
+      /* silencioso: audio no disponible */
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -88,10 +127,20 @@ export const CartProvider = ({ children }) => {
     setFlights((prev) => [...prev, flight]);
   }, []);
 
-  const finishFlight = useCallback((id) => {
-    setFlights((prev) => prev.filter((f) => f.id !== id));
-    setBump((b) => b + 1);
-  }, []);
+  const finishFlight = useCallback(
+    (id) => {
+      setFlights((prev) => prev.filter((f) => f.id !== id));
+      setBump((b) => b + 1);
+      playDropSound();
+      // Vibración: funciona en Android; iOS Safari la ignora (Apple no la soporta)
+      try {
+        navigator.vibrate?.([18, 30, 40]);
+      } catch {
+        /* no soportado */
+      }
+    },
+    [playDropSound],
+  );
 
   const removeItem = (id) => {
     setItems((prev) => prev.filter((it) => it.id !== id));

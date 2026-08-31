@@ -252,6 +252,15 @@ export default function CierreCajaPage({ onChangePage = () => {} }) {
                   </div>
 
                   <div className="col-md-3">
+                    <div className="small text-muted">
+                      Total transferencia (sistema)
+                    </div>
+                    <div className="fw-semibold">
+                      {Number(resultado.total_transferencia || 0).toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div className="col-md-3">
                     <div className="small text-muted">Efectivo esperado</div>
                     <div className="fw-semibold">
                       {Number(resultado.esperado_efectivo || 0).toFixed(2)}

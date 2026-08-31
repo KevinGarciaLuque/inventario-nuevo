@@ -150,8 +150,6 @@ export default function RegistrarVentaPage({
         descuentoTotal={v.descuentoTotal}
         descuentoClienteMonto={v.descuentoClienteMonto}
         descuentoClienteNombre={v.descuentoClienteObj?.nombre || ""}
-        tipoCliente={v.tipoCliente}
-        setTipoCliente={v.setTipoCliente}
         descuentos={v.descuentos}
         descuentosLoading={v.descuentosLoading}
         descuentoSeleccionadoId={v.descuentoSeleccionadoId}
