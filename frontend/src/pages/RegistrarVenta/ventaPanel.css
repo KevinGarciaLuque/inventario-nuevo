@@ -56,27 +56,40 @@
 
 /* Tabs de método de pago (segmented control) */
 .venta-payment-tabs {
-  display: flex;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem;
   background: #f1f3f5;
   padding: 0.3rem;
   border-radius: 10px;
 }
 
 .venta-payment-tab {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  min-width: 0;
   border: none;
   background: transparent;
   color: #495057;
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.5rem 0.4rem;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.35rem;
   border-radius: 8px;
+  white-space: nowrap;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.venta-payment-tab svg {
+  flex-shrink: 0;
+}
+
+/* En pantallas anchas caben las 4 en una fila */
+@media (min-width: 1400px) {
+  .venta-payment-tabs {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .venta-payment-tab:hover {
