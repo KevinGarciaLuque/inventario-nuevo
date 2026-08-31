@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { Badge, Button, Form, Modal, Table } from "react-bootstrap";
-import { BsCheckCircleFill, BsExclamationTriangleFill } from "react-icons/bs";
+import { BsCheckCircleFill, BsExclamationTriangleFill, BsTrash } from "react-icons/bs";
 import api from "../api/axios";
+import { useUser } from "../context/UserContext";
 
 export default function CaiPage() {
+  const { user } = useUser();
+  const esSuperadmin = user?.rol === "superadmin";
   const [caiList, setCaiList] = useState([]);
   const [modal, setModal] = useState({ show: false, type: "", message: "" });
+  const [caiAEliminar, setCaiAEliminar] = useState(null);
   const [nuevoCai, setNuevoCai] = useState({
     cai_codigo: "",
     sucursal: "",
@@ -112,6 +116,28 @@ export default function CaiPage() {
     if (!cai) return false;
     const disponibles = cai.rango_fin - cai.correlativo_actual;
     return disponibles <= 50; // puedes ajustar el umbral
+  };
+
+  const eliminarCai = async () => {
+    const id = caiAEliminar?.id;
+    setCaiAEliminar(null);
+    if (!id) return;
+    try {
+      await api.delete(`/cai/${id}`);
+      setModal({
+        show: true,
+        type: "success",
+        message: "CAI eliminado correctamente",
+      });
+      cargarCai();
+    } catch (err) {
+      setModal({
+        show: true,
+        type: "error",
+        message:
+          err?.response?.data?.message || "No se pudo eliminar el CAI",
+      });
+    }
   };
 
   const cambiarEstado = async (id, activo) => {
@@ -299,29 +325,64 @@ export default function CaiPage() {
                   )}
                 </td>
                 <td>
-                  {item.activo ? (
-                    <Button
-                      size="sm"
-                      variant="warning"
-                      onClick={() => cambiarEstado(item.id, false)}
-                    >
-                      Desactivar
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="success"
-                      onClick={() => cambiarEstado(item.id, true)}
-                    >
-                      Activar
-                    </Button>
-                  )}
+                  <div className="d-flex gap-2 align-items-center">
+                    {item.activo ? (
+                      <Button
+                        size="sm"
+                        variant="warning"
+                        onClick={() => cambiarEstado(item.id, false)}
+                      >
+                        Desactivar
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => cambiarEstado(item.id, true)}
+                      >
+                        Activar
+                      </Button>
+                    )}
+                    {esSuperadmin && (
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        title="Eliminar CAI"
+                        onClick={() => setCaiAEliminar(item)}
+                      >
+                        <BsTrash />
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
       </div>
+
+      <Modal
+        show={Boolean(caiAEliminar)}
+        onHide={() => setCaiAEliminar(null)}
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          <BsExclamationTriangleFill size={56} color="#dc3545" className="mb-3" />
+          <h5 className="fw-bold mb-2">¿Eliminar este CAI?</h5>
+          <p className="text-muted mb-1">{caiAEliminar?.cai_codigo}</p>
+          <p className="text-muted small mb-3">
+            No se podrá eliminar si ya tiene facturas emitidas asociadas.
+          </p>
+          <div className="d-flex gap-2 justify-content-center">
+            <Button variant="secondary" onClick={() => setCaiAEliminar(null)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={eliminarCai}>
+              Eliminar
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
 
       <Modal
         show={modal.show}

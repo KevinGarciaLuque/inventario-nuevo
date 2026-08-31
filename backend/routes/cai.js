@@ -131,4 +131,32 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
+// ✅ Eliminar un CAI (SOLO SUPERADMIN)
+router.delete("/:id", async (req, res) => {
+  if (req.user?.rol !== "superadmin") {
+    return res
+      .status(403)
+      .json({ message: "Solo el superadministrador puede eliminar un CAI" });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const [result] = await db.query("DELETE FROM cai WHERE id = ?", [id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "CAI no encontrado" });
+    }
+    res.json({ message: "✅ CAI eliminado correctamente" });
+  } catch (error) {
+    if (error.code === "ER_ROW_IS_REFERENCED_2" || error.errno === 1451) {
+      return res.status(409).json({
+        message:
+          "No se puede eliminar: este CAI tiene facturas emitidas asociadas.",
+      });
+    }
+    console.error("❌ Error al eliminar CAI:", error);
+    res.status(500).json({ message: "Error al eliminar el CAI" });
+  }
+});
+
 module.exports = router;
