@@ -53,6 +53,12 @@ const CartPage = () => {
       return;
     }
 
+    // ✅ Abrimos la pestaña YA, dentro del gesto del usuario (click).
+    // Si esperamos al await del POST, el navegador móvil bloquea la apertura
+    // de WhatsApp y muestra el aviso de permisos "abrir otra aplicación".
+    const link = buildWaLink(telefonoPrincipal, mensajePedido(items, datos));
+    const waWin = window.open("about:blank", "_blank");
+
     setEnviando(true);
     try {
       await api.post("/public/pedidos", {
@@ -63,12 +69,13 @@ const CartPage = () => {
         items: items.map((it) => ({ producto_id: it.id, cantidad: it.cantidad })),
       });
 
-      const link = buildWaLink(telefonoPrincipal, mensajePedido(items, datos));
-      window.open(link, "_blank", "noopener,noreferrer");
+      if (waWin && !waWin.closed) waWin.location.href = link;
+      else window.location.href = link; // fallback si el navegador bloqueó la pestaña
 
       clear();
       setShowModal(false);
     } catch (err) {
+      if (waWin && !waWin.closed) waWin.close();
       setError(
         err.response?.data?.message ||
           "No se pudo enviar el pedido. Intenta de nuevo.",
