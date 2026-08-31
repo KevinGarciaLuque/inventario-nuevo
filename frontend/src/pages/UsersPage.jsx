@@ -3,6 +3,7 @@ import { Button, Modal } from "react-bootstrap";
 import api from "../api/axios";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import { useUser } from "../context/UserContext";
+import { ROL_LABEL } from "../config/modulos";
 
 export default function UsersPage() {
   const { user } = useUser();
@@ -11,7 +12,7 @@ export default function UsersPage() {
     nombre: "",
     email: "",
     password: "",
-    rol: "usuario",
+    rol: "almacen",
   });
   const [editUser, setEditUser] = useState(null);
 
@@ -66,7 +67,7 @@ export default function UsersPage() {
       } else {
         await api.post("/usuarios", form);
       }
-      setForm({ nombre: "", email: "", password: "", rol: "usuario" });
+      setForm({ nombre: "", email: "", password: "", rol: "almacen" });
       cargarUsuarios();
       showModal({
         type: "success",
@@ -161,7 +162,7 @@ export default function UsersPage() {
   return (
     <div className="container py-4 userspage-responsive-root">
       <h3 className="mb-4">Usuarios</h3>
-      {user?.rol === "admin" && (
+      {["admin", "superadmin"].includes(user?.rol) && (
         <form
           onSubmit={handleSubmit}
           className="row g-2 align-items-end mb-4 users-form-row"
@@ -207,8 +208,10 @@ export default function UsersPage() {
               value={form.rol}
               onChange={handleChange}
             >
+              {user?.rol === "superadmin" && (
+                <option value="superadmin">Super Administrador</option>
+              )}
               <option value="admin">Administrador</option>
-              <option value="usuario">Usuario</option>
               <option value="almacen">Almacén</option>
               <option value="cajero">Cajero</option>
             </select>
@@ -229,7 +232,7 @@ export default function UsersPage() {
                     nombre: "",
                     email: "",
                     password: "",
-                    rol: "usuario",
+                    rol: "almacen",
                   });
                 }}
               >
@@ -272,15 +275,20 @@ export default function UsersPage() {
                   <td>
                     <span
                       className={`badge bg-${
-                        u.rol === "admin" ? "primary" : "secondary"
+                        u.rol === "superadmin"
+                          ? "dark"
+                          : u.rol === "admin"
+                          ? "primary"
+                          : "secondary"
                       }`}
                     >
-                      {u.rol}
+                      {ROL_LABEL[u.rol] || u.rol}
                     </span>
                   </td>
                   <td>{u.creado_en?.split("T")[0]}</td>
                   <td>
-                    {user?.rol === "admin" && (
+                    {["admin", "superadmin"].includes(user?.rol) &&
+                      (u.rol !== "superadmin" || user?.rol === "superadmin") && (
                       <>
                         <button
                           className="btn btn-warning btn-sm me-1"

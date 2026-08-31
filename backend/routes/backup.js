@@ -7,12 +7,17 @@ const archiver = require("archiver");
 
 const auth = require("../middleware/auth");
 
-function soloAdmin(req, res, next) {
-  const rol = req.user?.rol || req.user?.role;
-  if (rol && String(rol).toLowerCase() !== "admin") {
+const { rolPuede } = require("./permisos");
+
+async function soloAdmin(req, res, next) {
+  try {
+    const rol = String(req.user?.rol || req.user?.role || "").toLowerCase();
+    if (rol === "superadmin") return next();
+    if (rol === "admin" && (await rolPuede("admin", "backup"))) return next();
     return res.status(403).json({ message: "No autorizado" });
+  } catch (e) {
+    return res.status(500).json({ message: "Error verificando permisos" });
   }
-  next();
 }
 
 function ensureDir(dir) {

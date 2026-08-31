@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "../context/UserContext";
+import { ROL_LABEL } from "../config/modulos";
 import NotificacionesPedidos from "./NotificacionesPedidos";
 import "../styles/Navbar.css";
 
@@ -74,8 +75,8 @@ export default function Navbar({ onLogout, onChangePage = () => {} }) {
             </span>
             <span className="nb-user-info d-none d-md-flex">
               <span className="nb-user-name">{user.nombre}</span>
-              <span className={`nb-user-badge ${user.rol === "admin" ? "nb-user-badge--admin" : ""}`}>
-                {user.rol === "admin" ? "Administrador" : user.rol}
+              <span className={`nb-user-badge ${["admin", "superadmin"].includes(user.rol) ? "nb-user-badge--admin" : ""}`}>
+                {ROL_LABEL[user.rol] || user.rol}
               </span>
             </span>
             <i className={`bi bi-chevron-down nb-chevron d-none d-md-inline ${menuOpen ? "nb-chevron--open" : ""}`} />

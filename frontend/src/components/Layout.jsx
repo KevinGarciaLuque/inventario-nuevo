@@ -31,6 +31,8 @@ import DescuentosPage from "../pages/Mantenimiento/DescuentosPage";
 import ImpuestosPage from "../pages/Mantenimiento/ImpuestosPage";
 import PromocionesPage from "../pages/Promociones/PromocionesPage";
 
+import PermisosPage from "../pages/Permisos/PermisosPage";
+
 import BitacoraPage from "./BitacoraPage";
 import ProductModal from "./ProductModal";
 import InactivityWatcher from "./InactivityWatcher";
@@ -42,13 +44,13 @@ import "../styles/Layout.css";
 import { useUser } from "../context/UserContext";
 
 export default function Layout({ onLogout }) {
-  const { user } = useUser();
+  const { user, puede, permisosCargados } = useUser();
 
   // ✅ Pantalla inicial calculada de una sola vez según el rol (sin
   // useEffect), para no renderizar "inventory" primero y luego cambiar
   // a "dashboard" — eso era lo que causaba el parpadeo justo tras el login.
   const [currentPage, setCurrentPage] = useState(() => {
-    if (user?.rol === "admin") return "dashboard";
+    if (user?.rol === "admin" || user?.rol === "superadmin") return "dashboard";
     if (user?.rol === "cajero") return "caja-apertura";
     return "inventory";
   });
@@ -113,6 +115,25 @@ export default function Layout({ onLogout }) {
   /* =====================================================
      ✅ Render de páginas centralizado
 ===================================================== */
+  // ✅ Bloquea el acceso a módulos no permitidos para el rol
+  const renderGuarded = () => {
+    if (permisosCargados && !puede(currentPage)) {
+      return (
+        <div className="text-center py-5">
+          <i
+            className="bi bi-shield-lock-fill text-warning"
+            style={{ fontSize: 56 }}
+          />
+          <h5 className="mt-3 mb-1">Acceso restringido</h5>
+          <p className="text-muted mb-0">
+            No tienes permisos para acceder a este módulo.
+          </p>
+        </div>
+      );
+    }
+    return renderPage();
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       // ✅ Dashboard (admin) -> usa tu ReportsPage como Dashboard
@@ -155,6 +176,9 @@ export default function Layout({ onLogout }) {
       // ✅ Gestión
       case "users":
         return <UsersPage />;
+
+      case "permisos":
+        return <PermisosPage />;
 
       case "clientes":
         return <ClientesPage />;
@@ -278,7 +302,7 @@ export default function Layout({ onLogout }) {
         <main className="flex-grow-1 p-4 overflow-auto main-content-inner">
           <div className="container-fluid py-3">
             <div className="card shadow-sm main-card-responsive">
-              <div className="card-body p-4">{renderPage()}</div>
+              <div className="card-body p-4">{renderGuarded()}</div>
             </div>
           </div>
         </main>

@@ -21,10 +21,12 @@ import {
   FaChevronDown,
   FaGlobe,
   FaCog,
+  FaUserShield,
 } from "react-icons/fa";
 import { MdSupportAgent } from "react-icons/md";
 
 import { useUser } from "../context/UserContext";
+import { ROL_LABEL } from "../config/modulos";
 import Soporte from "../components/Soporte";
 
 /* =====================================================
@@ -234,7 +236,7 @@ export default function Sidebar({
   isCollapsed = false,
   onToggle,
 }) {
-  const { user } = useUser();
+  const { user, puede } = useUser();
   const soporteRef = useRef(null);
   const navRef = useRef(null);
   const sectionRefs = useRef({});
@@ -245,8 +247,39 @@ export default function Sidebar({
 
   const sections = useMemo(() => {
     if (!user) return [];
-    return MENU_BY_ROLE[user.rol] || MENU_BY_ROLE.usuario;
-  }, [user]);
+
+    // El superadmin ve el menú completo (base admin) + módulo de Permisos.
+    // Los demás roles parten del menú completo y se filtran por permisos.
+    const base = MENU_BY_ROLE.admin.map((sec) => {
+      if (sec.title === "GESTIÓN USUARIOS" && user.rol === "superadmin") {
+        return {
+          ...sec,
+          items: [
+            ...sec.items,
+            { key: "permisos", label: "Permisos", icon: <FaUserShield /> },
+          ],
+        };
+      }
+      return sec;
+    });
+
+    if (user.rol === "superadmin") return base;
+
+    // Filtrar por permisos efectivos del rol
+    return base
+      .map((sec) => {
+        if (Array.isArray(sec.topItems)) {
+          const topItems = sec.topItems.filter((it) => puede(it.key));
+          return topItems.length ? { ...sec, topItems } : null;
+        }
+        if (Array.isArray(sec.items)) {
+          const items = sec.items.filter((it) => puede(it.key));
+          return items.length ? { ...sec, items } : null;
+        }
+        return sec;
+      })
+      .filter(Boolean);
+  }, [user, puede]);
 
   const topItems = useMemo(() => {
     const first = sections.find((s) => Array.isArray(s.topItems));
@@ -467,7 +500,7 @@ export default function Sidebar({
                 <div className="sb-user__info">
                   <span className="sb-user__name">{user.nombre}</span>
                   <span className="sb-user__role">
-                    {user.rol === "admin" ? "Administrador" : user.rol}
+                    {ROL_LABEL[user.rol] || user.rol}
                   </span>
                 </div>
               </div>

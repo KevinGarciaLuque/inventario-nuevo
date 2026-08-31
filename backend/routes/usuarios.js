@@ -9,14 +9,18 @@ const auth = require("./auth"); // ✅ carpeta "middleware" (singular)
    Helpers
 ===================================================== */
 const SOLO_ADMIN = (req, res) => {
-  if (!req.user || req.user.rol !== "admin") {
+  if (!req.user || !["admin", "superadmin"].includes(req.user.rol)) {
     res.status(403).json({ message: "Acceso no autorizado" });
     return false;
   }
   return true;
 };
 
-const ROLES_PERMITIDOS = ["admin", "usuario", "almacen", "cajero"];
+const ROLES_PERMITIDOS = ["superadmin", "admin", "almacen", "cajero"];
+
+// Solo un superadmin puede crear/editar/asignar el rol superadmin
+const puedeAsignarRol = (req, rol) =>
+  rol !== "superadmin" || req.user?.rol === "superadmin";
 
 
 /* =====================================================
@@ -84,6 +88,12 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Rol inválido" });
     }
 
+    if (!puedeAsignarRol(req, rol)) {
+      return res
+        .status(403)
+        .json({ message: "Solo el superadministrador puede asignar ese rol" });
+    }
+
     const correo = String(email).trim().toLowerCase();
 
     // Verificar email duplicado
@@ -131,6 +141,26 @@ router.put("/:id", auth, async (req, res) => {
 
     if (!ROLES_PERMITIDOS.includes(rol)) {
       return res.status(400).json({ message: "Rol inválido" });
+    }
+
+    if (!puedeAsignarRol(req, rol)) {
+      return res
+        .status(403)
+        .json({ message: "Solo el superadministrador puede asignar ese rol" });
+    }
+
+    // Un admin no puede modificar a un superadmin
+    const [target] = await db.query("SELECT rol FROM usuarios WHERE id = ?", [
+      Number(id),
+    ]);
+    if (
+      target.length &&
+      target[0].rol === "superadmin" &&
+      req.user?.rol !== "superadmin"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "No puedes modificar a un superadministrador" });
     }
 
     const correo = String(email).trim().toLowerCase();
@@ -218,6 +248,19 @@ router.delete("/:id", auth, async (req, res) => {
       return res
         .status(400)
         .json({ message: "No puedes eliminar tu propio usuario" });
+    }
+
+    const [target] = await db.query("SELECT rol FROM usuarios WHERE id = ?", [
+      Number(id),
+    ]);
+    if (
+      target.length &&
+      target[0].rol === "superadmin" &&
+      req.user?.rol !== "superadmin"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "No puedes eliminar a un superadministrador" });
     }
 
     const [result] = await db.query("DELETE FROM usuarios WHERE id=?", [
