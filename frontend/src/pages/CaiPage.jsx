@@ -10,6 +10,7 @@ export default function CaiPage() {
   const [caiList, setCaiList] = useState([]);
   const [modal, setModal] = useState({ show: false, type: "", message: "" });
   const [caiAEliminar, setCaiAEliminar] = useState(null);
+  const [caiAForzar, setCaiAForzar] = useState(null);
   const [nuevoCai, setNuevoCai] = useState({
     cai_codigo: "",
     sucursal: "",
@@ -119,11 +120,11 @@ export default function CaiPage() {
   };
 
   const eliminarCai = async () => {
-    const id = caiAEliminar?.id;
+    const item = caiAEliminar;
     setCaiAEliminar(null);
-    if (!id) return;
+    if (!item?.id) return;
     try {
-      await api.delete(`/cai/${id}`);
+      await api.delete(`/cai/${item.id}`);
       setModal({
         show: true,
         type: "success",
@@ -131,11 +132,35 @@ export default function CaiPage() {
       });
       cargarCai();
     } catch (err) {
+      if (err?.response?.status === 409 && err.response.data?.requiereFuerza) {
+        setCaiAForzar(item);
+        return;
+      }
       setModal({
         show: true,
         type: "error",
-        message:
-          err?.response?.data?.message || "No se pudo eliminar el CAI",
+        message: err?.response?.data?.message || "No se pudo eliminar el CAI",
+      });
+    }
+  };
+
+  const forzarEliminarCai = async () => {
+    const id = caiAForzar?.id;
+    setCaiAForzar(null);
+    if (!id) return;
+    try {
+      await api.delete(`/cai/${id}?force=1`);
+      setModal({
+        show: true,
+        type: "success",
+        message: "CAI eliminado. Las facturas se conservaron sin CAI asignado.",
+      });
+      cargarCai();
+    } catch (err) {
+      setModal({
+        show: true,
+        type: "error",
+        message: err?.response?.data?.message || "No se pudo eliminar el CAI",
       });
     }
   };
@@ -379,6 +404,30 @@ export default function CaiPage() {
             </Button>
             <Button variant="danger" onClick={eliminarCai}>
               Eliminar
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={Boolean(caiAForzar)}
+        onHide={() => setCaiAForzar(null)}
+        centered
+      >
+        <Modal.Body className="text-center py-4">
+          <BsExclamationTriangleFill size={56} color="#dc3545" className="mb-3" />
+          <h5 className="fw-bold mb-2">Este CAI tiene facturas emitidas</h5>
+          <p className="text-muted mb-3">
+            Si lo eliminas de todas formas, las facturas se conservarán pero
+            quedarán <strong>sin CAI asignado</strong>. Esta acción no se puede
+            deshacer.
+          </p>
+          <div className="d-flex gap-2 justify-content-center">
+            <Button variant="secondary" onClick={() => setCaiAForzar(null)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={forzarEliminarCai}>
+              Eliminar de todas formas
             </Button>
           </div>
         </Modal.Body>

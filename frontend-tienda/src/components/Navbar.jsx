@@ -39,7 +39,7 @@ const navItemVariants = {
 };
 
 const Navbar = ({ onQuieroSerCliente }) => {
-  const { totalItems } = useCart();
+  const { totalItems, cartIconRef, bump } = useCart();
   const { items: favoritos } = useFavorites();
   const [open, setOpen] = useState(false);
 
@@ -110,10 +110,23 @@ const Navbar = ({ onQuieroSerCliente }) => {
               {favoritos.length > 0 && <span className="cart-badge">{favoritos.length}</span>}
             </Link>
 
-            <Link to="/carrito" className="btn btn-warning position-relative" onClick={close}>
-              <i className="bi bi-cart3"></i>
-              {totalItems > 0 && <span className="cart-badge">{totalItems}</span>}
-            </Link>
+            <motion.div
+              key={bump}
+              initial={bump ? { scale: 0.8, rotate: -14 } : false}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 12 }}
+              style={{ display: "inline-block" }}
+            >
+              <Link
+                ref={cartIconRef}
+                to="/carrito"
+                className="btn btn-warning position-relative"
+                onClick={close}
+              >
+                <i className="bi bi-cart3"></i>
+                {totalItems > 0 && <span className="cart-badge">{totalItems}</span>}
+              </Link>
+            </motion.div>
           </div>
         </div>
       </nav>

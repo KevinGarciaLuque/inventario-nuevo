@@ -112,6 +112,12 @@ export default function NotificacionesPedidos({ onChangePage = () => {} }) {
           font-size: 1rem; cursor: pointer; transition: all .2s;
         }
         .np-bell:hover { background: #eef0f4; color: #2d3748; }
+        @media (max-width: 575.98px) {
+          .np-bell { width: 34px; height: 34px; font-size: 0.9rem; }
+        }
+        @media (max-width: 575.98px) {
+          .np-dropdown { width: calc(100vw - 24px); right: -8px; }
+        }
         .np-badge {
           position: absolute; top: -3px; right: -3px;
           min-width: 18px; height: 18px; padding: 0 4px;

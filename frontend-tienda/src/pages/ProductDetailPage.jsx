@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../api/axios.js";
 import { getImgSrc } from "../utils/img.js";
@@ -10,7 +10,8 @@ const money = (n) => `L ${Number(n || 0).toFixed(2)}`;
 
 const ProductDetailPage = () => {
   const { id } = useParams();
-  const { addItem } = useCart();
+  const { addItem, flyToCart } = useCart();
+  const detailImgRef = useRef(null);
   const { telefonoPrincipal } = useSiteConfig();
 
   const [producto, setProducto] = useState(null);
@@ -54,6 +55,7 @@ const ProductDetailPage = () => {
 
   const handleAgregar = () => {
     addItem(producto, cantidad);
+    flyToCart(detailImgRef.current, producto.imagen);
     setAgregado(true);
   };
 
@@ -76,6 +78,7 @@ const ProductDetailPage = () => {
       <div className="row g-5">
         <div className="col-md-6">
           <img
+            ref={detailImgRef}
             src={getImgSrc(producto.imagen)}
             alt={producto.nombre}
             className="img-fluid rounded-4 w-100 product-detail-img"

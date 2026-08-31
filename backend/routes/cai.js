@@ -140,8 +140,34 @@ router.delete("/:id", async (req, res) => {
   }
 
   const { id } = req.params;
+  const force = ["1", "true"].includes(String(req.query.force).toLowerCase());
 
   try {
+    if (force) {
+      // Elimina el CAI conservando las facturas (quedan sin CAI asignado)
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.query("UPDATE facturas SET cai_id = NULL WHERE cai_id = ?", [
+          id,
+        ]);
+        const [r] = await conn.query("DELETE FROM cai WHERE id = ?", [id]);
+        await conn.commit();
+        if (r.affectedRows === 0) {
+          return res.status(404).json({ message: "CAI no encontrado" });
+        }
+        return res.json({
+          message:
+            "✅ CAI eliminado. Las facturas emitidas se conservaron sin CAI asignado.",
+        });
+      } catch (e) {
+        await conn.rollback();
+        throw e;
+      } finally {
+        conn.release();
+      }
+    }
+
     const [result] = await db.query("DELETE FROM cai WHERE id = ?", [id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "CAI no encontrado" });
@@ -151,7 +177,8 @@ router.delete("/:id", async (req, res) => {
     if (error.code === "ER_ROW_IS_REFERENCED_2" || error.errno === 1451) {
       return res.status(409).json({
         message:
-          "No se puede eliminar: este CAI tiene facturas emitidas asociadas.",
+          "Este CAI tiene facturas emitidas asociadas.",
+        requiereFuerza: true,
       });
     }
     console.error("❌ Error al eliminar CAI:", error);

@@ -149,26 +149,44 @@ export default function Navbar({ onLogout, onChangePage = () => {} }) {
           display: none;
         }
 
+        .nb-actions { flex: 0 0 auto; }
+
         @media (max-width: 991.98px) {
-          /* En móvil centrar el brand completamente */
           .nb-brand-desktop { display: none; }
+
+          /* Deja espacio para el botón flotante del menú (FAB) */
+          .navbar-main { padding-left: 3.75rem !important; }
+
           .nb-wrapper {
-            justify-content: center !important;
-            position: relative;
+            justify-content: space-between;
+            gap: 0.5rem;
+            min-width: 0;
           }
           .nb-brand {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            position: static;
+            transform: none;
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
           }
           .nb-brand-mobile {
             display: flex;
             align-items: center;
             gap: 0.45rem;
+            min-width: 0;
           }
-          /* Usuario a la derecha */
-          .dropdown {
+          .nb-brand-mobile__text { min-width: 0; overflow: hidden; }
+          .nb-brand-mobile__title,
+          .nb-brand-mobile__sub {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+          .nb-actions {
             margin-left: auto;
+            flex-shrink: 0;
+          }
+          .dropdown {
             position: relative;
             z-index: 10;
           }
@@ -253,6 +271,29 @@ export default function Navbar({ onLogout, onChangePage = () => {} }) {
         .dropdown-menu .dropdown-item {
           border-radius: 8px; font-size: 0.875rem;
           padding: 0.5rem 0.75rem; transition: background 0.15s;
+        }
+
+        /* ── Teléfonos ── */
+        @media (max-width: 575.98px) {
+          .navbar-main {
+            padding-left: 3.5rem !important;
+            padding-right: 0.6rem !important;
+          }
+          .nb-actions { gap: 0.4rem !important; }
+          .nb-brand-mobile__logo { width: 28px; height: 28px; font-size: 0.9rem; }
+          .nb-brand-mobile__title { font-size: 0.78rem; }
+          .nb-brand-mobile__sub { font-size: 0.58rem; }
+          .nb-avatar { width: 30px; height: 30px; font-size: 0.82rem; }
+          .nb-user-btn { padding: 0.3rem; gap: 0; }
+        }
+
+        /* ── Teléfonos pequeños ── */
+        @media (max-width: 400px) {
+          .nb-brand-mobile__sub { display: none; }
+          .nb-brand-mobile__logo { width: 26px; height: 26px; }
+        }
+        @media (max-width: 340px) {
+          .nb-brand-mobile__text { display: none; }
         }
       `}</style>
     </nav>

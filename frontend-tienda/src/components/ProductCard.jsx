@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { getImgSrc } from "../utils/img.js";
 import { buildWaLink, mensajeMayorista } from "../utils/whatsapp.js";
@@ -15,9 +16,15 @@ const esNuevo = (creadoEn) => {
 };
 
 const ProductCard = ({ producto }) => {
-  const { addItem } = useCart();
+  const { addItem, flyToCart } = useCart();
   const { telefonoPrincipal } = useSiteConfig();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const imgRef = useRef(null);
+
+  const handleAgregar = () => {
+    addItem(producto);
+    flyToCart(imgRef.current, producto.imagen);
+  };
 
   const precioFinal =
     producto.descuento > 0
@@ -35,7 +42,7 @@ const ProductCard = ({ producto }) => {
     <div className="product-card h-100 d-flex flex-column">
       <div className="product-card-img-wrap">
         <Link to={`/producto/${producto.id}`}>
-          <img src={getImgSrc(producto.imagen)} alt={producto.nombre} loading="lazy" />
+          <img ref={imgRef} src={getImgSrc(producto.imagen)} alt={producto.nombre} loading="lazy" />
         </Link>
 
         <div className="product-card-badges">
@@ -94,7 +101,7 @@ const ProductCard = ({ producto }) => {
         <div className="mt-auto d-flex flex-column gap-2">
           <button
             className="btn btn-warning fw-semibold btn-sm"
-            onClick={() => addItem(producto)}
+            onClick={handleAgregar}
           >
             <i className="bi bi-cart-plus me-1"></i> Agregar al carrito
           </button>
