@@ -8,7 +8,7 @@ const requireRoles =
   (...roles) =>
   (req, res, next) => {
     const rol = req.user?.rol;
-    if (!rol || !roles.includes(rol)) {
+    if (!rol || (!roles.includes(rol) && rol !== "superadmin")) {
       return res.status(403).json({ message: "Acceso denegado." });
     }
     next();

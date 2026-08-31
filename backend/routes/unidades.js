@@ -19,7 +19,7 @@ const mustBePositiveInt = (v) => {
    (req.user lo pone el middleware global auth.js)
 ===================================================== */
 const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.rol !== "admin") {
+  if (!req.user || !["admin", "superadmin"].includes(req.user.rol)) {
     return res.status(403).json({
       message: "Acceso denegado. Solo administrador.",
     });

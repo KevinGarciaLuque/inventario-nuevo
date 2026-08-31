@@ -20,7 +20,7 @@ const requireRoles =
   (...roles) =>
   (req, res, next) => {
     const rol = req.user?.rol;
-    if (!rol || !roles.includes(rol)) {
+    if (!rol || (!roles.includes(rol) && rol !== "superadmin")) {
       return res.status(403).json({ message: "Acceso denegado." });
     }
     next();
@@ -40,7 +40,7 @@ router.get("/estado", requireRoles("admin", "cajero"), async (req, res) => {
     // ✅ admin puede consultar otro usuario por query param
     let targetUserId = userId;
 
-    if (rol === "admin") {
+    if (rol === "admin" || rol === "superadmin") {
       const q = Number(req.query.usuario_id);
       if (Number.isInteger(q) && q > 0) targetUserId = q;
     }

@@ -10,8 +10,8 @@ const auth = require("../middleware/auth");
    SOLO ADMIN (mismo criterio rol/role)
 ===================================================== */
 function soloAdmin(req, res, next) {
-  const rol = req.user?.rol || req.user?.role;
-  if (!rol || String(rol).toLowerCase() !== "admin") {
+  const rol = String(req.user?.rol || req.user?.role || "").toLowerCase();
+  if (rol !== "admin" && rol !== "superadmin") {
     return res.status(403).json({ message: "No autorizado" });
   }
   next();
