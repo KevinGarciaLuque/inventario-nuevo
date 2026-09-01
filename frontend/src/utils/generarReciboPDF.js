@@ -329,14 +329,19 @@ const generarReciboPDF = ({
 
     // ===== CAI (solo en Factura)
     if (esFactura) {
+      // Rango autorizado: 16 dígitos con ceros a la izquierda
+      const fmtRango = (v) => {
+        const soloDigitos = String(v ?? "").replace(/\D/g, "");
+        if (!soloDigitos) return "-";
+        return soloDigitos.padStart(16, "0").slice(-16);
+      };
+
       doc.setFontSize(9);
       doc.text(`CAI: ${cai.cai_codigo || "-"}`, X_IZQ, posY);
       posY += 4;
-      doc.text(
-        `Rango: ${cai.rango_inicio || "-"} - ${cai.rango_fin || "-"}`,
-        X_IZQ,
-        posY,
-      );
+      doc.text(`Rango inicial: ${fmtRango(cai.rango_inicio)}`, X_IZQ, posY);
+      posY += 4;
+      doc.text(`Rango final: ${fmtRango(cai.rango_fin)}`, X_IZQ, posY);
       posY += 4;
       doc.text(`Autorizado: ${cai.fecha_autorizacion || "-"}`, X_IZQ, posY);
       posY += 4;

@@ -9,7 +9,7 @@ import {
   clearReciboConfigCache,
 } from "../../utils/reciboConfig";
 
-const MAX_LOGO_BYTES = 2_500_000; // ~2.5 MB
+const MAX_LOGO_BYTES = 7 * 1024 * 1024; // 7 MB
 
 export default function ReciboConfigPage() {
   const [cfg, setCfg] = useState(DEFAULT_RECIBO_CONFIG);
@@ -43,7 +43,7 @@ export default function ReciboConfigPage() {
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      setModal({ show: true, type: "error", message: "La imagen es muy grande. Máximo 2.5 MB." });
+      setModal({ show: true, type: "error", message: "La imagen es muy grande. Máximo 7 MB." });
       return;
     }
     const reader = new FileReader();
@@ -131,7 +131,7 @@ export default function ReciboConfigPage() {
               </div>
               <div>
                 <Form.Control ref={fileRef} type="file" accept="image/*" size="sm" onChange={onLogo} />
-                <small className="text-muted">PNG/JPG, máx. 2.5 MB. Se guarda en la base de datos.</small>
+                <small className="text-muted">PNG/JPG, máx. 7 MB. Se guarda en la base de datos.</small>
                 {cfg.logo_base64 && (
                   <div className="mt-1">
                     <Button size="sm" variant="outline-danger" onClick={quitarLogo}>
@@ -341,7 +341,8 @@ function TicketPreview({ cfg, tipo }) {
       {esFactura && (
         <div style={{ fontSize: 10 }}>
           CAI: XXXXXX-XXXXXX-XXXXXX<br />
-          Rango: 1 - 100<br />
+          Rango inicial: 0000000000000001<br />
+          Rango final: 0000000000000100<br />
         </div>
       )}
 

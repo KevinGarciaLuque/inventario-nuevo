@@ -129,9 +129,9 @@ router.put("/", soloSuperadmin, async (req, res) => {
       if (logo && !/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(logo)) {
         return res.status(400).json({ message: "El logo debe ser una imagen en base64 (dataURL)" });
       }
-      // límite defensivo ~3.5MB de texto base64
-      if (logo.length > 3_700_000) {
-        return res.status(413).json({ message: "El logo es demasiado grande (máx. ~2.5 MB)" });
+      // 7 MB de imagen ≈ ~9.4 MB de texto base64 (+ margen)
+      if (logo.length > 10_000_000) {
+        return res.status(413).json({ message: "El logo es demasiado grande (máx. 7 MB)" });
       }
     }
 
