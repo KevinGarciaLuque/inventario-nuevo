@@ -15,6 +15,10 @@ export default function FacturasPage() {
   // Evita doble click de impresión
   const [imprimiendoId, setImprimiendoId] = useState(null);
 
+  // Paginación
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
   useEffect(() => {
     cargarFacturas();
   }, []);
@@ -41,6 +45,16 @@ export default function FacturasPage() {
       return num.includes(q) || cai.includes(q);
     });
   }, [facturas, busqueda]);
+
+  const totalItems = filtradas.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageItems = filtradas.slice(startIdx, startIdx + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [busqueda, pageSize]);
 
   // ✅ Imprimir (COPIA) usando autoImprimir
   const manejarImpresion = async (factura) => {
@@ -136,10 +150,10 @@ export default function FacturasPage() {
       </InputGroup>
 
       <div
-        className="bg-white shadow-sm rounded mb-4"
+        className="bg-white shadow-sm rounded mb-3"
         style={{
-          maxHeight: "400px",
-          height: "300px",
+          maxHeight: "calc(100vh - 280px)",
+          minHeight: "260px",
           overflowY: "auto",
           overflowX: "auto",
           border: "1px solid #dee2e6",
@@ -172,9 +186,9 @@ export default function FacturasPage() {
                 </td>
               </tr>
             ) : (
-              filtradas.map((f, index) => (
+              pageItems.map((f, index) => (
                 <tr key={f.id}>
-                  <td>{index + 1}</td>
+                  <td>{startIdx + index + 1}</td>
                   <td>
                     <span
                       className={`badge bg-${
@@ -220,6 +234,49 @@ export default function FacturasPage() {
           </tbody>
         </Table>
       </div>
+
+      {totalItems > 0 && (
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2 mb-4">
+          <div className="text-muted small">
+            Mostrando <strong>{startIdx + 1}</strong>–
+            <strong>{startIdx + pageItems.length}</strong> de{" "}
+            <strong>{totalItems}</strong>
+          </div>
+          <div className="d-flex align-items-center flex-wrap gap-2">
+            <Form.Select
+              size="sm"
+              className="w-auto"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {[25, 50, 100, 200].map((n) => (
+                <option key={n} value={n}>
+                  {n} / página
+                </option>
+              ))}
+            </Form.Select>
+            <div className="btn-group btn-group-sm">
+              <Button
+                variant="outline-secondary"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                ‹
+              </Button>
+              <Button variant="outline-secondary" disabled>
+                {currentPage} / {totalPages}
+              </Button>
+              <Button
+                variant="outline-secondary"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+              >
+                ›
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Vista Previa */}
       <Modal

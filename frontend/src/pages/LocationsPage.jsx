@@ -15,6 +15,8 @@ export default function LocationsPage() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Para edición
   const [editId, setEditId] = useState(null);
@@ -65,6 +67,16 @@ export default function LocationsPage() {
   useEffect(() => {
     cargarUbicaciones();
   }, []);
+
+  const totalItems = ubicaciones.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageItems = ubicaciones.slice(startIdx, startIdx + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize, totalItems]);
 
   // Agregar ubicación
   const handleAdd = async (e) => {
@@ -184,10 +196,10 @@ export default function LocationsPage() {
       )}
       {/* TABLA RESPONSIVA */}
       <div
-        className="bg-white shadow-sm rounded mb-4"
+        className="bg-white shadow-sm rounded"
         style={{
-          maxHeight: "400px",
-          height: "300px", // 🔥 Fijamos altura para scroll vertical
+          maxHeight: "calc(100vh - 330px)",
+          minHeight: "240px",
           overflowY: "auto",
           overflowX: "auto", // 🔁 Scroll horizontal en pantallas pequeñas
           border: "1px solid #dee2e6", // 🧱 Borde visual opcional
@@ -205,7 +217,7 @@ export default function LocationsPage() {
             </tr>
           </thead>
           <tbody>
-            {ubicaciones.map((ub) => (
+            {pageItems.map((ub) => (
               <tr key={ub.id}>
                 <td>{ub.nombre}</td>
                 <td style={{ wordBreak: "break-word" }}>{ub.descripcion}</td>
@@ -243,6 +255,52 @@ export default function LocationsPage() {
           </tbody>
         </table>
       </div>
+
+      {totalItems > pageSize && (
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2 mb-4">
+          <div className="text-muted small">
+            Mostrando <strong>{startIdx + 1}</strong>–
+            <strong>{startIdx + pageItems.length}</strong> de{" "}
+            <strong>{totalItems}</strong>
+          </div>
+          <div className="d-flex align-items-center flex-wrap gap-2">
+            <select
+              className="form-select form-select-sm w-auto"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+            >
+              {[25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} / página
+                </option>
+              ))}
+            </select>
+            <div className="btn-group btn-group-sm">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+              >
+                ‹
+              </button>
+              <button type="button" className="btn btn-outline-secondary" disabled>
+                {currentPage} / {totalPages}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {totalItems <= pageSize && <div className="mb-4" />}
 
       <style>{`
   .sticky-top { position: sticky; top: 0; z-index: 2; background: #f8f9fa; }

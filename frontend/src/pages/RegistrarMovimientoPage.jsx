@@ -206,11 +206,18 @@ export default function RegistrarMovimientoPage() {
         </div>
       </div>
 
+      <div className="d-flex justify-content-between align-items-center mb-1">
+        <small className="text-muted">
+          {productosFiltrados.length} producto
+          {productosFiltrados.length === 1 ? "" : "s"}
+        </small>
+      </div>
+
       <div
         className="bg-white shadow-sm rounded mb-4"
         style={{
-          maxHeight: "300px",
-          height: "180px", // 🔥 Altura fija para scroll vertical
+          maxHeight: "calc(100vh - 430px)",
+          minHeight: "200px",
           overflowY: "auto",
           overflowX: "auto", // 🔁 Scroll horizontal para celular
           border: "1px solid #dee2e6", // 🧱 Opcional para mejor visibilidad
@@ -234,6 +241,13 @@ export default function RegistrarMovimientoPage() {
             </tr>
           </thead>
           <tbody>
+            {productosFiltrados.length === 0 && (
+              <tr>
+                <td colSpan={6} className="text-center text-muted py-4">
+                  No hay productos que coincidan
+                </td>
+              </tr>
+            )}
             {productosFiltrados.map((p) => (
               <tr
                 key={p.id}

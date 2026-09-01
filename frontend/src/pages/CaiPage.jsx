@@ -310,8 +310,8 @@ export default function CaiPage() {
       <div
         className="bg-white shadow-sm rounded mb-4"
         style={{
-          maxHeight: "400px",
-          height: "300px", // 🔥 Altura fija para scroll vertical
+          maxHeight: "calc(100vh - 420px)",
+          minHeight: "180px",
           overflowY: "auto",
           overflowX: "auto", // 🔁 Scroll horizontal para celulares
           border: "1px solid #dee2e6", // opcional para visualización clara

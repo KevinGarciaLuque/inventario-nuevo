@@ -18,12 +18,18 @@ export default function MovimientosPage() {
     producto_id: "",
   });
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   useEffect(() => {
     api.get("/usuarios").then((res) => setUsuarios(res.data));
     api.get("/productos").then((res) => setProductos(res.data));
     cargarMovimientos();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const cargarMovimientos = async () => {
     setLoading(true);
@@ -32,12 +38,19 @@ export default function MovimientosPage() {
       Object.keys(params).forEach((k) => params[k] === "" && delete params[k]);
       const res = await api.get("/movimientos", { params });
       setMovimientos(res.data);
+      setPage(1);
     } catch {
       alert("No se pudo cargar el historial");
       setMovimientos([]);
     }
     setLoading(false);
   };
+
+  const totalItems = movimientos.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageItems = movimientos.slice(startIdx, startIdx + pageSize);
 
   const handleFiltro = (e) => {
     const { name, value } = e.target;
@@ -211,8 +224,8 @@ export default function MovimientosPage() {
           <div
             className="bg-white"
             style={{
-              maxHeight: "400px",
-              height: "250px", // 🔥 Fijamos altura
+              maxHeight: "calc(100vh - 300px)",
+              minHeight: "260px",
               overflowY: "auto",
               overflowX: "auto",
               border: "1px solid #dee2e6", // 🧱 Borde visual
@@ -248,7 +261,7 @@ export default function MovimientosPage() {
                     </td>
                   </tr>
                 ) : (
-                  movimientos.map((m) => (
+                  pageItems.map((m) => (
                     <tr key={m.id}>
                       <td>
                         {new Date(m.fecha).toLocaleString("es-HN", {
@@ -284,6 +297,62 @@ export default function MovimientosPage() {
               </tbody>
             </table>
           </div>
+
+          {!loading && totalItems > 0 && (
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-top bg-white">
+              <div className="text-muted small">
+                Mostrando <strong>{startIdx + 1}</strong>–
+                <strong>{startIdx + pageItems.length}</strong> de{" "}
+                <strong>{totalItems}</strong> movimientos
+              </div>
+              <div className="d-flex align-items-center flex-wrap gap-2">
+                <select
+                  className="form-select form-select-sm w-auto"
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  {[25, 50, 100, 200].map((n) => (
+                    <option key={n} value={n}>
+                      {n} / página
+                    </option>
+                  ))}
+                </select>
+                <nav>
+                  <ul className="pagination pagination-sm mb-0">
+                    <li
+                      className={`page-item ${currentPage <= 1 ? "disabled" : ""}`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() => setPage(currentPage - 1)}
+                        disabled={currentPage <= 1}
+                      >
+                        ‹
+                      </button>
+                    </li>
+                    <li className="page-item disabled">
+                      <span className="page-link">
+                        {currentPage} / {totalPages}
+                      </span>
+                    </li>
+                    <li
+                      className={`page-item ${
+                        currentPage >= totalPages ? "disabled" : ""
+                      }`}
+                    >
+                      <button
+                        className="page-link"
+                        onClick={() => setPage(currentPage + 1)}
+                        disabled={currentPage >= totalPages}
+                      >
+                        ›
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

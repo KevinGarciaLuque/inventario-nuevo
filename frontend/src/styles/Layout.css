@@ -193,6 +193,39 @@ body.sidebar-mobile-open {
   border-left: 2px solid #dee2e6 !important;
 }
 
+/* ── Tarjetas de inventario en móvil: evitar que el stock / los badges
+   se salgan del borde derecho ── */
+.min-w-0 {
+  min-width: 0 !important;
+}
+.inventory-card {
+  overflow: hidden;
+}
+.inventory-card--variant {
+  /* menos sangría en pantallas chicas para no comerse el ancho */
+  margin-left: 0.5rem;
+}
+.inv-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  row-gap: 0.15rem;
+}
+.inv-name-line .badge {
+  white-space: nowrap;
+}
+.inv-name-text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.inventory-card__code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Imagen/miniatura clickeable que abre el modal de detalle */
 .inventory-img-clickable {
   cursor: pointer;

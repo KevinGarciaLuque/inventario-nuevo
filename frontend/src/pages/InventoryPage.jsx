@@ -34,6 +34,8 @@ export default function InventoryPage({ onView }) {
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
   const [stockFilter, setStockFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(false);
    const [impuestos, setImpuestos] = useState([]);
 
@@ -262,6 +264,18 @@ export default function InventoryPage({ onView }) {
     return resultado;
   })();
 
+  // ── Paginación (client-side sobre la lista ya filtrada y agrupada) ──
+  const totalItems = filteredAgrupado.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageItems = filteredAgrupado.slice(startIdx, startIdx + pageSize);
+
+  // Al cambiar filtros o tamaño de página, vuelve a la primera página
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, location, stockFilter, pageSize]);
+
   // Exportar catálogo en PDF con los productos actualmente filtrados
   // (respeta el filtro de categoría/ubicación/búsqueda de la pantalla).
   const handleImprimirCatalogo = async () => {
@@ -432,7 +446,7 @@ export default function InventoryPage({ onView }) {
                   </td>
                 </tr>
               ) : (
-                filteredAgrupado.map((item) => (
+                pageItems.map((item) => (
                   <tr key={item.id}>
                     <td>
                       {item.imagen ? (
@@ -550,7 +564,7 @@ export default function InventoryPage({ onView }) {
           </div>
         ) : (
           <div className="d-flex flex-column gap-2">
-            {filteredAgrupado.map((item) => (
+            {pageItems.map((item) => (
               <div
                 key={item.id}
                 className={`inventory-card bg-white rounded shadow-sm border p-2 ${
@@ -581,26 +595,26 @@ export default function InventoryPage({ onView }) {
                   </div>
                   <div className="flex-grow-1 min-w-0">
                     <div className="d-flex justify-content-between align-items-start gap-2">
-                      <div className="min-w-0">
-                        <div className="fw-semibold text-truncate">
+                      <div className="min-w-0 flex-grow-1">
+                        <div className="inv-name-line">
                           {item.producto_padre_id && (
-                            <span className="inventory-variant-branch">└─ </span>
+                            <span className="inventory-variant-branch">└─</span>
                           )}
-                          {item.nombre}
+                          <span className="inv-name-text">{item.nombre}</span>
                           {item.variante_nombre && (
-                            <span className="badge bg-light text-secondary border ms-1">
+                            <span className="badge bg-light text-secondary border">
                               {item.variante_nombre}
                             </span>
                           )}
                           {!item.producto_padre_id &&
                             totalVariantesPorPadre[item.id] > 0 && (
-                              <span className="badge bg-light text-secondary border ms-1">
+                              <span className="badge bg-light text-secondary border">
                                 {totalVariantesPorPadre[item.id]} variantes
                               </span>
                             )}
                         </div>
                         <div
-                          className="text-muted small inventory-img-clickable d-inline-block"
+                          className="text-muted small inventory-img-clickable inventory-card__code"
                           onClick={() =>
                             setBarcodeModal({ show: true, product: item })
                           }
@@ -659,6 +673,22 @@ export default function InventoryPage({ onView }) {
         )}
       </div>
 
+      {!loading && totalItems > 0 && (
+        <PaginacionInventario
+          page={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          startIdx={startIdx}
+          shownCount={pageItems.length}
+          onPage={(p) => {
+            setPage(p);
+            flashRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+          }}
+          onPageSize={setPageSize}
+        />
+      )}
+
       <EditProductModal
         show={editModal.show}
         product={editModal.product}
@@ -679,5 +709,96 @@ export default function InventoryPage({ onView }) {
 
       {/* Estilo para encabezado sticky corregido */}
     </section>
+  );
+}
+
+// ── Barra de paginación reutilizable para el inventario ──
+function PaginacionInventario({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  startIdx,
+  shownCount,
+  onPage,
+  onPageSize,
+}) {
+  const desde = totalItems === 0 ? 0 : startIdx + 1;
+  const hasta = startIdx + shownCount;
+
+  // Ventana compacta de números de página (máx. 5 + primera/última)
+  const paginas = [];
+  const rango = 2;
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= page - rango && p <= page + rango)) {
+      paginas.push(p);
+    } else if (paginas[paginas.length - 1] !== "...") {
+      paginas.push("...");
+    }
+  }
+
+  return (
+    <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+      <div className="text-muted small">
+        Mostrando <strong>{desde}</strong>–<strong>{hasta}</strong> de{" "}
+        <strong>{totalItems}</strong> productos
+      </div>
+
+      <div className="d-flex align-items-center flex-wrap gap-2">
+        <select
+          className="form-select form-select-sm w-auto"
+          value={pageSize}
+          onChange={(e) => onPageSize(Number(e.target.value))}
+          title="Productos por página"
+        >
+          {[25, 50, 100, 200].map((n) => (
+            <option key={n} value={n}>
+              {n} / página
+            </option>
+          ))}
+        </select>
+
+        <nav>
+          <ul className="pagination pagination-sm mb-0">
+            <li className={`page-item ${page <= 1 ? "disabled" : ""}`}>
+              <button
+                className="page-link"
+                onClick={() => onPage(page - 1)}
+                disabled={page <= 1}
+              >
+                ‹
+              </button>
+            </li>
+
+            {paginas.map((p, i) =>
+              p === "..." ? (
+                <li key={`e${i}`} className="page-item disabled">
+                  <span className="page-link">…</span>
+                </li>
+              ) : (
+                <li
+                  key={p}
+                  className={`page-item ${p === page ? "active" : ""}`}
+                >
+                  <button className="page-link" onClick={() => onPage(p)}>
+                    {p}
+                  </button>
+                </li>
+              ),
+            )}
+
+            <li className={`page-item ${page >= totalPages ? "disabled" : ""}`}>
+              <button
+                className="page-link"
+                onClick={() => onPage(page + 1)}
+                disabled={page >= totalPages}
+              >
+                ›
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
   );
 }
