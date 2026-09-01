@@ -47,6 +47,10 @@ const generarReciboPDF = ({
   // Si no se pasa, se carga (con caché) desde /api/recibo-config.
   config = null,
 
+  // ✅ Datos de la tienda emisora (multi-tienda): { nombre, direccion, rtn, telefono }.
+  // Si viene, su nombre/dirección/RTN/teléfono reemplazan al encabezado global.
+  tienda = null,
+
   // ✅ "factura" (con CAI) | "recibo" (sin CAI)
   tipo = "factura",
 
@@ -310,17 +314,33 @@ const generarReciboPDF = ({
     });
     posY += 1;
 
+    // Multi-tienda: si viene una tienda, su nombre/dirección/RTN/teléfono
+    // reemplazan al encabezado global (sucursal/RTN/teléfono de la config).
+    const t = tienda && typeof tienda === "object" ? tienda : null;
+    const encSucursal = t?.nombre || cfg.sucursal;
+    const encDireccion = t?.direccion || "";
+    const encRtn = t?.rtn || cfg.rtn;
+    const encTelefono = t?.telefono || cfg.telefono;
+
     doc.setFont("helvetica", "normal").setFontSize(9);
-    if (cfg.sucursal) {
-      doc.text(String(cfg.sucursal), X_CENTRO, posY, { align: "center" });
+    if (encSucursal) {
+      doc.text(String(encSucursal), X_CENTRO, posY, { align: "center" });
       posY += 4;
     }
-    if (cfg.rtn) {
-      doc.text(`RTN: ${cfg.rtn}`, X_CENTRO, posY, { align: "center" });
+    if (encDireccion) {
+      doc
+        .splitTextToSize(String(encDireccion), ANCHO_MM - MARGEN * 2)
+        .forEach((ln) => {
+          doc.text(ln, X_CENTRO, posY, { align: "center" });
+          posY += 4;
+        });
+    }
+    if (encRtn) {
+      doc.text(`RTN: ${encRtn}`, X_CENTRO, posY, { align: "center" });
       posY += 4;
     }
-    if (cfg.telefono) {
-      doc.text(`Tel: ${cfg.telefono}`, X_CENTRO, posY, { align: "center" });
+    if (encTelefono) {
+      doc.text(`Tel: ${encTelefono}`, X_CENTRO, posY, { align: "center" });
       posY += 4;
     }
 

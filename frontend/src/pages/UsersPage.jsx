@@ -8,12 +8,21 @@ import { ROL_LABEL } from "../config/modulos";
 export default function UsersPage() {
   const { user } = useUser();
   const [usuarios, setUsuarios] = useState([]);
+  const [tiendas, setTiendas] = useState([]);
   const [form, setForm] = useState({
     nombre: "",
     email: "",
     password: "",
     rol: "almacen",
+    tienda_id: "",
   });
+  const FORM_VACIO = {
+    nombre: "",
+    email: "",
+    password: "",
+    rol: "almacen",
+    tienda_id: "",
+  };
   const [editUser, setEditUser] = useState(null);
 
   // Modal de confirmación eliminar
@@ -45,6 +54,10 @@ export default function UsersPage() {
 
   useEffect(() => {
     cargarUsuarios();
+    api
+      .get("/tiendas")
+      .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setTiendas([]));
   }, []);
 
   // Handlers
@@ -57,17 +70,19 @@ export default function UsersPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const tienda_id = form.tienda_id ? Number(form.tienda_id) : null;
       if (editUser) {
         await api.put(`/usuarios/${editUser.id}`, {
           nombre: form.nombre,
           email: form.email,
           rol: form.rol,
+          tienda_id,
         });
         setEditUser(null);
       } else {
-        await api.post("/usuarios", form);
+        await api.post("/usuarios", { ...form, tienda_id });
       }
-      setForm({ nombre: "", email: "", password: "", rol: "almacen" });
+      setForm(FORM_VACIO);
       cargarUsuarios();
       showModal({
         type: "success",
@@ -92,6 +107,7 @@ export default function UsersPage() {
       email: u.email,
       password: "",
       rol: u.rol,
+      tienda_id: u.tienda_id ? String(u.tienda_id) : "",
     });
   };
 
@@ -283,6 +299,24 @@ export default function UsersPage() {
               <option value="cajero">Cajero</option>
             </select>
           </div>
+          {tiendas.length > 0 && (
+            <div className="col-md-2 col-6">
+              <select
+                className="form-select"
+                name="tienda_id"
+                value={form.tienda_id}
+                onChange={handleChange}
+                title="Tienda a la que pertenece el usuario"
+              >
+                <option value="">Sin tienda</option>
+                {tiendas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="col-md-1 col-6 mx-1">
             <button type="submit" className="btn btn-success w-150">
               {editUser ? "Actualizar" : "Agregar"}
@@ -295,12 +329,7 @@ export default function UsersPage() {
                 type="button"
                 onClick={() => {
                   setEditUser(null);
-                  setForm({
-                    nombre: "",
-                    email: "",
-                    password: "",
-                    rol: "almacen",
-                  });
+                  setForm(FORM_VACIO);
                 }}
               >
                 Cancelar
@@ -313,8 +342,8 @@ export default function UsersPage() {
       <div
         className="bg-white shadow-sm rounded mb-4"
         style={{
-          maxHeight: "400px",
-          height: "300px", // 🔽 Altura fija para scroll vertical
+          maxHeight: "calc(100vh - 320px)",
+          minHeight: "240px",
           overflowY: "auto",
           overflowX: "auto", // 🔁 Scroll horizontal para móviles
           border: "1px solid #dee2e6", // 🧱 Borde visual
@@ -329,6 +358,7 @@ export default function UsersPage() {
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th>Tienda</th>
               <th>Estado</th>
               <th>Creado en</th>
               <th style={{ width: 210 }}>Acciones</th>
@@ -353,6 +383,7 @@ export default function UsersPage() {
                       {ROL_LABEL[u.rol] || u.rol}
                     </span>
                   </td>
+                  <td>{u.tienda_nombre || <span className="text-muted">—</span>}</td>
                   <td>
                     <span
                       className={`badge bg-${u.activo ? "success" : "secondary"}`}
@@ -405,7 +436,7 @@ export default function UsersPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center text-muted">
+                <td colSpan={7} className="text-center text-muted">
                   No hay usuarios
                 </td>
               </tr>

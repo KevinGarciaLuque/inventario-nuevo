@@ -43,4 +43,9 @@ export const ROL_LABEL = {
 
 // Módulos que siempre están disponibles para un rol (no filtrables)
 // "permisos" solo lo ve el superadmin.
-export const MODULOS_SUPERADMIN = [...MODULO_KEYS, "permisos"];
+export const MODULOS_SUPERADMIN = [
+  ...MODULO_KEYS,
+  "permisos",
+  "tiendas",
+  "recibo-config",
+];

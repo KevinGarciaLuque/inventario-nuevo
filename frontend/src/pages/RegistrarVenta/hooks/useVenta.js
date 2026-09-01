@@ -124,6 +124,106 @@ export default function useVenta({ user, pedidoInicial = null, onPedidoCobrado =
   };
 
   // =======================
+  // ✅ VENTAS EN ESPERA (aparcar / recuperar sin registrar)
+  // =======================
+  const DEFAULT_VENTA = {
+    metodo_pago: "efectivo",
+    efectivo: 0,
+    cambio: 0,
+    monto_tarjeta: 0,
+    cliente_nombre: "",
+    cliente_rtn: "",
+    cliente_telefono: "",
+    cliente_direccion: "",
+  };
+
+  const ESPERA_KEY = `ventasEnEspera:${user?.id || "anon"}`;
+
+  const [ventasEnEspera, setVentasEnEspera] = useState(() => {
+    try {
+      const raw = localStorage.getItem(ESPERA_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ESPERA_KEY, JSON.stringify(ventasEnEspera));
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }, [ventasEnEspera, ESPERA_KEY]);
+
+  const snapshotVentaActual = () => ({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    ts: new Date().toISOString(),
+    items: carrito.reduce((a, it) => a + Number(it.cantidad || 0), 0),
+    lineas: carrito.length,
+    total: round2(totalConDescCliente || total || 0),
+    clienteNombre: venta?.cliente_nombre || "",
+    estado: {
+      carrito,
+      venta,
+      tipoCliente,
+      descuentoSeleccionadoId,
+      usarRTN,
+      pedidoId,
+    },
+  });
+
+  const limpiarVentaActual = () => {
+    setCarrito([]);
+    setVenta(DEFAULT_VENTA);
+    setTipoCliente("");
+    setDescuentoSeleccionadoId("");
+    setUsarRTN(false);
+    setPedidoId(null);
+    setFormularioCliente({ nombre: "", rtn: "", telefono: "", direccion: "" });
+    limpiarInputBuscar();
+    setResetPagoTrigger((p) => p + 1);
+  };
+
+  const guardarVentaEnEspera = () => {
+    if (!carrito.length) {
+      mostrarToast("El carrito está vacío");
+      return;
+    }
+    setVentasEnEspera((p) => [snapshotVentaActual(), ...p]);
+    limpiarVentaActual();
+    mostrarToast("Venta guardada en espera");
+  };
+
+  const recuperarVentaEnEspera = (id) => {
+    const snap = ventasEnEspera.find((s) => s.id === id);
+    if (!snap) return;
+
+    // Si hay una venta en curso, se aparca para no perderla
+    const aparcarActual = carrito.length ? [snapshotVentaActual()] : [];
+    setVentasEnEspera((p) => [
+      ...aparcarActual,
+      ...p.filter((s) => s.id !== id),
+    ]);
+
+    const e = snap.estado || {};
+    setCarrito(Array.isArray(e.carrito) ? e.carrito : []);
+    setVenta(e.venta || DEFAULT_VENTA);
+    setTipoCliente(e.tipoCliente || "");
+    setDescuentoSeleccionadoId(e.descuentoSeleccionadoId || "");
+    setUsarRTN(!!e.usarRTN);
+    setPedidoId(e.pedidoId || null);
+    setResetPagoTrigger((p) => p + 1);
+    mostrarToast("Venta recuperada");
+  };
+
+  const descartarVentaEnEspera = (id) => {
+    setVentasEnEspera((p) => p.filter((s) => s.id !== id));
+    mostrarToast("Venta en espera descartada");
+  };
+
+  // =======================
   // HELPERS
   // =======================
   const mostrarToast = (message) => {
@@ -824,6 +924,9 @@ function getTasaItem(item) {
       numeroFactura: data?.numeroFactura || data?.numero_factura || "",
       tipo: data?.tipo || "factura",
 
+      // encabezado de la tienda que emitió (multi-tienda)
+      tienda: data?.tienda || null,
+
       // detalle
       carrito: Array.isArray(carrito) ? carrito : [],
 
@@ -1019,6 +1122,12 @@ function getTasaItem(item) {
     setFeedbackModal,
     // toast
     toast,
+
+    // ventas en espera
+    ventasEnEspera,
+    guardarVentaEnEspera,
+    recuperarVentaEnEspera,
+    descartarVentaEnEspera,
   };
 }
 

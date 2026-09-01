@@ -5,6 +5,7 @@ import { useUser } from "../../context/UserContext";
 import useVenta from "./hooks/useVenta";
 
 import VentasHeader from "./components/VentasHeader";
+import VentasEnEspera from "./components/VentasEnEspera";
 import ClientesSection from "./components/ClientesSection";
 import BuscadorProducto from "./components/BuscadorProducto";
 import CarritoVenta from "./components/CarritoVenta";
@@ -111,6 +112,14 @@ export default function RegistrarVentaPage({
         setUsarRTN={v.setUsarRTN}
         refreshCaiTrigger={v.refreshCaiTrigger}
         emitirConCai={v.emitirConCai}
+      />
+
+      <VentasEnEspera
+        ventasEnEspera={v.ventasEnEspera}
+        hayCarrito={v.carrito.length > 0}
+        onGuardar={v.guardarVentaEnEspera}
+        onRecuperar={v.recuperarVentaEnEspera}
+        onDescartar={v.descartarVentaEnEspera}
       />
 
       <ClientesSection

@@ -34,7 +34,7 @@ router.get("/me", auth, async (req, res) => {
     }
 
     const [rows] = await db.query(
-      "SELECT id, nombre, email, rol, activo, creado_en FROM usuarios WHERE id = ?",
+      "SELECT id, nombre, email, rol, activo, creado_en, tienda_id FROM usuarios WHERE id = ?",
       [req.user.id]
     );
 
@@ -58,7 +58,11 @@ router.get("/", auth, async (req, res) => {
     if (!SOLO_ADMIN(req, res)) return;
 
     const [rows] = await db.query(
-      "SELECT id, nombre, email, rol, activo, creado_en FROM usuarios ORDER BY creado_en DESC"
+      `SELECT u.id, u.nombre, u.email, u.rol, u.activo, u.creado_en, u.tienda_id,
+              t.nombre AS tienda_nombre
+         FROM usuarios u
+         LEFT JOIN tiendas t ON t.id = u.tienda_id
+        ORDER BY u.creado_en DESC`
     );
 
     return res.json(rows);
@@ -77,6 +81,7 @@ router.post("/", auth, async (req, res) => {
     if (!SOLO_ADMIN(req, res)) return;
 
     const { nombre, email, password, rol } = req.body || {};
+    const tienda_id = req.body?.tienda_id ? Number(req.body.tienda_id) : null;
 
     if (!nombre || !email || !password || !rol) {
       return res
@@ -109,8 +114,8 @@ router.post("/", auth, async (req, res) => {
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
     await db.query(
-      "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)",
-      [String(nombre).trim(), correo, hashedPassword, rol]
+      "INSERT INTO usuarios (nombre, email, password, rol, tienda_id) VALUES (?, ?, ?, ?, ?)",
+      [String(nombre).trim(), correo, hashedPassword, rol, tienda_id]
     );
 
     return res.status(201).json({ message: "Usuario creado correctamente" });
@@ -130,6 +135,7 @@ router.put("/:id", auth, async (req, res) => {
 
     const { id } = req.params;
     const { nombre, email, rol } = req.body || {};
+    const tienda_id = req.body?.tienda_id ? Number(req.body.tienda_id) : null;
 
     if (!id || isNaN(Number(id))) {
       return res.status(400).json({ message: "ID inválido" });
@@ -175,8 +181,8 @@ router.put("/:id", auth, async (req, res) => {
     }
 
     const [result] = await db.query(
-      "UPDATE usuarios SET nombre=?, email=?, rol=? WHERE id=?",
-      [String(nombre).trim(), correo, rol, Number(id)]
+      "UPDATE usuarios SET nombre=?, email=?, rol=?, tienda_id=? WHERE id=?",
+      [String(nombre).trim(), correo, rol, tienda_id, Number(id)]
     );
 
     if (result.affectedRows === 0) {

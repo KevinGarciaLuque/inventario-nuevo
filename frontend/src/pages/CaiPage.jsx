@@ -8,6 +8,7 @@ export default function CaiPage() {
   const { user } = useUser();
   const esSuperadmin = user?.rol === "superadmin";
   const [caiList, setCaiList] = useState([]);
+  const [tiendas, setTiendas] = useState([]);
   const [modal, setModal] = useState({ show: false, type: "", message: "" });
   const [caiAEliminar, setCaiAEliminar] = useState(null);
   const [caiAForzar, setCaiAForzar] = useState(null);
@@ -21,6 +22,7 @@ export default function CaiPage() {
     correlativo_actual: 0,
     fecha_autorizacion: "",
     fecha_limite_emision: "",
+    tienda_id: "",
     activo: true,
   });
 
@@ -30,6 +32,10 @@ export default function CaiPage() {
   useEffect(() => {
     cargarCai();
     cargarConfig();
+    api
+      .get("/tiendas")
+      .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setTiendas([]));
   }, []);
 
   const cargarCai = async () => {
@@ -100,6 +106,7 @@ export default function CaiPage() {
         correlativo_actual: 0,
         fecha_autorizacion: "",
         fecha_limite_emision: "",
+        tienda_id: "",
         activo: true,
       });
       cargarCai();
@@ -299,6 +306,23 @@ export default function CaiPage() {
               onChange={handleChange}
             />
           </div>
+          {tiendas.length > 0 && (
+            <div className="col-md-3">
+              <Form.Label>Tienda</Form.Label>
+              <Form.Select
+                name="tienda_id"
+                value={nuevoCai.tienda_id}
+                onChange={handleChange}
+              >
+                <option value="">Global (todas)</option>
+                {tiendas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+          )}
           <div className="col-md-2 align-self-end">
             <Button type="submit" variant="success" className="w-100">
               Registrar CAI
@@ -327,6 +351,7 @@ export default function CaiPage() {
             <tr>
               <th>ID</th>
               <th>CAI</th>
+              <th>Tienda</th>
               <th>Rango</th>
               <th>Correlativo</th>
               <th>Estado</th>
@@ -338,6 +363,11 @@ export default function CaiPage() {
               <tr key={item.id}>
                 <td>{item.id}</td>
                 <td>{item.cai_codigo}</td>
+                <td>
+                  {item.tienda_nombre || (
+                    <span className="text-muted">Global</span>
+                  )}
+                </td>
                 <td>
                   {item.rango_inicio} - {item.rango_fin}
                 </td>

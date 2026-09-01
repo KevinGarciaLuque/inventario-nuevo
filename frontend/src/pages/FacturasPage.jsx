@@ -7,6 +7,8 @@ import generarReciboPDF from "../utils/generarReciboPDF";
 export default function FacturasPage() {
   const [facturas, setFacturas] = useState([]);
   const [busqueda, setBusqueda] = useState("");
+  const [tiendas, setTiendas] = useState([]);
+  const [tiendaFiltro, setTiendaFiltro] = useState("");
 
   // Vista previa
   const [showVista, setShowVista] = useState(false);
@@ -21,6 +23,10 @@ export default function FacturasPage() {
 
   useEffect(() => {
     cargarFacturas();
+    api
+      .get("/tiendas")
+      .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setTiendas([]));
   }, []);
 
   const cargarFacturas = async () => {
@@ -37,14 +43,16 @@ export default function FacturasPage() {
     const q = String(busqueda || "")
       .toLowerCase()
       .trim();
-    if (!q) return facturas;
+    const tid = tiendaFiltro ? Number(tiendaFiltro) : null;
 
     return facturas.filter((f) => {
+      if (tid && Number(f?.tienda_id) !== tid) return false;
+      if (!q) return true;
       const num = String(f?.numero_factura ?? "").toLowerCase();
       const cai = String(f?.cai_codigo ?? "").toLowerCase();
       return num.includes(q) || cai.includes(q);
     });
-  }, [facturas, busqueda]);
+  }, [facturas, busqueda, tiendaFiltro]);
 
   const totalItems = filtradas.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -54,7 +62,7 @@ export default function FacturasPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [busqueda, pageSize]);
+  }, [busqueda, pageSize, tiendaFiltro]);
 
   // ✅ Imprimir (COPIA) usando autoImprimir
   const manejarImpresion = async (factura) => {
@@ -99,6 +107,8 @@ export default function FacturasPage() {
         cambio: Number(datosFactura.cambio) || 0,
         montoTarjeta: Number(datosFactura.monto_tarjeta) || 0,
 
+        tienda: datosFactura.tienda || null,
+
         esCopia: true,
 
         // ✅ NUEVO: imprimir directo
@@ -132,22 +142,42 @@ export default function FacturasPage() {
     <div className="container py-4">
       <h2 className="mb-4 text-center">Facturas Emitidas</h2>
 
-      <InputGroup className="mb-3">
-        <Form.Control
-          placeholder="Buscar por número de factura o CAI..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-        />
-        <Button
-          variant="warning"
-          className="fw-bold d-flex align-items-center justify-content-center"
-          style={{ backgroundColor: "#FFC107", borderColor: "#FFC107" }}
-          onClick={() => setBusqueda("")}
-          title="Limpiar búsqueda"
-        >
-          <FaBroom className="me-2" /> Limpiar
-        </Button>
-      </InputGroup>
+      <div className="d-flex flex-wrap gap-2 mb-3">
+        <InputGroup className="flex-grow-1" style={{ minWidth: 220 }}>
+          <Form.Control
+            placeholder="Buscar por número de factura o CAI..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          <Button
+            variant="warning"
+            className="fw-bold d-flex align-items-center justify-content-center"
+            style={{ backgroundColor: "#FFC107", borderColor: "#FFC107" }}
+            onClick={() => {
+              setBusqueda("");
+              setTiendaFiltro("");
+            }}
+            title="Limpiar filtros"
+          >
+            <FaBroom className="me-2" /> Limpiar
+          </Button>
+        </InputGroup>
+
+        {tiendas.length > 0 && (
+          <Form.Select
+            style={{ maxWidth: 240 }}
+            value={tiendaFiltro}
+            onChange={(e) => setTiendaFiltro(e.target.value)}
+          >
+            <option value="">Todas las tiendas</option>
+            {tiendas.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
+              </option>
+            ))}
+          </Form.Select>
+        )}
+      </div>
 
       <div
         className="bg-white shadow-sm rounded mb-3"
@@ -171,6 +201,7 @@ export default function FacturasPage() {
               <th>#</th>
               <th>Tipo</th>
               <th>Número</th>
+              <th>Tienda</th>
               <th>CAI</th>
               <th>Fecha</th>
               <th>Total (ISV)</th>
@@ -181,7 +212,7 @@ export default function FacturasPage() {
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-muted py-4">
+                <td colSpan={8} className="text-center text-muted py-4">
                   No hay facturas para mostrar.
                 </td>
               </tr>
@@ -199,6 +230,7 @@ export default function FacturasPage() {
                     </span>
                   </td>
                   <td>{f.numero_factura}</td>
+                  <td>{f.tienda_nombre || <span className="text-muted">—</span>}</td>
                   <td>{f.cai_codigo || "-"}</td>
                   <td>
                     {f.fecha_emision

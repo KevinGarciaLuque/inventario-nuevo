@@ -150,6 +150,12 @@ export default function ReportsPage() {
   const [productos, setProductos] = useState([]);
   const [logoBase64, setLogoBase64] = useState(null);
 
+  // Ventas por tienda
+  const [tiendas, setTiendas] = useState([]);
+  const [ventasResumen, setVentasResumen] = useState({ porTienda: [], total: { num_ventas: 0, total: 0 } });
+  const [ventasFiltro, setVentasFiltro] = useState({ desde: "", hasta: "", tienda_id: "" });
+  const [ventasLoading, setVentasLoading] = useState(false);
+
   const [movimientos, setMovimientos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [productosFiltro, setProductosFiltro] = useState([]);
@@ -214,10 +220,32 @@ export default function ReportsPage() {
 
     api.get("/usuarios").then((res) => setUsuarios(res.data));
     api.get("/productos").then((res) => setProductosFiltro(res.data));
+    api
+      .get("/tiendas")
+      .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setTiendas([]));
     fetchResumen();
     cargarMovimientos();
+    cargarVentasResumen();
     // eslint-disable-next-line
   }, []);
+
+  const cargarVentasResumen = async (f = ventasFiltro) => {
+    setVentasLoading(true);
+    try {
+      const params = {};
+      if (f.desde) params.desde = f.desde;
+      if (f.hasta) params.hasta = f.hasta;
+      if (f.tienda_id) params.tienda_id = f.tienda_id;
+      const res = await api.get("/ventas/resumen", { params });
+      setVentasResumen(
+        res.data || { porTienda: [], total: { num_ventas: 0, total: 0 } },
+      );
+    } catch {
+      setVentasResumen({ porTienda: [], total: { num_ventas: 0, total: 0 } });
+    }
+    setVentasLoading(false);
+  };
 
   const cargarMovimientos = async () => {
     setMovLoading(true);
@@ -405,6 +433,146 @@ export default function ReportsPage() {
           <AnimatedCounter value={resumen.bajoStock} />
         </KpiCard>
       </div>
+
+      {/* ── VENTAS POR TIENDA ── */}
+      {tiendas.length > 0 && (
+        <motion.div
+          className="rp-card mb-4"
+          variants={fadeIn}
+          custom={4}
+          initial="hidden"
+          animate="visible"
+        >
+          <div className="rp-card__header mb-3">
+            <span className="rp-card__icon rp-icon--amber">
+              <i className="bi bi-shop" />
+            </span>
+            <span className="rp-card__title">Ventas por tienda</span>
+          </div>
+
+          <form
+            className="rp-filters row g-2 align-items-end mb-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              cargarVentasResumen();
+            }}
+          >
+            <div className="col-6 col-md-3">
+              <label className="rp-label">Desde</label>
+              <input
+                type="date"
+                className="rp-input"
+                value={ventasFiltro.desde}
+                onChange={(e) =>
+                  setVentasFiltro((f) => ({ ...f, desde: e.target.value }))
+                }
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label className="rp-label">Hasta</label>
+              <input
+                type="date"
+                className="rp-input"
+                value={ventasFiltro.hasta}
+                onChange={(e) =>
+                  setVentasFiltro((f) => ({ ...f, hasta: e.target.value }))
+                }
+              />
+            </div>
+            <div className="col-8 col-md-4">
+              <label className="rp-label">Tienda</label>
+              <select
+                className="rp-input"
+                value={ventasFiltro.tienda_id}
+                onChange={(e) =>
+                  setVentasFiltro((f) => ({ ...f, tienda_id: e.target.value }))
+                }
+              >
+                <option value="">Todas</option>
+                {tiendas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-4 col-md-2 d-flex gap-2">
+              <button className="rp-btn rp-btn--primary flex-fill" type="submit">
+                <FaSearch />
+              </button>
+              <button
+                className="rp-btn rp-btn--ghost flex-fill"
+                type="button"
+                onClick={() => {
+                  const v = { desde: "", hasta: "", tienda_id: "" };
+                  setVentasFiltro(v);
+                  cargarVentasResumen(v);
+                }}
+              >
+                <FaRedo />
+              </button>
+            </div>
+          </form>
+
+          <div className="rp-table-wrap" style={{ maxHeight: 240 }}>
+            <table className="rp-table" style={{ minWidth: 420 }}>
+              <thead>
+                <tr>
+                  <th>Tienda</th>
+                  <th className="text-center"># Ventas</th>
+                  <th className="text-end">Total (ISV)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ventasLoading ? (
+                  <tr>
+                    <td colSpan={3} className="text-center py-4">
+                      <span className="rp-spinner" />
+                    </td>
+                  </tr>
+                ) : ventasResumen.porTienda.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="text-center py-4 text-muted">
+                      Sin ventas en el rango seleccionado
+                    </td>
+                  </tr>
+                ) : (
+                  ventasResumen.porTienda.map((r) => (
+                    <tr key={r.tienda_id} className="rp-tr">
+                      <td className="fw-medium">{r.tienda_nombre}</td>
+                      <td className="text-center">{r.num_ventas}</td>
+                      <td className="text-end fw-bold">
+                        L{" "}
+                        {Number(r.total).toLocaleString("es-HN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {ventasResumen.porTienda.length > 0 && (
+                <tfoot>
+                  <tr className="rp-tr">
+                    <td className="fw-bold">Total</td>
+                    <td className="text-center fw-bold">
+                      {ventasResumen.total.num_ventas}
+                    </td>
+                    <td className="text-end fw-bold">
+                      L{" "}
+                      {Number(ventasResumen.total.total).toLocaleString("es-HN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── GRÁFICA ── */}
       <motion.div

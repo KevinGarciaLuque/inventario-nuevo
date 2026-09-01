@@ -6,7 +6,10 @@ const db = require("../db");
 router.get("/", async (req, res) => {
   try {
     const [cai] = await db.query(
-      "SELECT * FROM cai ORDER BY fecha_autorizacion DESC"
+      `SELECT c.*, t.nombre AS tienda_nombre
+         FROM cai c
+         LEFT JOIN tiendas t ON t.id = c.tienda_id
+        ORDER BY c.fecha_autorizacion DESC`
     );
     res.json(cai);
   } catch (error) {
@@ -29,17 +32,19 @@ router.post("/", async (req, res) => {
     fecha_limite_emision,
   } = req.body;
 
+  const tienda_id = req.body?.tienda_id ? Number(req.body.tienda_id) : null;
+
   try {
-    // Desactivar los demás
-    await db.query("UPDATE cai SET activo = 0");
+    // Desactivar los demás CAI de la MISMA tienda (o los globales si no se asignó)
+    await db.query("UPDATE cai SET activo = 0 WHERE tienda_id <=> ?", [tienda_id]);
 
     // Insertar nuevo activo
     await db.query(
       `INSERT INTO cai (
         cai_codigo, sucursal, punto_emision, tipo_documento,
         rango_inicio, rango_fin, correlativo_actual,
-        fecha_autorizacion, fecha_limite_emision, activo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        fecha_autorizacion, fecha_limite_emision, tienda_id, activo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         cai_codigo,
         sucursal,
@@ -50,6 +55,7 @@ router.post("/", async (req, res) => {
         correlativo_actual,
         fecha_autorizacion,
         fecha_limite_emision,
+        tienda_id,
       ]
     );
 
@@ -116,8 +122,15 @@ router.patch("/:id", async (req, res) => {
 
   try {
     if (activo === true || activo === 1 || activo === "1") {
-      // Desactivar los demás
-      await db.query("UPDATE cai SET activo = 0 WHERE id != ?", [id]);
+      // Desactivar los demás CAI de la misma tienda
+      const [[cur]] = await db.query(
+        "SELECT tienda_id FROM cai WHERE id = ? LIMIT 1",
+        [id],
+      );
+      await db.query(
+        "UPDATE cai SET activo = 0 WHERE id != ? AND tienda_id <=> ?",
+        [id, cur?.tienda_id ?? null],
+      );
     }
 
     await db.query("UPDATE cai SET activo = ? WHERE id = ?", [

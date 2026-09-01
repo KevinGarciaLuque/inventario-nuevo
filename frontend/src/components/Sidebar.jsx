@@ -22,6 +22,7 @@ import {
   FaGlobe,
   FaCog,
   FaUserShield,
+  FaStore,
 } from "react-icons/fa";
 import { MdSupportAgent } from "react-icons/md";
 
@@ -256,6 +257,7 @@ export default function Sidebar({
           ...sec,
           items: [
             ...sec.items,
+            { key: "tiendas", label: "Tiendas", icon: <FaStore /> },
             { key: "permisos", label: "Permisos", icon: <FaUserShield /> },
           ],
         };

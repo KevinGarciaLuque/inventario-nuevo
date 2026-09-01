@@ -36,13 +36,17 @@ router.get("/", requireRoles("admin", "cajero"), async (req, res) => {
     const hasta = toStr(req.query.hasta);
     const usuario_id_q = Number(req.query.usuario_id);
 
+    const tienda_id_q = Number(req.query.tienda_id);
+
     let sql = `
-      SELECT 
+      SELECT
         f.id,
         f.numero_factura,
         f.fecha_emision,
         f.total_factura,
         f.tipo,
+        f.tienda_id,
+        t.nombre AS tienda_nombre,
         v.usuario_id,
         u.nombre AS cajero,
         c.cai_codigo
@@ -50,9 +54,15 @@ router.get("/", requireRoles("admin", "cajero"), async (req, res) => {
       INNER JOIN ventas v ON v.id = f.venta_id
       INNER JOIN usuarios u ON u.id = v.usuario_id
       LEFT JOIN cai c ON c.id = f.cai_id
+      LEFT JOIN tiendas t ON t.id = f.tienda_id
       WHERE 1=1
     `;
     const params = [];
+
+    if (Number.isInteger(tienda_id_q) && tienda_id_q > 0) {
+      sql += " AND f.tienda_id = ? ";
+      params.push(tienda_id_q);
+    }
 
     // ✅ si es cajero, solo sus facturas
     if (rol === "cajero") {
@@ -109,11 +119,15 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
         v.id AS venta_id, v.usuario_id, v.metodo_pago, v.efectivo, v.cambio, v.monto_tarjeta,
         u.nombre AS cajero,
         c.cai_codigo, c.rango_inicio, c.rango_fin,
-        c.fecha_autorizacion, c.fecha_limite_emision
+        c.fecha_autorizacion, c.fecha_limite_emision,
+        f.tienda_id,
+        t.nombre AS tienda_nombre, t.direccion AS tienda_direccion,
+        t.rtn AS tienda_rtn, t.telefono AS tienda_telefono
       FROM facturas f
       JOIN ventas v ON f.venta_id = v.id
       JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN cai c ON f.cai_id = c.id
+      LEFT JOIN tiendas t ON t.id = f.tienda_id
       WHERE f.id = ?`,
       [facturaId]
     );
@@ -208,6 +222,15 @@ router.get("/:id", requireRoles("admin", "cajero"), async (req, res) => {
             fecha_limite_emision: factura.fecha_limite_emision,
           }
         : {},
+
+      tienda: factura.tienda_id
+        ? {
+            nombre: factura.tienda_nombre || "",
+            direccion: factura.tienda_direccion || "",
+            rtn: factura.tienda_rtn || "",
+            telefono: factura.tienda_telefono || "",
+          }
+        : null,
     });
   } catch (error) {
     console.error("Error al obtener detalle de factura:", error);

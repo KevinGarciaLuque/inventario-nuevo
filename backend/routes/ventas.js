@@ -341,6 +341,31 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     // ✅ Si la venta viene de un pedido web, validar que exista y esté "listo"
     const pedidoWebId = pedido_id != null ? Number(pedido_id) : null;
+
+    // =========================
+    // Multi-tienda: a qué tienda pertenece esta venta
+    //  - venta normal  -> tienda del usuario
+    //  - pedido web     -> tienda marcada como "atiende_web" (fallback: la del usuario)
+    //  Degrada a null si la migración multi-tienda aún no se aplicó.
+    // =========================
+    let tiendaId = null;
+    try {
+      const [uRows] = await connection.query(
+        "SELECT tienda_id FROM usuarios WHERE id = ?",
+        [usuario_id],
+      );
+      tiendaId = uRows[0]?.tienda_id ?? null;
+
+      if (pedidoWebId) {
+        const [wRows] = await connection.query(
+          "SELECT id FROM tiendas WHERE atiende_web = 1 AND activo = 1 LIMIT 1",
+        );
+        if (wRows.length) tiendaId = wRows[0].id;
+      }
+    } catch (e) {
+      if (e.code !== "ER_BAD_FIELD_ERROR" && e.code !== "ER_NO_SUCH_TABLE") throw e;
+      tiendaId = null;
+    }
     if (pedidoWebId) {
       const [pedRows] = await connection.query(
         "SELECT id, estado FROM pedidos_web WHERE id = ? LIMIT 1",
@@ -519,8 +544,11 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       const ids = Array.from(stockOps.keys());
       const placeholders = ids.map(() => "?").join(",");
 
+      // FOR UPDATE: bloquea estas filas hasta el commit para que dos ventas
+      // simultáneas (p. ej. dos tiendas / dos pestañas) no puedan pasar ambas
+      // la validación y dejar el stock en negativo.
       const [stocksRows] = await connection.query(
-        `SELECT id, nombre, stock FROM productos WHERE id IN (${placeholders})`,
+        `SELECT id, nombre, stock FROM productos WHERE id IN (${placeholders}) FOR UPDATE`,
         ids,
       );
 
@@ -635,14 +663,15 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     const [ventaResult] = await connection.query(
       `INSERT INTO ventas (
         total, impuesto, total_con_impuesto,
-        usuario_id, caja_id, metodo_pago, efectivo, cambio, monto_tarjeta
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        usuario_id, caja_id, tienda_id, metodo_pago, efectivo, cambio, monto_tarjeta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         subtotal, // "total" = subtotal sin impuesto (según tu diseño actual)
         impuesto,
         total_con_impuesto,
         usuario_id,
         caja_id,
+        tiendaId,
         mp,
         ventaEfectivo,
         ventaCambio,
@@ -700,10 +729,17 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     // 5) Actualizar stock
     // =========================
     for (const [pid, qty] of stockOps.entries()) {
-      await connection.query(
-        "UPDATE productos SET stock = stock - ? WHERE id = ?",
-        [qty, pid],
+      const [upd] = await connection.query(
+        "UPDATE productos SET stock = stock - ? WHERE id = ? AND stock >= ?",
+        [qty, pid, qty],
       );
+      // Si no actualizó ninguna fila, el stock cambió entre la validación y
+      // ahora (otra venta en paralelo). Se aborta toda la venta.
+      if (!upd || upd.affectedRows === 0) {
+        throw new Error(
+          "Stock insuficiente: otro usuario acaba de vender este producto. Vuelve a intentar la venta.",
+        );
+      }
     }
 
     // =========================
@@ -754,8 +790,13 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     let siguienteCai = null;
 
     if (emitirConCai) {
+      // Prefiere el CAI de la tienda; si no tiene, cae al CAI sin tienda asignada.
       const [caiRows] = await connection.query(
-        "SELECT * FROM cai WHERE activo = 1 LIMIT 1",
+        `SELECT * FROM cai
+          WHERE activo = 1 AND (tienda_id <=> ? OR tienda_id IS NULL)
+          ORDER BY (tienda_id IS NULL) ASC
+          LIMIT 1 FOR UPDATE`,
+        [tiendaId],
       );
       if (!caiRows.length) throw new Error("No hay CAI activo configurado");
 
@@ -771,16 +812,44 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       caiIdFk = cai.id;
     } else {
       tipoDocumento = "recibo";
-      const [recRows] = await connection.query(
-        "SELECT * FROM recibo_correlativo WHERE id = 1 FOR UPDATE",
-      );
-      const rec = recRows[0] || { prefijo: "REC", actual: 0 };
-      const siguienteRec = Number(rec.actual) + 1;
-      numeroFactura = `${rec.prefijo || "REC"}-${String(siguienteRec).padStart(8, "0")}`;
-      await connection.query(
-        "UPDATE recibo_correlativo SET actual = ? WHERE id = 1",
-        [siguienteRec],
-      );
+
+      if (tiendaId) {
+        // Correlativo propio de la tienda (una serie por local)
+        let [tcRows] = await connection.query(
+          "SELECT prefijo, actual FROM tienda_correlativo WHERE tienda_id = ? FOR UPDATE",
+          [tiendaId],
+        );
+        if (!tcRows.length) {
+          const [[base]] = await connection.query(
+            "SELECT prefijo FROM recibo_correlativo WHERE id = 1 LIMIT 1",
+          );
+          const prefijo = base?.prefijo || "REC";
+          await connection.query(
+            "INSERT INTO tienda_correlativo (tienda_id, prefijo, actual) VALUES (?, ?, 0)",
+            [tiendaId, prefijo],
+          );
+          tcRows = [{ prefijo, actual: 0 }];
+        }
+        const siguienteRec = Number(tcRows[0].actual) + 1;
+        // El nº lleva el id de tienda para ser único entre locales (índice único global)
+        numeroFactura = `${tcRows[0].prefijo || "REC"}${tiendaId}-${String(siguienteRec).padStart(8, "0")}`;
+        await connection.query(
+          "UPDATE tienda_correlativo SET actual = ? WHERE tienda_id = ?",
+          [siguienteRec, tiendaId],
+        );
+      } else {
+        // Sin tienda: serie global (comportamiento anterior)
+        const [recRows] = await connection.query(
+          "SELECT * FROM recibo_correlativo WHERE id = 1 FOR UPDATE",
+        );
+        const rec = recRows[0] || { prefijo: "REC", actual: 0 };
+        const siguienteRec = Number(rec.actual) + 1;
+        numeroFactura = `${rec.prefijo || "REC"}-${String(siguienteRec).padStart(8, "0")}`;
+        await connection.query(
+          "UPDATE recibo_correlativo SET actual = ? WHERE id = 1",
+          [siguienteRec],
+        );
+      }
     }
 
     // =========================
@@ -788,14 +857,15 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     // =========================
     const [facturaResult] = await connection.query(
       `INSERT INTO facturas (
-        numero_factura, venta_id, cai_id, tipo, total_factura,
+        numero_factura, venta_id, cai_id, tienda_id, tipo, total_factura,
         cliente_nombre, cliente_rtn, cliente_direccion,
         metodo_pago, efectivo, cambio, monto_tarjeta
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         numeroFactura,
         venta_id,
         caiIdFk,
+        tiendaId,
         tipoDocumento,
         total_con_impuesto,
         toStr(cliente_nombre),
@@ -840,6 +910,20 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
 
     await connection.commit();
 
+    // Datos de la tienda para el encabezado del recibo/factura
+    let tiendaData = null;
+    if (tiendaId) {
+      try {
+        const [tRows] = await db.query(
+          "SELECT nombre, direccion, rtn, telefono FROM tiendas WHERE id = ? LIMIT 1",
+          [tiendaId],
+        );
+        if (tRows.length) tiendaData = tRows[0];
+      } catch {
+        tiendaData = null;
+      }
+    }
+
     let alerta = null;
     if (emitirConCai) {
       const restantes = Number(cai.rango_fin) - siguienteCai;
@@ -860,6 +944,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
       alerta,
       descuentos_aplicados,
       total_descuento,
+      tienda: tiendaData,
     });
   } catch (error) {
     try {
@@ -869,6 +954,15 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
     console.error("❌ Error en registrar venta:", error.message);
 
     const msg = toStr(error.message);
+
+    // Colisión de número de documento (índice único). Con el bloqueo del CAI
+    // no debería ocurrir; si ocurre, es seguro reintentar la venta.
+    if (error.code === "ER_DUP_ENTRY" && msg.includes("numero_factura")) {
+      return res.status(409).json({
+        message:
+          "Otro cobro tomó ese número de documento en el mismo instante. Vuelve a intentar la venta.",
+      });
+    }
 
     if (msg.toLowerCase().includes("no hay caja abierta")) {
       return res.status(400).json({ message: msg });
@@ -899,6 +993,65 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
    - admin: todas
    - cajero: solo las suyas
 ===================================================== */
+/* =====================================================
+   ✅ Resumen de ventas por tienda (Dashboard) — solo admin
+   Filtros: ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&tienda_id=xx
+===================================================== */
+router.get("/resumen", requireRoles("admin"), async (req, res) => {
+  try {
+    const desde = toStr(req.query.desde);
+    const hasta = toStr(req.query.hasta);
+    const tid = Number(req.query.tienda_id);
+
+    let where = "WHERE 1=1";
+    const params = [];
+    if (desde) {
+      where += " AND DATE(v.fecha) >= ?";
+      params.push(desde);
+    }
+    if (hasta) {
+      where += " AND DATE(v.fecha) <= ?";
+      params.push(hasta);
+    }
+    if (Number.isInteger(tid) && tid > 0) {
+      where += " AND v.tienda_id = ?";
+      params.push(tid);
+    }
+
+    const [porTienda] = await db.query(
+      `SELECT
+         COALESCE(t.id, 0) AS tienda_id,
+         COALESCE(t.nombre, 'Sin tienda') AS tienda_nombre,
+         COUNT(*) AS num_ventas,
+         COALESCE(SUM(v.total_con_impuesto), 0) AS total
+       FROM ventas v
+       LEFT JOIN tiendas t ON t.id = v.tienda_id
+       ${where}
+       GROUP BY COALESCE(t.id, 0), COALESCE(t.nombre, 'Sin tienda')
+       ORDER BY total DESC`,
+      params,
+    );
+
+    const [[tot]] = await db.query(
+      `SELECT COUNT(*) AS num_ventas, COALESCE(SUM(v.total_con_impuesto), 0) AS total
+       FROM ventas v ${where}`,
+      params,
+    );
+
+    res.json({
+      porTienda: porTienda.map((r) => ({
+        ...r,
+        num_ventas: Number(r.num_ventas),
+        total: Number(r.total),
+      })),
+      total: { num_ventas: Number(tot.num_ventas), total: Number(tot.total) },
+    });
+  } catch (error) {
+    console.error("❌ Error en /ventas/resumen:", error.message);
+    res.status(500).json({ message: "Error al obtener el resumen de ventas" });
+  }
+});
+
 router.get("/", requireRoles("admin", "cajero"), async (req, res) => {
   try {
     const rol = req.user?.rol;
