@@ -4,6 +4,7 @@
 
 export const MODULOS = [
   { key: "dashboard", label: "Dashboard", grupo: "DASHBOARD" },
+  { key: "ventas-por-tienda", label: "Ventas por Tienda (Dashboard)", grupo: "DASHBOARD" },
   { key: "inventory", label: "Inventario", grupo: "INVENTARIO" },
   { key: "add-product", label: "Añadir Producto", grupo: "INVENTARIO" },
   { key: "ventas", label: "Registrar Venta", grupo: "REGISTRAR VENTAS" },

@@ -25,6 +25,7 @@ import {
 } from "react-icons/fa";
 import * as XLSX from "xlsx";
 import api from "../api/axios";
+import { useUser } from "../context/UserContext";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -140,6 +141,9 @@ function KpiCard({ icon, label, sublabel, value, gradient, delay, children }) {
 }
 
 export default function ReportsPage() {
+  const { puede } = useUser();
+  const verVentasPorTienda = puede("ventas-por-tienda");
+
   const [resumen, setResumen] = useState({
     productosUnicos: 0,
     totalStock: 0,
@@ -220,13 +224,15 @@ export default function ReportsPage() {
 
     api.get("/usuarios").then((res) => setUsuarios(res.data));
     api.get("/productos").then((res) => setProductosFiltro(res.data));
-    api
-      .get("/tiendas")
-      .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
-      .catch(() => setTiendas([]));
+    if (verVentasPorTienda) {
+      api
+        .get("/tiendas")
+        .then((res) => setTiendas(Array.isArray(res.data) ? res.data : []))
+        .catch(() => setTiendas([]));
+      cargarVentasResumen();
+    }
     fetchResumen();
     cargarMovimientos();
-    cargarVentasResumen();
     // eslint-disable-next-line
   }, []);
 
@@ -435,7 +441,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ── VENTAS POR TIENDA ── */}
-      {tiendas.length > 0 && (
+      {verVentasPorTienda && tiendas.length > 0 && (
         <motion.div
           className="rp-card mb-4"
           variants={fadeIn}

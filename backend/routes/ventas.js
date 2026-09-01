@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
+const { requierePermiso } = require("./permisos");
 
 const IVA_FACTOR = 1.15;
 
@@ -997,7 +998,7 @@ router.post("/", requireRoles("admin", "cajero"), async (req, res) => {
    ✅ Resumen de ventas por tienda (Dashboard) — solo admin
    Filtros: ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&tienda_id=xx
 ===================================================== */
-router.get("/resumen", requireRoles("admin"), async (req, res) => {
+router.get("/resumen", requierePermiso("ventas-por-tienda"), async (req, res) => {
   try {
     const desde = toStr(req.query.desde);
     const hasta = toStr(req.query.hasta);

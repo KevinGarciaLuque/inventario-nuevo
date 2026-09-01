@@ -5,6 +5,7 @@
 // Lista canónica de módulos (mismos keys que usa el Layout del frontend)
 const MODULOS = [
   { key: "dashboard", label: "Dashboard", grupo: "DASHBOARD" },
+  { key: "ventas-por-tienda", label: "Ventas por Tienda (Dashboard)", grupo: "DASHBOARD" },
   { key: "inventory", label: "Inventario", grupo: "INVENTARIO" },
   { key: "add-product", label: "Añadir Producto", grupo: "INVENTARIO" },
   { key: "ventas", label: "Registrar Venta", grupo: "REGISTRAR VENTAS" },
