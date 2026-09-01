@@ -155,25 +155,34 @@ export default function Navbar({ onLogout, onChangePage = () => {} }) {
           .nb-brand-desktop { display: none; }
 
           /* Deja espacio para el botón flotante del menú (FAB) */
-          .navbar-main { padding-left: 3.75rem !important; }
+          .navbar-main {
+            position: relative;
+            padding-left: 3.25rem !important;
+          }
 
           .nb-wrapper {
-            justify-content: space-between;
+            justify-content: flex-end;
             gap: 0.5rem;
             min-width: 0;
           }
+          /* Marca centrada en la barra, sin pegarse al menú hamburguesa */
           .nb-brand {
-            position: static;
-            transform: none;
-            flex: 1 1 auto;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            flex: 0 0 auto;
             min-width: 0;
+            max-width: calc(100% - 9rem);
             overflow: hidden;
+            pointer-events: none;
           }
           .nb-brand-mobile {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.45rem;
             min-width: 0;
+            width: 100%;
           }
           .nb-brand-mobile__text { min-width: 0; overflow: hidden; }
           .nb-brand-mobile__title,
