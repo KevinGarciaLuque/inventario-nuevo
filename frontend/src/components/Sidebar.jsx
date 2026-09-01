@@ -260,6 +260,19 @@ export default function Sidebar({
           ],
         };
       }
+      if (sec.title === "FACTURACIÓN" && user.rol === "superadmin") {
+        return {
+          ...sec,
+          items: [
+            ...sec.items,
+            {
+              key: "recibo-config",
+              label: "Config. Recibo/Factura",
+              icon: <FaCog />,
+            },
+          ],
+        };
+      }
       return sec;
     });
 

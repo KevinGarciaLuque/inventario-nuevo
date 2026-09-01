@@ -145,6 +145,7 @@ app.use("/api/movimientos", auth, require("./routes/movimientos"));
 app.use("/api/bitacora", auth, require("./routes/bitacora"));
 app.use("/api/upload", auth, require("./routes/upload"));
 app.use("/api/cai", auth, require("./routes/cai"));
+app.use("/api/recibo-config", auth, require("./routes/recibo_config"));
 app.use("/api/ventas", auth, require("./routes/ventas"));
 app.use("/api/pedidos", auth, require("./routes/pedidos"));
 app.use("/api/facturas", auth, require("./routes/facturas"));

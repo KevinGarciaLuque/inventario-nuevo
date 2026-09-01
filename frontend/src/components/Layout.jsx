@@ -6,6 +6,7 @@ import AddProductPage from "../pages/AddProduct/AddProductPage";
 import InventoryPage from "../pages/InventoryPage";
 
 import CaiPage from "../pages/CaiPage";
+import ReciboConfigPage from "../pages/ReciboConfig/ReciboConfigPage";
 import CategoriesPage from "../pages/CategoriesPage";
 import ClientesPage from "../pages/Clientes/ClientesPage";
 import ClientesWebPage from "../pages/ClientesWebPage";
@@ -216,6 +217,18 @@ export default function Layout({ onLogout }) {
       // ✅ Facturación
       case "cai":
         return <CaiPage />;
+
+      case "recibo-config":
+        return user?.rol === "superadmin" ? (
+          <ReciboConfigPage />
+        ) : (
+          <div className="text-center py-5">
+            <h5 className="mb-1">Acceso restringido</h5>
+            <p className="text-muted mb-0">
+              Solo el superadministrador puede acceder a este módulo.
+            </p>
+          </div>
+        );
 
       case "facturas":
         return <FacturasPage />;

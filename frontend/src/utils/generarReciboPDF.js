@@ -2,6 +2,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoImage from "../assets/logo.png";
+import { DEFAULT_RECIBO_CONFIG, getReciboConfig } from "./reciboConfig";
 
 /**
  * ✅ Recibo/Factura 80mm (ISV incluido en precios)
@@ -41,6 +42,10 @@ const generarReciboPDF = ({
 
   user,
   cai = {},
+
+  // ✅ Configuración de encabezado/logo/textos (recibo y factura).
+  // Si no se pasa, se carga (con caché) desde /api/recibo-config.
+  config = null,
 
   // ✅ "factura" (con CAI) | "recibo" (sin CAI)
   tipo = "factura",
@@ -187,9 +192,21 @@ const generarReciboPDF = ({
 
   const linea = (doc, y) => doc.line(X_IZQ, y, X_DER, y);
 
+  // ✅ Config de encabezado/textos (se resuelve antes de renderizar; ver más abajo).
+  let cfg = { ...DEFAULT_RECIBO_CONFIG, ...(config || {}) };
+
   // ✅ Tipo de documento
   const esFactura = String(tipo || "factura").toLowerCase() !== "recibo";
-  const TITULO_DOC = esFactura ? "FACTURA" : "RECIBO DE VENTA";
+
+  // ✅ Color de TODO el texto del documento (hex -> [r,g,b])
+  const hexToRgb = (hex) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return [0, 0, 0];
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const colorTexto = () =>
+    hexToRgb(esFactura ? cfg.factura_color : cfg.recibo_color);
 
   // ==========================
   // IMPRESIÓN DESDE WEB (print dialog auto)
@@ -254,33 +271,58 @@ const generarReciboPDF = ({
   const renderRecibo = (doc, conLogo) => {
     let posY = 8;
 
+    // ✅ Color global del texto y de las líneas/bordes
+    const [cr, cg, cb] = colorTexto();
+    doc.setTextColor(cr, cg, cb);
+    doc.setDrawColor(cr, cg, cb);
+
     // ===== LOGO (centrado y dentro de márgenes)
     if (conLogo) {
       try {
-        const logoW = 56;
-        const logoH = 26;
+        const MAX_W = 56;
+        const MAX_H = 30;
+        const nw = Number(conLogo.naturalWidth) || MAX_W;
+        const nh = Number(conLogo.naturalHeight) || MAX_H;
+        const escala = Math.min(MAX_W / nw, MAX_H / nh);
+        const logoW = nw * escala;
+        const logoH = nh * escala;
         const logoX = (ANCHO_MM - logoW) / 2;
-        doc.addImage(conLogo, "PNG", logoX, posY, logoW, logoH);
+        doc.addImage(conLogo, logoX, posY, logoW, logoH);
         posY += logoH + 6;
       } catch {
         posY += 2;
       }
     }
 
+    const TITULO_DOC = esFactura
+      ? cfg.factura_titulo || "FACTURA"
+      : cfg.recibo_titulo || "RECIBO DE VENTA";
+
     // ===== ENCABEZADO
     doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("Sistema", X_CENTRO, posY, { align: "center" });
-    posY += 5;
-    doc.text("Inventario", X_CENTRO, posY, { align: "center" });
-    posY += 6;
+    const nombreLineas = doc.splitTextToSize(
+      String(cfg.negocio_nombre || "").trim() || "Sistema Inventario",
+      ANCHO_MM - MARGEN * 2,
+    );
+    nombreLineas.forEach((ln) => {
+      doc.text(ln, X_CENTRO, posY, { align: "center" });
+      posY += 5;
+    });
+    posY += 1;
 
     doc.setFont("helvetica", "normal").setFontSize(9);
-    doc.text("Sucursal Tegucigalpa", X_CENTRO, posY, { align: "center" });
-    posY += 4;
-    doc.text("RTN: 0801-1900-10000", X_CENTRO, posY, { align: "center" });
-    posY += 4;
-    doc.text("Tel: (504) 9800-0000", X_CENTRO, posY, { align: "center" });
-    posY += 4;
+    if (cfg.sucursal) {
+      doc.text(String(cfg.sucursal), X_CENTRO, posY, { align: "center" });
+      posY += 4;
+    }
+    if (cfg.rtn) {
+      doc.text(`RTN: ${cfg.rtn}`, X_CENTRO, posY, { align: "center" });
+      posY += 4;
+    }
+    if (cfg.telefono) {
+      doc.text(`Tel: ${cfg.telefono}`, X_CENTRO, posY, { align: "center" });
+      posY += 4;
+    }
 
     linea(doc, posY);
     posY += 5;
@@ -309,18 +351,19 @@ const generarReciboPDF = ({
 
     if (!esFactura) {
       doc.setFont("helvetica", "normal").setFontSize(8);
-      doc.text("Documento no fiscal - no genera crédito fiscal", X_CENTRO, posY, {
-        align: "center",
-      });
+      doc.text(
+        cfg.recibo_leyenda || "Documento no fiscal - no genera crédito fiscal",
+        X_CENTRO,
+        posY,
+        { align: "center" },
+      );
       posY += 5;
       doc.setFontSize(9);
     }
 
     if (esCopia) {
       doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
       doc.text("COPIA", X_CENTRO, posY, { align: "center" });
-      doc.setTextColor(0, 0, 0);
       posY += 5;
     }
 
@@ -392,14 +435,16 @@ const generarReciboPDF = ({
         fontSize: 9,
         font: "helvetica",
 
-        textColor: 0,
+        textColor: [cr, cg, cb],
+        lineColor: [cr, cg, cb],
         halign: "center",
         cellPadding: 0.5,
         lineWidth: 0.1,
       },
       headStyles: {
-        fillColor: [0, 0, 0],
+        fillColor: [cr, cg, cb],
         textColor: 255,
+        lineColor: [cr, cg, cb],
         fontSize: 9,
         fontStyle: "bold",
         halign: "center",
@@ -586,28 +631,38 @@ const generarReciboPDF = ({
     posY += 8;
 
     // ===== PIE
-    doc.setFont("helvetica", "bold").setFontSize(12);
-    doc.text("*** GRACIAS POR SU COMPRA ***", X_CENTRO, posY, {
-      align: "center",
-    });
-    posY += 8;
+    const pieTxt = esFactura
+      ? cfg.factura_pie || "*** GRACIAS POR SU COMPRA ***"
+      : cfg.recibo_pie || "*** GRACIAS POR SU COMPRA ***";
+    const nota1 = esFactura ? cfg.factura_nota1 : cfg.recibo_nota1;
+    const nota2 = esFactura ? cfg.factura_nota2 : cfg.recibo_nota2;
 
-    doc.setFont("helvetica", "normal").setFontSize(9);
-    if (esFactura) {
-      doc.text("La factura es beneficio de todos.", X_CENTRO, posY, {
-        align: "center",
-      });
+    doc.setFont("helvetica", "bold").setFontSize(12);
+    doc.splitTextToSize(pieTxt, ANCHO_MM - MARGEN * 2).forEach((ln) => {
+      doc.text(ln, X_CENTRO, posY, { align: "center" });
       posY += 6;
-      doc.setFont("helvetica", "bold").setFontSize(12);
-      doc.text("EXÍJALA", X_CENTRO, posY, { align: "center" });
+    });
+    posY += 2;
+
+    if (esFactura) {
+      doc.setFont("helvetica", "normal").setFontSize(9);
+      if (nota1) {
+        doc.text(String(nota1), X_CENTRO, posY, { align: "center" });
+        posY += 6;
+      }
+      if (nota2) {
+        doc.setFont("helvetica", "bold").setFontSize(12);
+        doc.text(String(nota2), X_CENTRO, posY, { align: "center" });
+      }
     } else {
-      doc.text("Este documento NO es una factura.", X_CENTRO, posY, {
-        align: "center",
-      });
-      posY += 5;
-      doc.text("Si necesita factura, solicítela.", X_CENTRO, posY, {
-        align: "center",
-      });
+      doc.setFont("helvetica", "normal").setFontSize(9);
+      if (nota1) {
+        doc.text(String(nota1), X_CENTRO, posY, { align: "center" });
+        posY += 5;
+      }
+      if (nota2) {
+        doc.text(String(nota2), X_CENTRO, posY, { align: "center" });
+      }
     }
 
     // ✅ dejamos un “aire” final para que nunca se coma la última línea
@@ -664,16 +719,31 @@ const generarReciboPDF = ({
   };
 
   // ==========================
-  // CARGA LOGO con fallback
+  // RESOLVER CONFIG + CARGA LOGO con fallback
   // ==========================
-  const img = new Image();
-  img.src = logoImage;
+  const arrancar = (cfgResuelta) => {
+    cfg = { ...cfg, ...cfgResuelta, ...(config || {}) };
 
-  img.onload = () => generarConAlturaExacta(img);
-  img.onerror = () => {
-    console.warn("⚠️ No se pudo cargar el logo, generando recibo sin imagen.");
-    generarConAlturaExacta(null);
+    const fuenteLogo = String(cfg.logo_base64 || "").trim() || logoImage;
+
+    const img = new Image();
+    img.src = fuenteLogo;
+
+    img.onload = () => generarConAlturaExacta(img);
+    img.onerror = () => {
+      console.warn("⚠️ No se pudo cargar el logo, generando recibo sin imagen.");
+      generarConAlturaExacta(null);
+    };
   };
+
+  // Si ya me pasaron config completa (preview), no consulto la API.
+  if (config && Object.keys(config).length > 0) {
+    arrancar(config);
+  } else {
+    getReciboConfig()
+      .then(arrancar)
+      .catch(() => arrancar(DEFAULT_RECIBO_CONFIG));
+  }
 };
 
 // Convertidor a letras
