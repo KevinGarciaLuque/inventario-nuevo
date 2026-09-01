@@ -316,23 +316,30 @@ export default function Sidebar({
     if (match) setOpenSection(match.title);
   }, [currentPage, accordionSections]);
 
-  // ✅ Cuando se abre una sección, la lleva a la vista sin que el usuario
-  // tenga que buscarla con scroll
-  useEffect(() => {
-    if (!openSection) return;
-    const el = sectionRefs.current[openSection];
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [openSection]);
-
   const handleMenuClick = (key) => {
     onChangePage(key);
     if (window.innerWidth < 992) onToggle?.(false);
   };
 
   const toggleSection = (title) => {
-    setOpenSection((prev) => (prev === title ? null : title));
+    setOpenSection((prev) => {
+      const next = prev === title ? null : title;
+      // Solo al ABRIR (acción del usuario) y solo si la sección quedó fuera de
+      // vista: un acomodo mínimo, sin saltos bruscos.
+      if (next) {
+        requestAnimationFrame(() => {
+          const el = sectionRefs.current[title];
+          const nav = navRef.current;
+          if (!el || !nav) return;
+          const er = el.getBoundingClientRect();
+          const nr = nav.getBoundingClientRect();
+          if (er.top < nr.top || er.top > nr.bottom - 40) {
+            el.scrollIntoView({ block: "nearest" });
+          }
+        });
+      }
+      return next;
+    });
   };
 
   // Determina si una sección está abierta
@@ -560,20 +567,11 @@ export default function Sidebar({
         .sb-root {
           width: 100%;
           height: 100%;
-          min-height: 100vh;
+          min-height: 0; /* que llene su contenedor, sin desbordar hacia abajo */
           background: linear-gradient(180deg, #1a1d2e 0%, #12141f 100%);
           border-right: 1px solid rgba(255,193,7,0.12);
           overflow: hidden;
           position: relative;
-          /* Asegurar que el contenido respete las áreas seguras */
-          padding-bottom: env(safe-area-inset-bottom, 0px);
-        }
-        
-        /* En móviles con menús del navegador */
-        @media (max-width: 767px) {
-          .sb-root {
-            padding-bottom: 0;
-          }
         }
 
         /* ─── HEADER ────────────────────────────── */
@@ -740,24 +738,24 @@ export default function Sidebar({
           position: relative;
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.58rem 1rem 0.58rem 1.1rem;
-          margin: 0.1rem 0.5rem;
+          gap: 0.8rem;
+          min-height: 44px;
+          padding: 0.7rem 1rem 0.7rem 1.1rem;
+          margin: 0.22rem 0.5rem;
           border-radius: 10px;
           background: transparent;
-          color: rgba(255,255,255,0.68);
+          color: rgba(255,255,255,0.72);
           font-size: 0.955rem;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
           text-align: left;
           white-space: nowrap;
           overflow: hidden;
         }
         .sb-item:hover {
-          background: rgba(255,255,255,0.07);
+          background: rgba(255,255,255,0.08);
           color: #ffffff;
-          padding-left: 1.35rem;
         }
         .sb-item--active {
           background: color-mix(in srgb, var(--sec-accent, #ffc107) 18%, transparent);
@@ -767,7 +765,6 @@ export default function Sidebar({
         }
         .sb-item--active:hover {
           background: color-mix(in srgb, var(--sec-accent, #ffc107) 24%, transparent);
-          padding-left: 1.1rem;
         }
         .sb-item__icon {
           font-size: 0.95rem;
@@ -820,16 +817,17 @@ export default function Sidebar({
           align-items: center;
           gap: 0.6rem;
           width: 100%;
-          padding: 0.5rem 1rem 0.5rem 1.1rem;
+          min-height: 42px;
+          padding: 0.62rem 1rem 0.62rem 1.1rem;
           background: transparent;
           border: none;
-          color: rgba(255,255,255,0.42);
-          font-size: 0.72rem;
+          color: rgba(255,255,255,0.46);
+          font-size: 0.74rem;
           font-weight: 700;
-          letter-spacing: 0.13em;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: color 0.18s ease, background 0.18s ease;
         }
         .sb-section__header:hover {
           color: rgba(255,255,255,0.65);
@@ -866,35 +864,42 @@ export default function Sidebar({
           overflow: hidden;
           transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
         }
-        .sb-section__body--open { max-height: 600px; }
+        .sb-section__body--open { max-height: 720px; }
+
+        /* ─── MÓVIL: navegación más cómoda (áreas táctiles grandes) ── */
+        @media (max-width: 991px) {
+          .sb-nav { padding: 0.4rem 0 1rem; }
+          .sb-item {
+            min-height: 50px;
+            padding: 0.85rem 1rem;
+            margin: 0.28rem 0.55rem;
+            font-size: 1rem;
+            gap: 0.9rem;
+          }
+          .sb-item__icon { font-size: 1.05rem; }
+          .sb-section__header {
+            min-height: 48px;
+            padding: 0.8rem 1rem;
+            font-size: 0.8rem;
+          }
+          .sb-section__icon { font-size: 0.9rem; }
+          .sb-section__chevron { font-size: 0.72rem; }
+        }
 
         /* ─── FOOTER ────────────────────────────── */
         .sb-footer {
           flex-shrink: 0;
-          padding: 0.75rem 0.6rem;
-          padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+          margin-top: auto; /* siempre anclado al fondo del sidebar */
+          padding: 0.85rem 0.6rem 1.25rem;
           border-top: 1px solid rgba(255,255,255,0.07);
           background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%);
         }
-        
-        /* Tablets */
-        @media (min-width: 768px) and (max-width: 1024px) {
+
+        /* Móvil: el drawer usa 100dvh (ya descuenta la barra del navegador),
+           solo respetamos el área segura del notch/gestos. */
+        @media (max-width: 991px) {
           .sb-footer {
-            padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
-          }
-        }
-        
-        /* Móviles con menú inferior del navegador */
-        @media (max-width: 767px) {
-          .sb-footer {
-            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
-          }
-        }
-        
-        /* Dispositivos iOS con notch */
-        @supports (padding: max(0px)) {
-          .sb-footer {
-            padding-bottom: max(4.5rem, calc(4.5rem + env(safe-area-inset-bottom)));
+            padding-bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px));
           }
         }
         
